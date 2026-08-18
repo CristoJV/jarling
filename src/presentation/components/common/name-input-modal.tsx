@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { AnimatedBottomSheetModal } from '@/presentation/components/common/animated-bottom-sheet-modal';
+import { AnimatedCenteredModal } from '@/presentation/components/common/animated-centered-modal';
 import { SafeBottomSheet } from '@/presentation/components/common/safe-bottom-sheet';
 
 type NameInputModalProps = Readonly<{
@@ -12,6 +13,7 @@ type NameInputModalProps = Readonly<{
   onSubmit: (name: string) => Promise<void>;
   allowEmpty?: boolean;
   multiline?: boolean;
+  placement?: 'bottom' | 'center';
 }>;
 
 export function NameInputModal({
@@ -23,6 +25,7 @@ export function NameInputModal({
   onSubmit,
   allowEmpty = false,
   multiline = false,
+  placement = 'bottom',
 }: NameInputModalProps) {
   const [name, setName] = useState(initialValue);
   const [error, setError] = useState<string | null>(null);
@@ -47,52 +50,62 @@ export function NameInputModal({
     }
   }
 
-  return (
-    <AnimatedBottomSheetModal keyboardAvoiding onDismiss={onDismiss}>
-      <SafeBottomSheet style={styles.dialog}>
-        <Text style={styles.title}>{title}</Text>
-        <View style={styles.field}>
-          <Text style={styles.label}>{label}</Text>
-          <TextInput
-            accessibilityLabel={label}
-            autoCapitalize="sentences"
-            autoFocus
-            multiline={multiline}
-            onChangeText={setName}
-            onSubmitEditing={() => void submit()}
-            placeholderTextColor="#929a93"
-            returnKeyType={multiline ? 'default' : 'done'}
-            selectTextOnFocus={initialValue.length > 0}
-            style={[styles.input, multiline && styles.inputMultiline]}
-            value={name}
-          />
-        </View>
+  const content = (
+    <SafeBottomSheet
+      style={[styles.dialog, placement === 'center' && styles.dialogCentered]}
+    >
+      <Text style={styles.title}>{title}</Text>
+      <View style={styles.field}>
+        <Text style={styles.label}>{label}</Text>
+        <TextInput
+          accessibilityLabel={label}
+          autoCapitalize="sentences"
+          autoFocus
+          multiline={multiline}
+          onChangeText={setName}
+          onSubmitEditing={() => void submit()}
+          placeholderTextColor="#929a93"
+          returnKeyType={multiline ? 'default' : 'done'}
+          selectTextOnFocus={initialValue.length > 0}
+          style={[styles.input, multiline && styles.inputMultiline]}
+          value={name}
+        />
+      </View>
 
-        {error ? (
-          <Text accessibilityLiveRegion="polite" style={styles.error}>
-            {error}
+      {error ? (
+        <Text accessibilityLiveRegion="polite" style={styles.error}>
+          {error}
+        </Text>
+      ) : null}
+
+      <View style={styles.actions}>
+        <Pressable
+          disabled={submitting}
+          onPress={onDismiss}
+          style={styles.cancel}
+        >
+          <Text style={styles.cancelText}>Cancelar</Text>
+        </Pressable>
+        <Pressable
+          disabled={submitting}
+          onPress={() => void submit()}
+          style={[styles.submit, submitting && styles.disabled]}
+        >
+          <Text style={styles.submitText}>
+            {submitting ? 'Guardando…' : submitLabel}
           </Text>
-        ) : null}
+        </Pressable>
+      </View>
+    </SafeBottomSheet>
+  );
 
-        <View style={styles.actions}>
-          <Pressable
-            disabled={submitting}
-            onPress={onDismiss}
-            style={styles.cancel}
-          >
-            <Text style={styles.cancelText}>Cancelar</Text>
-          </Pressable>
-          <Pressable
-            disabled={submitting}
-            onPress={() => void submit()}
-            style={[styles.submit, submitting && styles.disabled]}
-          >
-            <Text style={styles.submitText}>
-              {submitting ? 'Guardando…' : submitLabel}
-            </Text>
-          </Pressable>
-        </View>
-      </SafeBottomSheet>
+  return placement === 'center' ? (
+    <AnimatedCenteredModal keyboardAvoiding onDismiss={onDismiss}>
+      {content}
+    </AnimatedCenteredModal>
+  ) : (
+    <AnimatedBottomSheetModal keyboardAvoiding onDismiss={onDismiss}>
+      {content}
     </AnimatedBottomSheetModal>
   );
 }
@@ -109,6 +122,7 @@ const styles = StyleSheet.create({
     gap: 20,
     alignSelf: 'center',
   },
+  dialogCentered: { borderRadius: 24 },
   inputMultiline: { minHeight: 110, paddingTop: 14, textAlignVertical: 'top' },
   title: {
     color: '#18201a',

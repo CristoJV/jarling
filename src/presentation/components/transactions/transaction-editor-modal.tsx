@@ -467,6 +467,7 @@ export function TransactionEditorModal({
             initialValue={memo}
             label="Memo"
             multiline
+            placement="center"
             onDismiss={() => setEditor(null)}
             onSubmit={async (value) => setMemo(value.trim())}
             submitLabel="Save Memo"

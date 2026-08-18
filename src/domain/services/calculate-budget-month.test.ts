@@ -134,11 +134,13 @@ describe('calculateBudgetMonth', () => {
         assigned: Money.fromCents(40_000),
         activity: Money.fromCents(-6_000),
         available: Money.fromCents(34_000),
+        spendingTransactions: [Money.fromCents(6_000)],
       }),
       expect.objectContaining({
         assigned: Money.fromCents(15_000),
         activity: Money.fromCents(-17_000),
         available: Money.fromCents(-2_000),
+        spendingTransactions: [Money.fromCents(17_000)],
       }),
     ]);
   });

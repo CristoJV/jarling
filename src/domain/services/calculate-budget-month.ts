@@ -11,6 +11,7 @@ export type BudgetCategoryValues = Readonly<{
   assigned: Money;
   activity: Money;
   available: Money;
+  spendingTransactions: readonly Money[];
 }>;
 
 export type BudgetGroupValues = Readonly<{
@@ -75,6 +76,9 @@ export function calculateBudgetMonth(
             const categoryTransactions = transactions.filter(
               (transaction) => transaction.categoryId === category.id,
             );
+            const currentMonthTransactions = categoryTransactions.filter(
+              (transaction) => transaction.date.slice(0, 7) === input.month,
+            );
 
             return {
               category,
@@ -87,15 +91,10 @@ export function calculateBudgetMonth(
                   ),
               ),
               activity: Money.fromCents(
-                categoryTransactions
-                  .filter(
-                    (transaction) =>
-                      transaction.date.slice(0, 7) === input.month,
-                  )
-                  .reduce(
-                    (sum, transaction) => sum + transaction.amount.cents,
-                    0,
-                  ),
+                currentMonthTransactions.reduce(
+                  (sum, transaction) => sum + transaction.amount.cents,
+                  0,
+                ),
               ),
               available: Money.fromCents(
                 categoryAllocations.reduce(
@@ -107,6 +106,11 @@ export function calculateBudgetMonth(
                     0,
                   ),
               ),
+              spendingTransactions: currentMonthTransactions
+                .filter((transaction) => transaction.amount.cents < 0)
+                .map((transaction) =>
+                  Money.fromCents(Math.abs(transaction.amount.cents)),
+                ),
             };
           }),
       })),

@@ -132,6 +132,14 @@ export function TransactionRow({
             }
             style={styles.amountArea}
           >
+            <Text
+              style={[
+                styles.amount,
+                transaction.amount.cents < 0 ? styles.expense : styles.income,
+              ]}
+            >
+              {formatMoney(transaction.amount)}
+            </Text>
             <MaterialCommunityIcons
               color={
                 transaction.status === 'reconciled'
@@ -149,14 +157,6 @@ export function TransactionRow({
               }
               size={18}
             />
-            <Text
-              style={[
-                styles.amount,
-                transaction.amount.cents < 0 ? styles.expense : styles.income,
-              ]}
-            >
-              {formatMoney(transaction.amount)}
-            </Text>
           </View>
         </Pressable>
       </Animated.View>

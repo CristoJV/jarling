@@ -13,11 +13,11 @@
 | 9     | Targets                                                             | Completada  |
 | 6     | Transfers                                                           | Completada  |
 | 7     | Reconciliation                                                      | Completada  |
-| 8     | Reports                                                             | Aplazada    |
+| 8     | Reports                                                             | Completada  |
 
-No implementar la fase 8 sin una nueva aprobación explícita. Scheduled
-Transactions, Payees como entidad persistida, sincronización y cloud quedan
-fuera de alcance. La siguiente fase está deliberadamente sin seleccionar.
+Scheduled Transactions, Payees como entidad persistida, sincronización y cloud
+quedan fuera de alcance. La siguiente fase está deliberadamente sin
+seleccionar.
 
 ## 2. Reglas que no pueden romperse
 
@@ -249,14 +249,21 @@ con importes incorrectos; no mueve dinero ni cambia por sí sola el presupuesto.
 - Las operaciones ya reconciliadas permanecen inmutables. No se necesita una
   migración porque el estado ya existía en el baseline SQLite.
 
-## 8. Fases aplazadas
+## 8. Fase 8 — Reports
 
-La fase restante no bloquea Transfers, Targets ni Reconciliation.
-
-### Fase 8 — Reports
+Estado: completada y validada automáticamente. Pendiente únicamente del smoke
+test de interacción en un dispositivo Android real.
 
 Informes derivados de transacciones y presupuesto, sin persistir agregados como
 fuente alternativa de verdad.
+
+- Spending Breakdown agrupa y ordena el gasto neto por categoría.
+- Income vs Spending compara seis meses y excluye saldos iniciales y
+  transferencias de los ingresos.
+- Net Worth incorpora cuentas de presupuesto y tracking, separando activos y
+  deuda.
+- Los cálculos viven en Domain, la carga en Application y las gráficas se
+  dibujan con componentes nativos, sin una dependencia de charts.
 
 ## 9. Protocolo de ejecución rápida
 

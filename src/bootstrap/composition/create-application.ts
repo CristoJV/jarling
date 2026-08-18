@@ -29,6 +29,7 @@ import { GetCategoryTargets } from '@/application/use-cases/targets/get-category
 import { SetCategoryTarget } from '@/application/use-cases/targets/set-category-target';
 import { CreateTransfer } from '@/application/use-cases/transfers/create-transfer';
 import { UpdateTransfer } from '@/application/use-cases/transfers/update-transfer';
+import { GetReports } from '@/application/use-cases/reports/get-reports';
 import { SQLiteUnitOfWork } from '@/infrastructure/persistence/sqlite/database/sqlite-unit-of-work';
 import { SQLiteAccountRepository } from '@/infrastructure/persistence/sqlite/repositories/sqlite-account-repository';
 import { SQLiteBudgetAllocationRepository } from '@/infrastructure/persistence/sqlite/repositories/sqlite-budget-allocation-repository';
@@ -157,6 +158,9 @@ export function createApplication(
         clock,
       ),
       update: new UpdateTransfer(accounts, transactions, unitOfWork, clock),
+    },
+    reports: {
+      get: new GetReports(accounts, categoryGroups, categories, transactions),
     },
     samples: {
       populate: new PopulateSampleData(

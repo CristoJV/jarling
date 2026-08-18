@@ -26,6 +26,7 @@ import type { GetCategoryTargets } from '@/application/use-cases/targets/get-cat
 import type { SetCategoryTarget } from '@/application/use-cases/targets/set-category-target';
 import type { CreateTransfer } from '@/application/use-cases/transfers/create-transfer';
 import type { UpdateTransfer } from '@/application/use-cases/transfers/update-transfer';
+import type { GetReports } from '@/application/use-cases/reports/get-reports';
 
 export type ApplicationServices = Readonly<{
   accounts: Readonly<{
@@ -66,6 +67,9 @@ export type ApplicationServices = Readonly<{
   transfers: Readonly<{
     create: Pick<CreateTransfer, 'execute'>;
     update: Pick<UpdateTransfer, 'execute'>;
+  }>;
+  reports: Readonly<{
+    get: Pick<GetReports, 'execute'>;
   }>;
   samples: Readonly<{
     populate: Pick<PopulateSampleData, 'execute'>;

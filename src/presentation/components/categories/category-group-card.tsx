@@ -6,6 +6,11 @@ import type { CategoryTarget } from '@/domain/entities/category-target';
 import type { BudgetCategoryValues } from '@/domain/services/calculate-budget-month';
 import type { TargetProgress } from '@/domain/services/calculate-target-progress';
 import { Money } from '@/domain/value-objects/money';
+import {
+  buildBudgetProgress,
+  type BudgetProgressBar,
+  type BudgetProgressTone,
+} from '@/presentation/utils/budget-progress';
 import { formatMoney } from '@/presentation/utils/money';
 
 type CategoryGroupCardProps = Readonly<{
@@ -77,7 +82,7 @@ export function CategoryGroupCard({
             const progress = progressByCategoryId.get(category.id);
             const status = categoryStatus(values, target, progress);
             const needsFunding =
-              values.activity.cents >= 0 &&
+              values.available.cents >= 0 &&
               (progress?.recommended.cents ?? 0) > 0;
 
             return (
@@ -130,7 +135,7 @@ export function CategoryGroupCard({
 
 type Status = Readonly<{
   label: string;
-  ratio: number;
+  bar: BudgetProgressBar;
   tone: 'positive' | 'warning' | 'negative';
 }>;
 
@@ -139,20 +144,25 @@ function categoryStatus(
   target?: CategoryTarget,
   progress?: TargetProgress,
 ): Status | null {
-  if (values.activity.cents < 0) {
-    const spent = Math.abs(values.activity.cents);
-    const funded = Math.max(0, values.available.cents + spent);
-    if (values.available.cents < 0) {
-      return {
-        label: `Overspent ${formatMoney(Money.fromCents(Math.abs(values.available.cents)))} of ${formatMoney(Money.fromCents(funded))}`,
-        ratio: 1,
-        tone: 'negative',
-      };
-    }
+  const spent = values.spendingTransactions.reduce(
+    (sum, amount) => sum + amount.cents,
+    0,
+  );
+  const funded = Math.max(0, values.available.cents + spent);
+  const underfunded =
+    values.available.cents >= 0 && (progress?.recommended.cents ?? 0) > 0;
+  const bar = buildBudgetProgress({
+    spendingCents: values.spendingTransactions.map((amount) => amount.cents),
+    availableCents: values.available.cents,
+    ...(progress ? { goalCents: progress.goal.cents } : {}),
+    underfunded,
+  });
+
+  if (values.available.cents < 0) {
     return {
-      label: `Spent ${formatMoney(Money.fromCents(spent))} of ${formatMoney(Money.fromCents(funded))}`,
-      ratio: funded === 0 ? 1 : Math.min(1, spent / funded),
-      tone: 'positive',
+      label: `Overspent ${formatMoney(Money.fromCents(spent))} of ${formatMoney(Money.fromCents(funded))}`,
+      bar,
+      tone: 'negative',
     };
   }
 
@@ -160,32 +170,62 @@ function categoryStatus(
     if (progress.recommended.cents > 0) {
       return {
         label: `${formatMoney(progress.recommended)} more needed this month`,
-        ratio: progress.progress,
+        bar,
         tone: progress.status === 'overdue' ? 'negative' : 'warning',
       };
     }
     return {
       label: `Funded ${formatMoney(Money.fromCents(Math.max(0, values.available.cents)))} of ${formatMoney(progress.goal)}`,
-      ratio: progress.progress,
+      bar,
       tone: progress.status === 'overdue' ? 'negative' : 'positive',
+    };
+  }
+
+  if (spent > 0) {
+    return {
+      label: `Spent ${formatMoney(Money.fromCents(spent))} of ${formatMoney(Money.fromCents(funded))}`,
+      bar,
+      tone: 'positive',
     };
   }
 
   return null;
 }
 
-function ProgressStatus({ label, ratio, tone }: Status) {
+function segmentStyle(tone: BudgetProgressTone) {
+  switch (tone) {
+    case 'available':
+      return styles.segmentAvailable;
+    case 'warningSpent':
+      return styles.segmentWarningSpent;
+    case 'warningAvailable':
+      return styles.segmentWarningAvailable;
+    case 'overspent':
+      return styles.segmentNegative;
+    default:
+      return styles.segmentSpent;
+  }
+}
+
+function ProgressStatus({ label, bar, tone }: Status) {
+  const usedCents = bar.segments.reduce(
+    (sum, segment) => sum + segment.cents,
+    0,
+  );
+  const emptyCents = Math.max(0, bar.totalCents - usedCents);
+
   return (
     <View style={styles.progressSection}>
       <View style={styles.track}>
-        <View
-          style={[
-            styles.progress,
-            tone === 'warning' && styles.progressWarning,
-            tone === 'negative' && styles.progressNegative,
-            { width: `${Math.round(Math.min(1, Math.max(0, ratio)) * 100)}%` },
-          ]}
-        />
+        {bar.segments.map((segment, index) => (
+          <View
+            key={`${segment.tone}-${index}`}
+            style={[styles.segmentSlot, { flex: segment.cents }]}
+          >
+            <View style={[styles.segment, segmentStyle(segment.tone)]} />
+          </View>
+        ))}
+        {emptyCents > 0 ? <View style={{ flex: emptyCents }} /> : null}
       </View>
       <Text
         style={[
@@ -291,10 +331,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#e2e7e2',
     borderRadius: 3,
     overflow: 'hidden',
+    flexDirection: 'row',
   },
-  progress: { height: '100%', backgroundColor: '#69a746', borderRadius: 3 },
-  progressWarning: { backgroundColor: '#e5b900' },
-  progressNegative: { backgroundColor: '#c43a43' },
+  segmentSlot: { height: '100%', paddingRight: 2 },
+  segment: { height: '100%', borderRadius: 3 },
+  segmentSpent: { backgroundColor: '#91c96b' },
+  segmentAvailable: { backgroundColor: '#4f9638' },
+  segmentWarningSpent: { backgroundColor: '#f5d96e' },
+  segmentWarningAvailable: { backgroundColor: '#d4a900' },
+  segmentNegative: { backgroundColor: '#c43a43' },
   progressLabel: { color: '#68736b', fontSize: 11, fontWeight: '600' },
   progressLabelWarning: { color: '#806200' },
   progressLabelNegative: { color: '#a42b35' },
