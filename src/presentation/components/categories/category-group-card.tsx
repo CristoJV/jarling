@@ -12,6 +12,14 @@ import {
   type BudgetProgressTone,
 } from '@/presentation/utils/budget-progress';
 import { formatMoney } from '@/presentation/utils/money';
+import { useTranslation } from '@/presentation/localization/localization-provider';
+import type { TranslationKey } from '@/presentation/localization/translations';
+import type { TranslationParams } from '@/presentation/localization/translator';
+import type { AppTheme } from '@/presentation/theme/theme';
+import {
+  useAppTheme,
+  useThemedStyles,
+} from '@/presentation/theme/theme-provider';
 
 type CategoryGroupCardProps = Readonly<{
   summary: CategoryGroupSummary;
@@ -28,6 +36,9 @@ export function CategoryGroupCard({
   progressByCategoryId,
   onSelectCategory,
 }: CategoryGroupCardProps) {
+  const { t } = useTranslation();
+  const theme = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   const [expanded, setExpanded] = useState(true);
   const visibleCategories = summary.categories.filter(
     (category) => !category.hidden,
@@ -44,27 +55,48 @@ export function CategoryGroupCard({
   );
 
   return (
-    <View style={styles.card}>
+    <View
+      style={[
+        styles.card,
+        {
+          backgroundColor: theme.colors.surface,
+          borderColor: theme.colors.border,
+        },
+      ]}
+    >
       <Pressable
         accessibilityRole="button"
         accessibilityState={{ expanded }}
         onPress={() => setExpanded((current) => !current)}
-        style={styles.groupHeader}
+        style={[
+          styles.groupHeader,
+          { backgroundColor: theme.colors.surfaceMuted },
+        ]}
       >
         <View style={styles.groupCopy}>
           <Text
-            style={[styles.disclosure, expanded && styles.disclosureExpanded]}
+            style={[
+              styles.disclosure,
+              { color: theme.colors.primary },
+              expanded && styles.disclosureExpanded,
+            ]}
           >
             ›
           </Text>
-          <Text numberOfLines={1} style={styles.groupName}>
+          <Text
+            numberOfLines={1}
+            style={[styles.groupName, { color: theme.colors.text }]}
+          >
             {summary.group.name}
           </Text>
         </View>
         <View style={styles.groupTotals}>
-          <SummaryValue label="Assigned" value={formatMoney(totalAssigned)} />
           <SummaryValue
-            label="Available"
+            label={t('budget.assigned')}
+            value={formatMoney(totalAssigned)}
+          />
+          <SummaryValue
+            label={t('budget.available')}
             value={formatMoney(totalAvailable)}
             strong
           />
@@ -73,14 +105,16 @@ export function CategoryGroupCard({
 
       {expanded ? (
         visibleCategories.length === 0 ? (
-          <Text style={styles.empty}>No visible categories</Text>
+          <Text style={[styles.empty, { color: theme.colors.textMuted }]}>
+            {t('budget.noVisibleCategories')}
+          </Text>
         ) : (
           visibleCategories.map((category) => {
             const values = valuesByCategoryId.get(category.id);
             if (!values) return null;
             const target = targetsByCategoryId.get(category.id);
             const progress = progressByCategoryId.get(category.id);
-            const status = categoryStatus(values, target, progress);
+            const status = categoryStatus(values, target, progress, t);
             const needsFunding =
               values.available.cents >= 0 &&
               (progress?.recommended.cents ?? 0) > 0;
@@ -91,31 +125,53 @@ export function CategoryGroupCard({
                 onPress={() => onSelectCategory(values)}
                 style={({ pressed }) => [
                   styles.categoryRow,
+                  { borderTopColor: theme.colors.border },
                   pressed && styles.categoryRowPressed,
+                  pressed && { backgroundColor: theme.colors.surfacePressed },
                 ]}
               >
                 <View style={styles.rowTop}>
-                  <Text numberOfLines={1} style={styles.categoryName}>
+                  <Text
+                    numberOfLines={1}
+                    style={[styles.categoryName, { color: theme.colors.text }]}
+                  >
                     {category.name}
                   </Text>
                   <View style={styles.budgetValues}>
-                    <Text style={styles.assigned}>
+                    <Text
+                      style={[
+                        styles.assigned,
+                        { color: theme.colors.textSecondary },
+                      ]}
+                    >
                       {formatMoney(values.assigned)}
                     </Text>
                     <View
                       style={[
                         styles.availablePill,
+                        { backgroundColor: theme.colors.positiveMuted },
                         needsFunding && styles.availablePillWarning,
+                        needsFunding && {
+                          backgroundColor: theme.colors.warningMuted,
+                        },
                         values.available.cents < 0 &&
                           styles.availablePillNegative,
+                        values.available.cents < 0 && {
+                          backgroundColor: theme.colors.negativeMuted,
+                        },
                       ]}
                     >
                       <Text
                         style={[
                           styles.available,
+                          { color: theme.colors.positive },
                           needsFunding && styles.availableWarning,
+                          needsFunding && { color: theme.colors.warning },
                           values.available.cents < 0 &&
                             styles.availableNegative,
+                          values.available.cents < 0 && {
+                            color: theme.colors.negative,
+                          },
                         ]}
                       >
                         {formatMoney(values.available)}
@@ -143,6 +199,7 @@ function categoryStatus(
   values: BudgetCategoryValues,
   target?: CategoryTarget,
   progress?: TargetProgress,
+  t: (key: TranslationKey, params?: TranslationParams) => string = (key) => key,
 ): Status | null {
   const spent = values.spendingTransactions.reduce(
     (sum, amount) => sum + amount.cents,
@@ -160,7 +217,10 @@ function categoryStatus(
 
   if (values.available.cents < 0) {
     return {
-      label: `Overspent ${formatMoney(Money.fromCents(spent))} of ${formatMoney(Money.fromCents(funded))}`,
+      label: t('budget.overspent', {
+        spent: formatMoney(Money.fromCents(spent)),
+        funded: formatMoney(Money.fromCents(funded)),
+      }),
       bar,
       tone: 'negative',
     };
@@ -169,13 +229,20 @@ function categoryStatus(
   if (target && progress) {
     if (progress.recommended.cents > 0) {
       return {
-        label: `${formatMoney(progress.recommended)} more needed this month`,
+        label: t('budget.moreNeeded', {
+          amount: formatMoney(progress.recommended),
+        }),
         bar,
         tone: progress.status === 'overdue' ? 'negative' : 'warning',
       };
     }
     return {
-      label: `Funded ${formatMoney(Money.fromCents(Math.max(0, values.available.cents)))} of ${formatMoney(progress.goal)}`,
+      label: t('budget.funded', {
+        funded: formatMoney(
+          Money.fromCents(Math.max(0, values.available.cents)),
+        ),
+        goal: formatMoney(progress.goal),
+      }),
       bar,
       tone: progress.status === 'overdue' ? 'negative' : 'positive',
     };
@@ -183,7 +250,10 @@ function categoryStatus(
 
   if (spent > 0) {
     return {
-      label: `Spent ${formatMoney(Money.fromCents(spent))} of ${formatMoney(Money.fromCents(funded))}`,
+      label: t('budget.spent', {
+        spent: formatMoney(Money.fromCents(spent)),
+        funded: formatMoney(Money.fromCents(funded)),
+      }),
       bar,
       tone: 'positive',
     };
@@ -192,22 +262,24 @@ function categoryStatus(
   return null;
 }
 
-function segmentStyle(tone: BudgetProgressTone) {
+function segmentColor(tone: BudgetProgressTone, theme: AppTheme): string {
   switch (tone) {
     case 'available':
-      return styles.segmentAvailable;
+      return theme.colors.positive;
     case 'warningSpent':
-      return styles.segmentWarningSpent;
+      return theme.colors.warningMuted;
     case 'warningAvailable':
-      return styles.segmentWarningAvailable;
+      return theme.colors.warning;
     case 'overspent':
-      return styles.segmentNegative;
+      return theme.colors.negative;
     default:
-      return styles.segmentSpent;
+      return theme.colors.primary;
   }
 }
 
 function ProgressStatus({ label, bar, tone }: Status) {
+  const theme = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   const usedCents = bar.segments.reduce(
     (sum, segment) => sum + segment.cents,
     0,
@@ -216,13 +288,18 @@ function ProgressStatus({ label, bar, tone }: Status) {
 
   return (
     <View style={styles.progressSection}>
-      <View style={styles.track}>
+      <View style={[styles.track, { backgroundColor: theme.colors.track }]}>
         {bar.segments.map((segment, index) => (
           <View
             key={`${segment.tone}-${index}`}
             style={[styles.segmentSlot, { flex: segment.cents }]}
           >
-            <View style={[styles.segment, segmentStyle(segment.tone)]} />
+            <View
+              style={[
+                styles.segment,
+                { backgroundColor: segmentColor(segment.tone, theme) },
+              ]}
+            />
           </View>
         ))}
         {emptyCents > 0 ? <View style={{ flex: emptyCents }} /> : null}
@@ -230,8 +307,11 @@ function ProgressStatus({ label, bar, tone }: Status) {
       <Text
         style={[
           styles.progressLabel,
+          { color: theme.colors.textMuted },
           tone === 'warning' && styles.progressLabelWarning,
+          tone === 'warning' && { color: theme.colors.warning },
           tone === 'negative' && styles.progressLabelNegative,
+          tone === 'negative' && { color: theme.colors.negative },
         ]}
       >
         {label}
@@ -245,11 +325,21 @@ function SummaryValue({
   value,
   strong = false,
 }: Readonly<{ label: string; value: string; strong?: boolean }>) {
+  const theme = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   return (
     <View style={styles.summaryValue}>
-      <Text style={styles.summaryLabel}>{label}</Text>
+      <Text style={[styles.summaryLabel, { color: theme.colors.textMuted }]}>
+        {label}
+      </Text>
       <Text
-        style={[styles.summaryAmount, strong && styles.summaryAmountStrong]}
+        style={[
+          styles.summaryAmount,
+          {
+            color: strong ? theme.colors.positive : theme.colors.textSecondary,
+          },
+          strong && styles.summaryAmountStrong,
+        ]}
       >
         {value}
       </Text>
@@ -257,90 +347,109 @@ function SummaryValue({
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: '#ffffff',
-    borderColor: '#e1e5df',
-    borderRadius: 18,
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
-  groupHeader: {
-    minHeight: 68,
-    paddingHorizontal: 16,
-    backgroundColor: '#edf1ed',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
-  },
-  groupCopy: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  disclosure: { width: 18, color: '#315a3e', fontSize: 24, fontWeight: '700' },
-  disclosureExpanded: { transform: [{ rotate: '90deg' }] },
-  groupName: { flex: 1, color: '#243329', fontSize: 17, fontWeight: '800' },
-  groupTotals: { flexDirection: 'row', gap: 16 },
-  summaryValue: { alignItems: 'flex-end', gap: 2 },
-  summaryLabel: { color: '#77817a', fontSize: 9, fontWeight: '700' },
-  summaryAmount: {
-    color: '#48544c',
-    fontSize: 13,
-    fontVariant: ['tabular-nums'],
-    fontWeight: '600',
-  },
-  summaryAmountStrong: { color: '#1f5530', fontWeight: '800' },
-  empty: { padding: 18, color: '#737c74', fontSize: 14 },
-  categoryRow: {
-    minHeight: 68,
-    padding: 16,
-    borderTopColor: '#eceeea',
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
-  categoryRowPressed: { backgroundColor: '#f3f7f3' },
-  rowTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  categoryName: { flex: 1, color: '#2c352f', fontSize: 16, fontWeight: '500' },
-  budgetValues: { flexDirection: 'row', alignItems: 'center', gap: 13 },
-  assigned: {
-    minWidth: 72,
-    color: '#4f5a52',
-    fontSize: 14,
-    fontVariant: ['tabular-nums'],
-    fontWeight: '600',
-    textAlign: 'right',
-  },
-  availablePill: {
-    minWidth: 78,
-    paddingHorizontal: 9,
-    paddingVertical: 6,
-    backgroundColor: '#d8ebd9',
-    borderRadius: 16,
-  },
-  availablePillWarning: { backgroundColor: '#fff0b8' },
-  availablePillNegative: { backgroundColor: '#fde4df' },
-  available: {
-    color: '#256238',
-    fontSize: 14,
-    fontVariant: ['tabular-nums'],
-    fontWeight: '800',
-    textAlign: 'right',
-  },
-  availableWarning: { color: '#755600' },
-  availableNegative: { color: '#b42318' },
-  progressSection: { marginTop: 10, gap: 5 },
-  track: {
-    height: 6,
-    backgroundColor: '#e2e7e2',
-    borderRadius: 3,
-    overflow: 'hidden',
-    flexDirection: 'row',
-  },
-  segmentSlot: { height: '100%', paddingRight: 2 },
-  segment: { height: '100%', borderRadius: 3 },
-  segmentSpent: { backgroundColor: '#91c96b' },
-  segmentAvailable: { backgroundColor: '#4f9638' },
-  segmentWarningSpent: { backgroundColor: '#f5d96e' },
-  segmentWarningAvailable: { backgroundColor: '#d4a900' },
-  segmentNegative: { backgroundColor: '#c43a43' },
-  progressLabel: { color: '#68736b', fontSize: 11, fontWeight: '600' },
-  progressLabelWarning: { color: '#806200' },
-  progressLabelNegative: { color: '#a42b35' },
-});
+const createStyles = (theme: AppTheme) =>
+  StyleSheet.create({
+    card: {
+      backgroundColor: theme.colors.surface,
+      borderColor: theme.colors.border,
+      borderRadius: 18,
+      borderWidth: 1,
+      overflow: 'hidden',
+    },
+    groupHeader: {
+      minHeight: 68,
+      paddingHorizontal: 16,
+      backgroundColor: theme.colors.surfaceMuted,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 10,
+    },
+    groupCopy: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
+    disclosure: {
+      width: 18,
+      color: theme.colors.primary,
+      fontSize: 24,
+      fontWeight: '700',
+    },
+    disclosureExpanded: { transform: [{ rotate: '90deg' }] },
+    groupName: {
+      flex: 1,
+      color: theme.colors.text,
+      fontSize: 17,
+      fontWeight: '800',
+    },
+    groupTotals: { flexDirection: 'row', gap: 16 },
+    summaryValue: { alignItems: 'flex-end', gap: 2 },
+    summaryLabel: {
+      color: theme.colors.textMuted,
+      fontSize: 9,
+      fontWeight: '700',
+    },
+    summaryAmount: {
+      color: theme.colors.textSecondary,
+      fontSize: 13,
+      fontVariant: ['tabular-nums'],
+      fontWeight: '600',
+    },
+    summaryAmountStrong: { color: theme.colors.positive, fontWeight: '800' },
+    empty: { padding: 18, color: theme.colors.textMuted, fontSize: 14 },
+    categoryRow: {
+      minHeight: 68,
+      padding: 16,
+      borderTopColor: theme.colors.border,
+      borderTopWidth: StyleSheet.hairlineWidth,
+    },
+    categoryRowPressed: { backgroundColor: theme.colors.surfacePressed },
+    rowTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    categoryName: {
+      flex: 1,
+      color: theme.colors.text,
+      fontSize: 16,
+      fontWeight: '500',
+    },
+    budgetValues: { flexDirection: 'row', alignItems: 'center', gap: 13 },
+    assigned: {
+      minWidth: 72,
+      color: theme.colors.textSecondary,
+      fontSize: 14,
+      fontVariant: ['tabular-nums'],
+      fontWeight: '600',
+      textAlign: 'right',
+    },
+    availablePill: {
+      minWidth: 78,
+      paddingHorizontal: 9,
+      paddingVertical: 6,
+      backgroundColor: theme.colors.positiveMuted,
+      borderRadius: 16,
+    },
+    availablePillWarning: { backgroundColor: theme.colors.warningMuted },
+    availablePillNegative: { backgroundColor: theme.colors.negativeMuted },
+    available: {
+      color: theme.colors.positive,
+      fontSize: 14,
+      fontVariant: ['tabular-nums'],
+      fontWeight: '800',
+      textAlign: 'right',
+    },
+    availableWarning: { color: theme.colors.warning },
+    availableNegative: { color: theme.colors.negative },
+    progressSection: { marginTop: 10, gap: 5 },
+    track: {
+      height: 6,
+      backgroundColor: theme.colors.track,
+      borderRadius: 3,
+      overflow: 'hidden',
+      flexDirection: 'row',
+    },
+    segmentSlot: { height: '100%', paddingRight: 2 },
+    segment: { height: '100%', borderRadius: 3 },
+    progressLabel: {
+      color: theme.colors.textMuted,
+      fontSize: 11,
+      fontWeight: '600',
+    },
+    progressLabelWarning: { color: theme.colors.warning },
+    progressLabelNegative: { color: theme.colors.negative },
+  });

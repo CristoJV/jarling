@@ -9,6 +9,9 @@ import type { TargetProgress } from '@/domain/services/calculate-target-progress
 import { Money } from '@/domain/value-objects/money';
 import { formatMoney } from '@/presentation/utils/money';
 import { targetDescription } from '@/presentation/utils/target';
+import { useTranslation } from '@/presentation/localization/localization-provider';
+import type { AppTheme } from '@/presentation/theme/theme';
+import { useThemedStyles } from '@/presentation/theme/theme-provider';
 
 type EditBudgetModalProps = Readonly<{
   groups: readonly CategoryGroupSummary[];
@@ -35,6 +38,8 @@ export function EditBudgetModal({
   onRenameGroup,
   onSelectCategory,
 }: EditBudgetModalProps) {
+  const { language, t } = useTranslation();
+  const styles = useThemedStyles(createStyles);
   const totalTargets = Money.fromCents(
     [...progressByCategoryId.values()].reduce(
       (total, progress) => total + progress.goal.cents,
@@ -49,16 +54,18 @@ export function EditBudgetModal({
           <Pressable onPress={onDismiss} style={styles.back}>
             <Text style={styles.backText}>‹</Text>
           </Pressable>
-          <Text style={styles.title}>Edit Budget</Text>
+          <Text style={styles.title}>{t('budget.edit')}</Text>
           <View style={styles.headerSpacer} />
         </View>
 
         <ScrollView contentContainerStyle={styles.content}>
           <Text style={styles.total}>{formatMoney(totalTargets)}</Text>
-          <Text style={styles.totalLabel}>Cost to Be Me</Text>
+          <Text style={styles.totalLabel}>{t('budget.costToBeMe')}</Text>
 
           <View style={styles.summaryCard}>
-            <Text style={styles.summaryLabel}>{monthLabel} Targets</Text>
+            <Text style={styles.summaryLabel}>
+              {t('budget.monthTargets', { month: monthLabel })}
+            </Text>
             <Text style={styles.summaryValue}>{formatMoney(totalTargets)}</Text>
           </View>
 
@@ -69,7 +76,9 @@ export function EditBudgetModal({
                   <Text style={styles.groupName}>{group.name}</Text>
                 </Pressable>
                 <Pressable
-                  accessibilityLabel={`Add category to ${group.name}`}
+                  accessibilityLabel={t('budget.addCategoryTo', {
+                    group: group.name,
+                  })}
                   onPress={() => onAddCategory(group.id)}
                   style={styles.addButton}
                 >
@@ -92,7 +101,9 @@ export function EditBudgetModal({
                           {category.name}
                         </Text>
                         {category.hidden ? (
-                          <Text style={styles.hidden}>Hidden</Text>
+                          <Text style={styles.hidden}>
+                            {t('budget.hidden')}
+                          </Text>
                         ) : null}
                       </View>
                       <View style={styles.targetCopy}>
@@ -105,11 +116,13 @@ export function EditBudgetModal({
                               numberOfLines={1}
                               style={styles.targetDescription}
                             >
-                              {targetDescription(target)}
+                              {targetDescription(target, language)}
                             </Text>
                           </>
                         ) : (
-                          <Text style={styles.addTarget}>Add Target</Text>
+                          <Text style={styles.addTarget}>
+                            {t('budget.addTarget')}
+                          </Text>
                         )}
                       </View>
                       <Text style={styles.chevron}>›</Text>
@@ -121,7 +134,7 @@ export function EditBudgetModal({
           ))}
 
           <Pressable onPress={onAddGroup} style={styles.addGroupButton}>
-            <Text style={styles.addGroupText}>+ New Group</Text>
+            <Text style={styles.addGroupText}>+ {t('budget.newGroup')}</Text>
           </Pressable>
         </ScrollView>
       </SafeAreaView>
@@ -129,121 +142,144 @@ export function EditBudgetModal({
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#f7f8f6' },
-  header: {
-    minHeight: 64,
-    paddingHorizontal: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  back: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  backText: { color: '#315a3e', fontSize: 38, lineHeight: 40 },
-  title: { flex: 1, color: '#18201a', fontSize: 24, fontWeight: '700' },
-  headerSpacer: { width: 44 },
-  content: {
-    width: '100%',
-    maxWidth: 760,
-    padding: 20,
-    paddingBottom: 48,
-    alignSelf: 'center',
-  },
-  total: {
-    marginTop: 8,
-    color: '#18201a',
-    fontSize: 46,
-    fontVariant: ['tabular-nums'],
-    fontWeight: '800',
-    textAlign: 'center',
-  },
-  totalLabel: {
-    marginBottom: 24,
-    color: '#68736b',
-    fontSize: 16,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  summaryCard: {
-    minHeight: 76,
-    paddingHorizontal: 20,
-    marginBottom: 26,
-    backgroundColor: '#e6eee7',
-    borderRadius: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  summaryLabel: { color: '#3e4c42', fontSize: 16, fontWeight: '700' },
-  summaryValue: {
-    color: '#1f5530',
-    fontSize: 18,
-    fontVariant: ['tabular-nums'],
-    fontWeight: '800',
-  },
-  groupSection: { marginBottom: 22 },
-  groupHeader: {
-    minHeight: 50,
-    paddingHorizontal: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  groupName: { color: '#253028', fontSize: 18, fontWeight: '800' },
-  addButton: {
-    width: 38,
-    height: 38,
-    backgroundColor: '#dfe6df',
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addText: {
-    color: '#315a3e',
-    fontSize: 27,
-    lineHeight: 29,
-    fontWeight: '700',
-  },
-  categoryCard: {
-    backgroundColor: '#ffffff',
-    borderColor: '#e1e5df',
-    borderRadius: 20,
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
-  categoryRow: {
-    minHeight: 72,
-    paddingHorizontal: 18,
-    borderBottomColor: '#e8ebe7',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  categoryCopy: { flex: 1 },
-  categoryName: { color: '#253028', fontSize: 16, fontWeight: '600' },
-  hidden: { marginTop: 2, color: '#8a918c', fontSize: 10, fontWeight: '700' },
-  targetCopy: { maxWidth: '46%', alignItems: 'flex-end' },
-  targetAmount: {
-    color: '#253028',
-    fontSize: 15,
-    fontVariant: ['tabular-nums'],
-    fontWeight: '800',
-  },
-  targetDescription: { marginTop: 2, color: '#78817b', fontSize: 11 },
-  addTarget: { color: '#315a3e', fontSize: 15, fontWeight: '800' },
-  chevron: { color: '#a0a7a2', fontSize: 24 },
-  addGroupButton: {
-    minHeight: 52,
-    borderColor: '#829087',
-    borderRadius: 16,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addGroupText: { color: '#315a3e', fontSize: 15, fontWeight: '800' },
-});
+const createStyles = (theme: AppTheme) =>
+  StyleSheet.create({
+    safeArea: { flex: 1, backgroundColor: theme.colors.background },
+    header: {
+      minHeight: 64,
+      paddingHorizontal: 16,
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    back: {
+      width: 44,
+      height: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    backText: { color: theme.colors.primary, fontSize: 38, lineHeight: 40 },
+    title: {
+      flex: 1,
+      color: theme.colors.text,
+      fontSize: 24,
+      fontWeight: '700',
+    },
+    headerSpacer: { width: 44 },
+    content: {
+      width: '100%',
+      maxWidth: 760,
+      padding: 20,
+      paddingBottom: 48,
+      alignSelf: 'center',
+    },
+    total: {
+      marginTop: 8,
+      color: theme.colors.text,
+      fontSize: 46,
+      fontVariant: ['tabular-nums'],
+      fontWeight: '800',
+      textAlign: 'center',
+    },
+    totalLabel: {
+      marginBottom: 24,
+      color: theme.colors.textMuted,
+      fontSize: 16,
+      fontWeight: '700',
+      textAlign: 'center',
+    },
+    summaryCard: {
+      minHeight: 76,
+      paddingHorizontal: 20,
+      marginBottom: 26,
+      backgroundColor: theme.colors.primaryMuted,
+      borderRadius: 20,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    summaryLabel: {
+      color: theme.colors.textSecondary,
+      fontSize: 16,
+      fontWeight: '700',
+    },
+    summaryValue: {
+      color: theme.colors.positive,
+      fontSize: 18,
+      fontVariant: ['tabular-nums'],
+      fontWeight: '800',
+    },
+    groupSection: { marginBottom: 22 },
+    groupHeader: {
+      minHeight: 50,
+      paddingHorizontal: 8,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    groupName: { color: theme.colors.text, fontSize: 18, fontWeight: '800' },
+    addButton: {
+      width: 38,
+      height: 38,
+      backgroundColor: theme.colors.surfaceMuted,
+      borderRadius: 19,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    addText: {
+      color: theme.colors.primary,
+      fontSize: 27,
+      lineHeight: 29,
+      fontWeight: '700',
+    },
+    categoryCard: {
+      backgroundColor: theme.colors.surface,
+      borderColor: theme.colors.border,
+      borderRadius: 20,
+      borderWidth: 1,
+      overflow: 'hidden',
+    },
+    categoryRow: {
+      minHeight: 72,
+      paddingHorizontal: 18,
+      borderBottomColor: theme.colors.border,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    categoryCopy: { flex: 1 },
+    categoryName: { color: theme.colors.text, fontSize: 16, fontWeight: '600' },
+    hidden: {
+      marginTop: 2,
+      color: theme.colors.textMuted,
+      fontSize: 10,
+      fontWeight: '700',
+    },
+    targetCopy: { maxWidth: '46%', alignItems: 'flex-end' },
+    targetAmount: {
+      color: theme.colors.text,
+      fontSize: 15,
+      fontVariant: ['tabular-nums'],
+      fontWeight: '800',
+    },
+    targetDescription: {
+      marginTop: 2,
+      color: theme.colors.textMuted,
+      fontSize: 11,
+    },
+    addTarget: { color: theme.colors.primary, fontSize: 15, fontWeight: '800' },
+    chevron: { color: theme.colors.textMuted, fontSize: 24 },
+    addGroupButton: {
+      minHeight: 52,
+      borderColor: theme.colors.textMuted,
+      borderRadius: 16,
+      borderWidth: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    addGroupText: {
+      color: theme.colors.primary,
+      fontSize: 15,
+      fontWeight: '800',
+    },
+  });

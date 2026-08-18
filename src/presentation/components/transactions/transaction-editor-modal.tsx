@@ -19,6 +19,12 @@ import { NameInputModal } from '@/presentation/components/common/name-input-moda
 import { NativeDatePicker } from '@/presentation/components/common/native-date-picker';
 import { SelectionModal } from '@/presentation/components/common/selection-modal';
 import { PayeeSelectionScreen } from '@/presentation/components/transactions/payee-selection-screen';
+import { useTranslation } from '@/presentation/localization/localization-provider';
+import type { AppTheme } from '@/presentation/theme/theme';
+import {
+  useAppTheme,
+  useThemedStyles,
+} from '@/presentation/theme/theme-provider';
 import { formatMoney } from '@/presentation/utils/money';
 
 type TransactionEditorModalProps = Readonly<{
@@ -49,10 +55,10 @@ function today(): string {
   return `${date.getFullYear()}-${month}-${day}`;
 }
 
-function formatDate(date: string): string {
+function formatDate(date: string, language: string): string {
   const parsed = new Date(`${date}T12:00:00`);
   if (Number.isNaN(parsed.getTime())) return date;
-  return new Intl.DateTimeFormat('en-GB', {
+  return new Intl.DateTimeFormat(language, {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
@@ -69,6 +75,9 @@ export function TransactionEditorModal({
   onSave,
 }: TransactionEditorModalProps) {
   const insets = useSafeAreaInsets();
+  const { language, t } = useTranslation();
+  const theme = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   const existing = summary?.transaction;
   const linked = linkedSummary?.transaction;
   const existingTransfer = Boolean(existing?.transactionGroupId && linked);
@@ -129,13 +138,13 @@ export function TransactionEditorModal({
 
   const accountName =
     availableAccounts.find(({ account }) => account.id === accountId)?.account
-      .name ?? 'Choose Account';
+      .name ?? t('transactions.chooseAccount');
   const categoryName = availableCategories.find(
     ({ category }) => category.id === categoryId,
   )?.category.name;
   const destinationAccountName =
     availableAccounts.find(({ account }) => account.id === destinationAccountId)
-      ?.account.name ?? 'Choose Destination';
+      ?.account.name ?? t('transactions.chooseDestination');
 
   function openEditor(value: Exclude<Editor, null>) {
     setKeypadVisible(false);
@@ -144,23 +153,23 @@ export function TransactionEditorModal({
 
   async function submit() {
     if (amountCents <= 0) {
-      setError('Introduce un importe mayor que cero.');
+      setError(t('transactions.amountRequired'));
       return;
     }
     if (!accountId) {
-      setError('Selecciona una cuenta.');
+      setError(t('transactions.accountRequired'));
       return;
     }
     if (kind === 'expense' && !categoryId) {
-      setError('Selecciona una categoría para el gasto.');
+      setError(t('transactions.categoryRequired'));
       return;
     }
     if (kind === 'transfer' && !destinationAccountId) {
-      setError('Selecciona una cuenta de destino.');
+      setError(t('transactions.destinationRequired'));
       return;
     }
     if (kind === 'transfer' && accountId === destinationAccountId) {
-      setError('Las cuentas de origen y destino deben ser diferentes.');
+      setError(t('transactions.differentAccounts'));
       return;
     }
 
@@ -198,7 +207,7 @@ export function TransactionEditorModal({
       );
       onDismiss();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'No se pudo guardar.');
+      setError(cause instanceof Error ? cause.message : t('form.couldNotSave'));
     } finally {
       setSubmitting(false);
     }
@@ -209,7 +218,7 @@ export function TransactionEditorModal({
       <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
         <View style={styles.header}>
           <Pressable
-            accessibilityLabel="Cerrar"
+            accessibilityLabel={t('common.close')}
             hitSlop={12}
             onPress={onDismiss}
             style={styles.close}
@@ -217,7 +226,7 @@ export function TransactionEditorModal({
             <Text style={styles.closeText}>×</Text>
           </Pressable>
           <Text style={styles.headerTitle}>
-            {existing ? 'Edit Transaction' : 'New Transaction'}
+            {existing ? t('transactions.edit') : t('transactions.new')}
           </Text>
           <View style={styles.headerSpacer} />
         </View>
@@ -227,14 +236,17 @@ export function TransactionEditorModal({
           keyboardShouldPersistTaps="handled"
         >
           <Pressable onPress={() => setKeypadVisible(true)}>
-            <Text accessibilityLabel="Importe" style={styles.amount}>
+            <Text
+              accessibilityLabel={t('transactions.amount')}
+              style={styles.amount}
+            >
               {formatMoney(Money.fromCents(amountCents))}
             </Text>
           </Pressable>
 
           <Pressable onPress={() => openEditor('kind')} style={styles.kindPill}>
             <MaterialCommunityIcons
-              color="#315a3e"
+              color={theme.colors.primary}
               name={
                 kind === 'transfer'
                   ? 'bank-transfer'
@@ -246,10 +258,10 @@ export function TransactionEditorModal({
             />
             <Text style={styles.kindText}>
               {kind === 'transfer'
-                ? 'Transfer'
+                ? t('transactions.transfer')
                 : kind === 'expense'
-                  ? 'Spending'
-                  : 'Inflow'}
+                  ? t('transactions.spending')
+                  : t('transactions.inflow')}
             </Text>
             <Text style={styles.chevron}>⌄</Text>
           </Pressable>
@@ -258,7 +270,7 @@ export function TransactionEditorModal({
             {kind !== 'transfer' ? (
               <FieldRow
                 icon="currency-eur"
-                label={payee || 'Choose Payee'}
+                label={payee || t('transactions.choosePayee')}
                 muted={!payee}
                 onPress={() => openEditor('payee')}
               />
@@ -266,7 +278,7 @@ export function TransactionEditorModal({
             {kind === 'expense' ? (
               <FieldRow
                 icon="shape-outline"
-                label={categoryName ?? 'Choose Category'}
+                label={categoryName ?? t('transactions.chooseCategory')}
                 muted={!categoryName}
                 onPress={() => openEditor('category')}
               />
@@ -276,7 +288,11 @@ export function TransactionEditorModal({
               label={accountName}
               muted={!accountId}
               onPress={() => openEditor('account')}
-              overline={kind === 'transfer' ? 'From Account' : 'Account'}
+              overline={
+                kind === 'transfer'
+                  ? t('transactions.fromAccount')
+                  : t('transactions.account')
+              }
             />
             {kind === 'transfer' ? (
               <FieldRow
@@ -284,29 +300,33 @@ export function TransactionEditorModal({
                 label={destinationAccountName}
                 muted={!destinationAccountId}
                 onPress={() => openEditor('destination-account')}
-                overline="To Account"
+                overline={t('transactions.toAccount')}
               />
             ) : null}
             <FieldRow
               icon="calendar-outline"
-              label={formatDate(date)}
+              label={formatDate(date, language)}
               onPress={() => openEditor('date')}
-              overline="Date"
+              overline={t('transactions.date')}
             />
             {showMore ? (
               <>
                 <FieldRow
                   icon="note-text-outline"
-                  label={memo || 'Add Memo'}
+                  label={memo || t('transactions.addMemo')}
                   muted={!memo}
                   onPress={() => openEditor('memo')}
-                  overline={memo ? 'Memo' : undefined}
+                  overline={memo ? t('transactions.memo') : undefined}
                 />
                 <FieldRow
                   icon={cleared ? 'check-circle' : 'circle-outline'}
-                  label={cleared ? 'Cleared' : 'Uncleared'}
+                  label={
+                    cleared
+                      ? t('transactions.cleared')
+                      : t('transactions.uncleared')
+                  }
                   onPress={() => setCleared((current) => !current)}
-                  overline="Status"
+                  overline={t('transactions.status')}
                 />
               </>
             ) : null}
@@ -321,10 +341,12 @@ export function TransactionEditorModal({
             style={styles.showMore}
           >
             <Text style={styles.showMoreText}>
-              {showMore ? 'Show less' : 'Show more'}
+              {showMore
+                ? t('transactions.showLess')
+                : t('transactions.showMore')}
             </Text>
             <MaterialCommunityIcons
-              color="#315a3e"
+              color={theme.colors.primary}
               name={showMore ? 'chevron-up' : 'chevron-down'}
               size={20}
             />
@@ -345,7 +367,9 @@ export function TransactionEditorModal({
               style={[styles.save, submitting && styles.disabled]}
             >
               <Text style={styles.saveText}>
-                {submitting ? 'Saving…' : '✓  Save'}
+                {submitting
+                  ? t('transactions.saving')
+                  : `✓  ${t('common.save')}`}
               </Text>
             </Pressable>
           </View>
@@ -369,35 +393,35 @@ export function TransactionEditorModal({
                 : [
                     {
                       value: 'expense',
-                      label: 'Spending',
-                      description: 'Money leaving an account.',
+                      label: t('transactions.spending'),
+                      description: t('transactions.spendingDescription'),
                     } as const,
                     {
                       value: 'income',
-                      label: 'Inflow',
-                      description: 'Money entering an account.',
+                      label: t('transactions.inflow'),
+                      description: t('transactions.inflowDescription'),
                     } as const,
                   ]),
               ...(!existing
                 ? [
                     {
                       value: 'transfer',
-                      label: 'Transfer',
-                      description: 'Move money between two accounts.',
+                      label: t('transactions.transfer'),
+                      description: t('transactions.transferDescription'),
                     } as const,
                   ]
                 : existingTransfer
                   ? [
                       {
                         value: 'transfer',
-                        label: 'Transfer',
-                        description: 'Move money between two accounts.',
+                        label: t('transactions.transfer'),
+                        description: t('transactions.transferDescription'),
                       } as const,
                     ]
                   : []),
             ]}
             selectedValue={kind}
-            title="Transaction type"
+            title={t('transactions.type')}
             placement="center"
           />
         ) : null}
@@ -415,7 +439,7 @@ export function TransactionEditorModal({
                 label: account.name,
               }))}
             selectedValue={accountId}
-            title="Choose Account"
+            title={t('transactions.chooseAccount')}
           />
         ) : null}
         {editor === 'destination-account' ? (
@@ -429,7 +453,7 @@ export function TransactionEditorModal({
                 label: account.name,
               }))}
             selectedValue={destinationAccountId}
-            title="Choose Destination Account"
+            title={t('transactions.chooseDestinationAccount')}
           />
         ) : null}
         {editor === 'category' ? (
@@ -442,7 +466,7 @@ export function TransactionEditorModal({
               description: groupName,
             }))}
             selectedValue={categoryId}
-            title="Choose Category"
+            title={t('transactions.chooseCategory')}
           />
         ) : null}
         {editor === 'payee' ? (
@@ -457,7 +481,7 @@ export function TransactionEditorModal({
           <NativeDatePicker
             value={date}
             onDismiss={() => setEditor(null)}
-            title="Choose Date"
+            title={t('transactions.chooseDate')}
             onChange={setDate}
           />
         ) : null}
@@ -465,13 +489,13 @@ export function TransactionEditorModal({
           <NameInputModal
             allowEmpty
             initialValue={memo}
-            label="Memo"
+            label={t('transactions.memo')}
             multiline
             placement="center"
             onDismiss={() => setEditor(null)}
             onSubmit={async (value) => setMemo(value.trim())}
-            submitLabel="Save Memo"
-            title="Transaction Memo"
+            submitLabel={t('transactions.saveMemo')}
+            title={t('transactions.memoTitle')}
           />
         ) : null}
       </SafeAreaView>
@@ -492,10 +516,16 @@ function FieldRow({
   overline?: string;
   onPress: () => void;
 }>) {
+  const theme = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   return (
     <Pressable onPress={onPress} style={styles.fieldRow}>
       <View style={styles.fieldIcon}>
-        <MaterialCommunityIcons color="#647068" name={icon} size={23} />
+        <MaterialCommunityIcons
+          color={theme.colors.textMuted}
+          name={icon}
+          size={23}
+        />
       </View>
       <View style={styles.fieldCopy}>
         {overline ? <Text style={styles.overline}>{overline}</Text> : null}
@@ -508,130 +538,143 @@ function FieldRow({
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#f4f6f3' },
-  header: {
-    minHeight: 56,
-    paddingHorizontal: 18,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  close: {
-    width: 42,
-    height: 42,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  closeText: {
-    color: '#253028',
-    fontSize: 38,
-    fontWeight: '300',
-    lineHeight: 40,
-  },
-  headerTitle: { color: '#56615a', fontSize: 13, fontWeight: '700' },
-  headerSpacer: { width: 42 },
-  content: {
-    width: '100%',
-    maxWidth: 620,
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-    alignSelf: 'center',
-    alignItems: 'center',
-  },
-  amount: {
-    marginTop: 4,
-    color: '#18201a',
-    fontSize: 42,
-    fontVariant: ['tabular-nums'],
-    fontWeight: '700',
-    letterSpacing: -1.5,
-  },
-  kindPill: {
-    minHeight: 46,
-    paddingHorizontal: 20,
-    marginTop: 10,
-    marginBottom: 12,
-    backgroundColor: '#e2ebe4',
-    borderRadius: 27,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 9,
-  },
-  kindText: { color: '#203b29', fontSize: 17, fontWeight: '700' },
-  chevron: { color: '#496451', fontSize: 17 },
-  formCard: {
-    width: '100%',
-    backgroundColor: '#ffffff',
-    borderColor: '#e1e6e1',
-    borderRadius: 24,
-    borderWidth: 1,
-    overflow: 'hidden',
-    shadowColor: '#102216',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.06,
-    shadowRadius: 18,
-    elevation: 2,
-  },
-  fieldRow: {
-    minHeight: 58,
-    paddingHorizontal: 20,
-    borderBottomColor: '#e8ebe7',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  fieldIcon: { width: 36, alignItems: 'center', justifyContent: 'center' },
-  fieldCopy: { flex: 1, paddingHorizontal: 12 },
-  overline: {
-    marginBottom: 2,
-    color: '#7b857e',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  fieldLabel: { color: '#253028', fontSize: 17, fontWeight: '600' },
-  fieldMuted: { color: '#858e88', fontWeight: '500' },
-  rowChevron: { color: '#9aa19c', fontSize: 25 },
-  error: {
-    width: '100%',
-    padding: 12,
-    marginTop: 14,
-    color: '#b42318',
-    backgroundColor: '#fef3f2',
-    borderRadius: 12,
-    fontSize: 13,
-  },
-  showMore: {
-    minHeight: 42,
-    paddingHorizontal: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-  },
-  showMoreText: { color: '#315a3e', fontSize: 13, fontWeight: '800' },
-  save: {
-    minHeight: 54,
-    paddingHorizontal: 23,
-    backgroundColor: '#315a3e',
-    borderRadius: 18,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 7,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  saveText: { color: '#ffffff', fontSize: 17, fontWeight: '800' },
-  actionBar: {
-    minHeight: 68,
-    paddingVertical: 7,
-    paddingHorizontal: 22,
-    backgroundColor: '#f4f6f3',
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-  },
-  bottomPanel: { backgroundColor: '#f4f6f3' },
-  disabled: { opacity: 0.55 },
-});
+const createStyles = (theme: AppTheme) =>
+  StyleSheet.create({
+    safeArea: { flex: 1, backgroundColor: theme.colors.background },
+    header: {
+      minHeight: 56,
+      paddingHorizontal: 18,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    close: {
+      width: 42,
+      height: 42,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    closeText: {
+      color: theme.colors.text,
+      fontSize: 38,
+      fontWeight: '300',
+      lineHeight: 40,
+    },
+    headerTitle: {
+      color: theme.colors.textMuted,
+      fontSize: 13,
+      fontWeight: '700',
+    },
+    headerSpacer: { width: 42 },
+    content: {
+      width: '100%',
+      maxWidth: 620,
+      paddingHorizontal: 20,
+      paddingBottom: 12,
+      alignSelf: 'center',
+      alignItems: 'center',
+    },
+    amount: {
+      marginTop: 4,
+      color: theme.colors.text,
+      fontSize: 42,
+      fontVariant: ['tabular-nums'],
+      fontWeight: '700',
+      letterSpacing: -1.5,
+    },
+    kindPill: {
+      minHeight: 46,
+      paddingHorizontal: 20,
+      marginTop: 10,
+      marginBottom: 12,
+      backgroundColor: theme.colors.primaryMuted,
+      borderRadius: 27,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 9,
+    },
+    kindText: { color: theme.colors.primary, fontSize: 17, fontWeight: '700' },
+    chevron: { color: theme.colors.primary, fontSize: 17 },
+    formCard: {
+      width: '100%',
+      backgroundColor: theme.colors.surface,
+      borderColor: theme.colors.border,
+      borderRadius: 24,
+      borderWidth: 1,
+      overflow: 'hidden',
+      shadowColor: '#102216',
+      shadowOffset: { width: 0, height: 5 },
+      shadowOpacity: 0.06,
+      shadowRadius: 18,
+      elevation: 2,
+    },
+    fieldRow: {
+      minHeight: 58,
+      paddingHorizontal: 20,
+      borderBottomColor: theme.colors.border,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    fieldIcon: { width: 36, alignItems: 'center', justifyContent: 'center' },
+    fieldCopy: { flex: 1, paddingHorizontal: 12 },
+    overline: {
+      marginBottom: 2,
+      color: theme.colors.textMuted,
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    fieldLabel: { color: theme.colors.text, fontSize: 17, fontWeight: '600' },
+    fieldMuted: { color: theme.colors.textMuted, fontWeight: '500' },
+    rowChevron: { color: theme.colors.textMuted, fontSize: 25 },
+    error: {
+      width: '100%',
+      padding: 12,
+      marginTop: 14,
+      color: theme.colors.negative,
+      backgroundColor: theme.colors.negativeMuted,
+      borderRadius: 12,
+      fontSize: 13,
+    },
+    showMore: {
+      minHeight: 42,
+      paddingHorizontal: 12,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 4,
+    },
+    showMoreText: {
+      color: theme.colors.primary,
+      fontSize: 13,
+      fontWeight: '800',
+    },
+    save: {
+      minHeight: 54,
+      paddingHorizontal: 23,
+      backgroundColor: theme.colors.primary,
+      borderRadius: 18,
+      shadowColor: '#000000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.2,
+      shadowRadius: 8,
+      elevation: 7,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    saveText: {
+      color: theme.colors.onPrimary,
+      fontSize: 17,
+      fontWeight: '800',
+    },
+    actionBar: {
+      minHeight: 68,
+      paddingVertical: 7,
+      paddingHorizontal: 22,
+      backgroundColor: theme.colors.background,
+      alignItems: 'flex-end',
+      justifyContent: 'center',
+    },
+    bottomPanel: { backgroundColor: theme.colors.background },
+    disabled: { opacity: 0.55 },
+  });

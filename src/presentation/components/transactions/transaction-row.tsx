@@ -12,6 +12,12 @@ import {
 
 import type { TransactionSummary } from '@/application/use-cases/transactions/get-transactions';
 import { formatMoney } from '@/presentation/utils/money';
+import { useTranslation } from '@/presentation/localization/localization-provider';
+import type { AppTheme } from '@/presentation/theme/theme';
+import {
+  useAppTheme,
+  useThemedStyles,
+} from '@/presentation/theme/theme-provider';
 
 type TransactionRowProps = Readonly<{
   summary: TransactionSummary;
@@ -25,6 +31,9 @@ export function TransactionRow({
   onEdit,
 }: TransactionRowProps) {
   const { transaction } = summary;
+  const { t } = useTranslation();
+  const theme = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   const { width } = useWindowDimensions();
   const [translateX] = useState(() => new Animated.Value(0));
   const swipeable = transaction.status !== 'reconciled';
@@ -82,15 +91,19 @@ export function TransactionRow({
       {swipeable ? (
         <View pointerEvents="none" style={styles.deleteBackground}>
           <MaterialCommunityIcons
-            color="#ffffff"
+            color={theme.colors.onNegative}
             name="trash-can-outline"
             size={27}
           />
-          <Text style={styles.deleteText}>Delete</Text>
+          <Text style={[styles.deleteText, { color: theme.colors.onNegative }]}>
+            {t('common.delete')}
+          </Text>
           <View style={styles.deleteSpacer} />
-          <Text style={styles.deleteText}>Delete</Text>
+          <Text style={[styles.deleteText, { color: theme.colors.onNegative }]}>
+            {t('common.delete')}
+          </Text>
           <MaterialCommunityIcons
-            color="#ffffff"
+            color={theme.colors.onNegative}
             name="trash-can-outline"
             size={27}
           />
@@ -112,23 +125,25 @@ export function TransactionRow({
           <View style={styles.details}>
             <Text numberOfLines={1} style={styles.payee}>
               {transaction.payee ??
-                (transaction.amount.cents >= 0 ? 'Income' : 'Expense')}
+                (transaction.amount.cents >= 0
+                  ? t('transactions.income')
+                  : t('transactions.expense'))}
             </Text>
             <Text numberOfLines={1} style={styles.meta}>
               {summary.accountName} ·{' '}
               {summary.categoryName ??
                 (transaction.transactionGroupId
-                  ? 'Transfer'
-                  : 'Ready to Assign')}
+                  ? t('transactions.transfer')
+                  : t('transactions.readyToAssign'))}
             </Text>
           </View>
           <View
             accessibilityLabel={
               transaction.status === 'reconciled'
-                ? 'Conciliada'
+                ? t('transactions.reconciled')
                 : transaction.status === 'cleared'
-                  ? 'Confirmada'
-                  : 'Pendiente'
+                  ? t('transactions.cleared')
+                  : t('transactions.pending')
             }
             style={styles.amountArea}
           >
@@ -143,10 +158,10 @@ export function TransactionRow({
             <MaterialCommunityIcons
               color={
                 transaction.status === 'reconciled'
-                  ? '#56615a'
+                  ? theme.colors.textSecondary
                   : transaction.status === 'cleared'
-                    ? '#2d6b40'
-                    : '#8a938d'
+                    ? theme.colors.positive
+                    : theme.colors.textMuted
               }
               name={
                 transaction.status === 'reconciled'
@@ -164,79 +179,84 @@ export function TransactionRow({
   );
 }
 
-const styles = StyleSheet.create({
-  swipeContainer: { width: '100%', overflow: 'hidden' },
-  movingRow: { width: '100%', backgroundColor: '#f7f7f5' },
-  deleteBackground: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    paddingHorizontal: 22,
-    backgroundColor: '#c62828',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 5,
-  },
-  deleteSpacer: { flex: 1 },
-  deleteText: { color: '#ffffff', fontSize: 11, fontWeight: '800' },
-  row: {
-    minHeight: 88,
-    paddingVertical: 14,
-    borderBottomColor: '#e6e8e4',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 13,
-    backgroundColor: '#f7f7f5',
-  },
-  dateBox: {
-    width: 42,
-    height: 48,
-    backgroundColor: '#edf1ed',
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  day: {
-    color: '#26332b',
-    fontSize: 17,
-    fontWeight: '700',
-  },
-  month: {
-    color: '#6b756d',
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  details: {
-    flex: 1,
-    gap: 3,
-  },
-  payee: {
-    color: '#18201a',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  meta: {
-    color: '#687268',
-    fontSize: 12,
-  },
-  amountArea: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  amount: {
-    fontSize: 16,
-    fontVariant: ['tabular-nums'],
-    fontWeight: '700',
-  },
-  expense: {
-    color: '#a33b31',
-  },
-  income: {
-    color: '#24643a',
-  },
-});
+const createStyles = (theme: AppTheme) =>
+  StyleSheet.create({
+    swipeContainer: { width: '100%', overflow: 'hidden' },
+    movingRow: { width: '100%', backgroundColor: theme.colors.background },
+    deleteBackground: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      paddingHorizontal: 22,
+      backgroundColor: theme.colors.negative,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 5,
+    },
+    deleteSpacer: { flex: 1 },
+    deleteText: {
+      color: theme.colors.onPrimary,
+      fontSize: 11,
+      fontWeight: '800',
+    },
+    row: {
+      minHeight: 88,
+      paddingVertical: 14,
+      borderBottomColor: theme.colors.border,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 13,
+      backgroundColor: theme.colors.background,
+    },
+    dateBox: {
+      width: 42,
+      height: 48,
+      backgroundColor: theme.colors.surfaceMuted,
+      borderRadius: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    day: {
+      color: theme.colors.text,
+      fontSize: 17,
+      fontWeight: '700',
+    },
+    month: {
+      color: theme.colors.textMuted,
+      fontSize: 10,
+      fontWeight: '700',
+    },
+    details: {
+      flex: 1,
+      gap: 3,
+    },
+    payee: {
+      color: theme.colors.text,
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    meta: {
+      color: theme.colors.textMuted,
+      fontSize: 12,
+    },
+    amountArea: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    amount: {
+      fontSize: 16,
+      fontVariant: ['tabular-nums'],
+      fontWeight: '700',
+    },
+    expense: {
+      color: theme.colors.negative,
+    },
+    income: {
+      color: theme.colors.positive,
+    },
+  });

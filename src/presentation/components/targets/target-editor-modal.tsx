@@ -21,57 +21,23 @@ import { Money } from '@/domain/value-objects/money';
 import { MoneyKeypad } from '@/presentation/components/common/money-keypad';
 import { FullScreenModal } from '@/presentation/components/common/full-screen-modal';
 import { NativeDatePicker } from '@/presentation/components/common/native-date-picker';
-import {
-  SelectionModal,
-  type SelectionOption,
-} from '@/presentation/components/common/selection-modal';
+import { SelectionModal } from '@/presentation/components/common/selection-modal';
 import { formatMoney } from '@/presentation/utils/money';
+import { useTranslation } from '@/presentation/localization/localization-provider';
+import type { AppTheme } from '@/presentation/theme/theme';
+import { useThemedStyles } from '@/presentation/theme/theme-provider';
 
-const targetTypes: readonly Readonly<{ kind: TargetKind; label: string }>[] = [
-  { kind: 'weekly', label: 'Weekly' },
-  { kind: 'monthly', label: 'Monthly' },
-  { kind: 'yearly', label: 'Yearly' },
-  { kind: 'custom', label: 'Custom' },
+const targetTypes: readonly TargetKind[] = [
+  'weekly',
+  'monthly',
+  'yearly',
+  'custom',
 ];
-const days: readonly Readonly<{ value: IsoDayOfWeek; label: string }>[] = [
-  { value: 1, label: 'Mon' },
-  { value: 2, label: 'Tue' },
-  { value: 3, label: 'Wed' },
-  { value: 4, label: 'Thu' },
-  { value: 5, label: 'Fri' },
-  { value: 6, label: 'Sat' },
-  { value: 7, label: 'Sun' },
-];
-const monthlyDays: readonly SelectionOption<string>[] = [
-  { value: '0', label: 'Last Day' },
-  ...Array.from({ length: 31 }, (_, index) => ({
-    value: String(index + 1),
-    label: ordinal(index + 1),
-  })),
-];
-const customModes: readonly Readonly<{
-  value: CustomFundingMode;
-  title: string;
-  description: string;
-}>[] = [
-  {
-    value: 'set_aside',
-    title: 'Set aside',
-    description:
-      'Use for bills and subscriptions. Add this amount to the category regardless of its current balance.',
-  },
-  {
-    value: 'fill_up_to',
-    title: 'Fill up to',
-    description:
-      'Use for flexible spending. Refill the category up to this amount as money is spent.',
-  },
-  {
-    value: 'balance',
-    title: 'Have a balance of',
-    description:
-      'Use for savings over time. Build and maintain this available balance.',
-  },
+const days: readonly IsoDayOfWeek[] = [1, 2, 3, 4, 5, 6, 7];
+const customModes: readonly CustomFundingMode[] = [
+  'set_aside',
+  'fill_up_to',
+  'balance',
 ];
 
 type TargetEditorModalProps = Readonly<{
@@ -88,20 +54,8 @@ function today(): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
-function ordinal(day: number): string {
-  const suffix =
-    day % 10 === 1 && day % 100 !== 11
-      ? 'st'
-      : day % 10 === 2 && day % 100 !== 12
-        ? 'nd'
-        : day % 10 === 3 && day % 100 !== 13
-          ? 'rd'
-          : 'th';
-  return `${day}${suffix}`;
-}
-
-function dateLabel(value: string): string {
-  return new Intl.DateTimeFormat('en-GB', {
+function dateLabel(value: string, language: string): string {
+  return new Intl.DateTimeFormat(language, {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
@@ -116,6 +70,37 @@ export function TargetEditorModal({
   onSave,
   onDelete,
 }: TargetEditorModalProps) {
+  const { language, t } = useTranslation();
+  const styles = useThemedStyles(createStyles);
+  const localizedTargetTypes = targetTypes.map((kind) => ({
+    kind,
+    label: t(`targets.${kind}`),
+  }));
+  const localizedDays = days.map((value) => ({
+    value,
+    label: new Intl.DateTimeFormat(language, { weekday: 'short' }).format(
+      new Date(2026, 7, 16 + value),
+    ),
+  }));
+  const localizedMonthlyDays = Array.from({ length: 32 }, (_, index) => ({
+    value: String(index),
+    label: index === 0 ? t('targets.lastDay') : String(index),
+  }));
+  const localizedCustomModes = customModes.map((value) => ({
+    value,
+    title:
+      value === 'set_aside'
+        ? t('targets.setAside')
+        : value === 'fill_up_to'
+          ? t('targets.fillUpTo')
+          : t('targets.haveBalance'),
+    description:
+      value === 'set_aside'
+        ? t('targets.customSetAsideDescription')
+        : value === 'fill_up_to'
+          ? t('targets.customFillDescription')
+          : t('targets.customBalanceDescription'),
+  }));
   const [kind, setKind] = useState<TargetKind>(target?.kind ?? 'weekly');
   const [amountCents, setAmountCents] = useState(target?.amount.cents ?? 0);
   const [dayOfWeek, setDayOfWeek] = useState<IsoDayOfWeek>(
@@ -137,7 +122,7 @@ export function TargetEditorModal({
 
   async function submit() {
     if (amountCents <= 0) {
-      setError('Introduce un importe mayor que cero.');
+      setError(t('targets.amountRequired'));
       return;
     }
     const common = { categoryId, amountCents } as const;
@@ -155,7 +140,7 @@ export function TargetEditorModal({
       await onSave(input);
       onDismiss();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'No se pudo guardar.');
+      setError(cause instanceof Error ? cause.message : t('form.couldNotSave'));
     } finally {
       setSubmitting(false);
     }
@@ -163,12 +148,12 @@ export function TargetEditorModal({
 
   function requestDelete() {
     Alert.alert(
-      'Delete target',
-      `The target for ${categoryName} will be removed. Budget amounts will not change.`,
+      t('targets.deleteTitle'),
+      t('targets.deleteDescription', { name: categoryName }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: () =>
             void onDelete(categoryId)
@@ -177,7 +162,7 @@ export function TargetEditorModal({
                 setError(
                   cause instanceof Error
                     ? cause.message
-                    : 'No se pudo eliminar.',
+                    : t('targets.deleteError'),
                 ),
               ),
         },
@@ -190,7 +175,7 @@ export function TargetEditorModal({
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
           <Pressable
-            accessibilityLabel="Back"
+            accessibilityLabel={t('common.back')}
             hitSlop={10}
             onPress={onDismiss}
             style={styles.back}
@@ -208,7 +193,7 @@ export function TargetEditorModal({
         >
           <View style={styles.card}>
             <View style={styles.segmented}>
-              {targetTypes.map((option) => (
+              {localizedTargetTypes.map((option) => (
                 <Pressable
                   accessibilityRole="radio"
                   accessibilityState={{ selected: kind === option.kind }}
@@ -231,16 +216,16 @@ export function TargetEditorModal({
               ))}
             </View>
             <Text style={styles.fieldLabel}>
-              {kind === 'custom' ? 'Amount' : 'I need'}
+              {kind === 'custom' ? t('targets.amount') : t('targets.iNeed')}
             </Text>
             <Text style={styles.amount}>{amount}</Text>
 
             {kind === 'weekly' ? (
               <>
                 <View style={styles.fieldSection}>
-                  <Text style={styles.fieldLabel}>Every</Text>
+                  <Text style={styles.fieldLabel}>{t('targets.every')}</Text>
                   <View style={styles.dayGrid}>
-                    {days.map((day) => (
+                    {localizedDays.map((day) => (
                       <ChoiceChip
                         key={day.value}
                         label={day.label}
@@ -251,17 +236,27 @@ export function TargetEditorModal({
                   </View>
                 </View>
                 <View style={styles.fieldSection}>
-                  <Text style={styles.fieldLabel}>Next month I want to</Text>
+                  <Text style={styles.fieldLabel}>
+                    {t('targets.nextMonth')}
+                  </Text>
                   <ModeRow
                     selected={fundingMode === 'set_aside'}
-                    title={`Set aside another ${amount}/week`}
-                    description="Add this amount every week regardless of the category's current balance."
+                    title={t('targets.setAsideAmount', {
+                      amount,
+                      period: t('targets.week'),
+                    })}
+                    description={t('targets.setAsideDescription', {
+                      period: t('targets.week'),
+                    })}
                     onPress={() => setFundingMode('set_aside')}
                   />
                   <ModeRow
                     selected={fundingMode === 'refill_up_to'}
-                    title={`Refill up to ${amount}/week`}
-                    description="Count existing money and replace only what was spent."
+                    title={t('targets.refillAmount', {
+                      amount,
+                      period: t('targets.week'),
+                    })}
+                    description={t('targets.refillDescription')}
                     onPress={() => setFundingMode('refill_up_to')}
                   />
                 </View>
@@ -271,13 +266,15 @@ export function TargetEditorModal({
             {kind === 'monthly' ? (
               <>
                 <View style={styles.fieldSection}>
-                  <Text style={styles.fieldLabel}>By</Text>
+                  <Text style={styles.fieldLabel}>{t('targets.by')}</Text>
                   <Pressable
                     onPress={() => setSelectingMonthlyDay(true)}
                     style={styles.selector}
                   >
                     <Text style={styles.selectorText}>
-                      {dayOfMonth === 0 ? 'Last Day' : ordinal(dayOfMonth)}
+                      {dayOfMonth === 0
+                        ? t('targets.lastDay')
+                        : String(dayOfMonth)}
                     </Text>
                     <Text style={styles.selectorArrow}>›</Text>
                   </Pressable>
@@ -294,13 +291,13 @@ export function TargetEditorModal({
             {kind === 'yearly' ? (
               <>
                 <View style={styles.fieldSection}>
-                  <Text style={styles.fieldLabel}>By</Text>
+                  <Text style={styles.fieldLabel}>{t('targets.by')}</Text>
                   <Pressable
                     onPress={() => setSelectingDate(true)}
                     style={styles.selector}
                   >
                     <Text style={styles.selectorText}>
-                      {dateLabel(targetDate)}
+                      {dateLabel(targetDate, language)}
                     </Text>
                     <Text style={styles.selectorArrow}>›</Text>
                   </Pressable>
@@ -316,8 +313,8 @@ export function TargetEditorModal({
 
             {kind === 'custom' ? (
               <View style={styles.fieldSection}>
-                <Text style={styles.fieldLabel}>I want to</Text>
-                {customModes.map((mode) => (
+                <Text style={styles.fieldLabel}>{t('targets.iWantTo')}</Text>
+                {localizedCustomModes.map((mode) => (
                   <ModeRow
                     key={mode.value}
                     selected={customFundingMode === mode.value}
@@ -342,20 +339,24 @@ export function TargetEditorModal({
             style={[styles.save, submitting && styles.disabled]}
           >
             <Text style={styles.saveText}>
-              {submitting ? 'Saving…' : target ? 'Save Target' : 'Set Target'}
+              {submitting
+                ? t('transactions.saving')
+                : target
+                  ? t('targets.save')
+                  : t('targets.set')}
             </Text>
           </Pressable>
           {target ? (
             <Pressable onPress={requestDelete} style={styles.deleteButton}>
-              <Text style={styles.deleteText}>Delete Target</Text>
+              <Text style={styles.deleteText}>{t('targets.delete')}</Text>
             </Pressable>
           ) : null}
         </ScrollView>
       </SafeAreaView>
       {selectingMonthlyDay ? (
         <SelectionModal
-          title="Monthly target day"
-          options={monthlyDays}
+          title={t('targets.monthlyDay')}
+          options={localizedMonthlyDays}
           selectedValue={String(dayOfMonth)}
           onSelect={(value) => setDayOfMonth(Number(value))}
           onDismiss={() => setSelectingMonthlyDay(false)}
@@ -363,7 +364,7 @@ export function TargetEditorModal({
       ) : null}
       {selectingDate ? (
         <NativeDatePicker
-          title="Yearly target date"
+          title={t('targets.yearlyDate')}
           value={targetDate}
           onChange={setTargetDate}
           onDismiss={() => setSelectingDate(false)}
@@ -378,6 +379,7 @@ function ChoiceChip({
   selected,
   onPress,
 }: Readonly<{ label: string; selected: boolean; onPress: () => void }>) {
+  const styles = useThemedStyles(createStyles);
   return (
     <Pressable
       accessibilityRole="radio"
@@ -403,19 +405,25 @@ function RecurringModeSection({
   period: 'month' | 'year';
   onChange: (value: RecurringFundingMode) => void;
 }>) {
+  const { t } = useTranslation();
+  const styles = useThemedStyles(createStyles);
+  const periodLabel =
+    period === 'month' ? t('targets.month') : t('targets.year');
   return (
     <View style={styles.fieldSection}>
-      <Text style={styles.fieldLabel}>Next month I want to</Text>
+      <Text style={styles.fieldLabel}>{t('targets.nextMonth')}</Text>
       <ModeRow
         selected={fundingMode === 'set_aside'}
-        title={`Set aside another ${amount}/${period}`}
-        description={`Add this amount every ${period} regardless of the category's current balance.`}
+        title={t('targets.setAsideAmount', { amount, period: periodLabel })}
+        description={t('targets.setAsideDescription', {
+          period: periodLabel,
+        })}
         onPress={() => onChange('set_aside')}
       />
       <ModeRow
         selected={fundingMode === 'refill_up_to'}
-        title={`Refill up to ${amount}/${period}`}
-        description="Count existing money and replace only what was spent."
+        title={t('targets.refillAmount', { amount, period: periodLabel })}
+        description={t('targets.refillDescription')}
         onPress={() => onChange('refill_up_to')}
       />
     </View>
@@ -433,6 +441,7 @@ function ModeRow({
   selected: boolean;
   onPress: () => void;
 }>) {
+  const styles = useThemedStyles(createStyles);
   return (
     <Pressable
       accessibilityRole="radio"
@@ -453,154 +462,183 @@ function ModeRow({
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#f7f8f6' },
-  header: {
-    minHeight: 64,
-    paddingHorizontal: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  back: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  backText: { color: '#315a3e', fontSize: 38, lineHeight: 40 },
-  title: { flex: 1, color: '#18201a', fontSize: 23, fontWeight: '700' },
-  headerSpacer: { width: 44 },
-  content: {
-    width: '100%',
-    maxWidth: 680,
-    padding: 20,
-    paddingBottom: 42,
-    alignSelf: 'center',
-  },
-  card: {
-    padding: 18,
-    backgroundColor: '#fff',
-    borderColor: '#e1e5df',
-    borderRadius: 24,
-    borderWidth: 1,
-  },
-  segmented: {
-    marginBottom: 24,
-    borderColor: '#8a968d',
-    borderRadius: 16,
-    borderWidth: 1,
-    flexDirection: 'row',
-    overflow: 'hidden',
-  },
-  segment: {
-    flex: 1,
-    minHeight: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  segmentSelected: { backgroundColor: '#dce9df' },
-  segmentText: { color: '#5e6961', fontSize: 12, fontWeight: '600' },
-  segmentTextSelected: { color: '#24492f', fontWeight: '800' },
-  fieldLabel: { color: '#737e76', fontSize: 13, fontWeight: '700' },
-  amount: {
-    paddingVertical: 8,
-    color: '#18201a',
-    fontSize: 38,
-    fontVariant: ['tabular-nums'],
-    fontWeight: '800',
-  },
-  fieldSection: {
-    paddingVertical: 16,
-    borderTopColor: '#e6e9e5',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    gap: 10,
-  },
-  dayGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
-  day: {
-    minWidth: 54,
-    minHeight: 42,
-    paddingHorizontal: 10,
-    backgroundColor: '#f1f4f1',
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  daySelected: { backgroundColor: '#315a3e' },
-  dayText: { color: '#5c685f', fontSize: 13, fontWeight: '600' },
-  dayTextSelected: { color: '#fff', fontWeight: '800' },
-  selector: {
-    minHeight: 54,
-    paddingHorizontal: 14,
-    backgroundColor: '#f1f4f1',
-    borderRadius: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  selectorText: { color: '#253028', fontSize: 16, fontWeight: '700' },
-  selectorArrow: { color: '#315a3e', fontSize: 27 },
-  mode: {
-    padding: 13,
-    backgroundColor: '#f4f6f3',
-    borderColor: '#e1e6e1',
-    borderRadius: 14,
-    borderWidth: 1,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 11,
-  },
-  modeSelected: { backgroundColor: '#eef5ef', borderColor: '#315a3e' },
-  radio: {
-    width: 20,
-    height: 20,
-    marginTop: 1,
-    borderColor: '#8b958d',
-    borderRadius: 10,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  radioSelected: { borderColor: '#315a3e' },
-  radioDot: {
-    width: 10,
-    height: 10,
-    backgroundColor: '#315a3e',
-    borderRadius: 5,
-  },
-  modeCopy: { flex: 1 },
-  modeTitle: { color: '#253028', fontSize: 15, fontWeight: '800' },
-  modeDescription: {
-    marginTop: 4,
-    color: '#6f7b72',
-    fontSize: 12,
-    lineHeight: 17,
-  },
-  error: {
-    padding: 12,
-    marginTop: 12,
-    color: '#b42318',
-    backgroundColor: '#fef3f2',
-    borderRadius: 12,
-    fontSize: 13,
-  },
-  save: {
-    minHeight: 54,
-    marginTop: 16,
-    backgroundColor: '#315a3e',
-    borderRadius: 17,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  saveText: { color: '#fff', fontSize: 17, fontWeight: '800' },
-  deleteButton: {
-    minHeight: 54,
-    marginTop: 12,
-    backgroundColor: '#8d1c2e',
-    borderRadius: 17,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  deleteText: { color: '#fff', fontSize: 16, fontWeight: '800' },
-  disabled: { opacity: 0.55 },
-});
+const createStyles = (theme: AppTheme) =>
+  StyleSheet.create({
+    safeArea: { flex: 1, backgroundColor: theme.colors.background },
+    header: {
+      minHeight: 64,
+      paddingHorizontal: 16,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    back: {
+      width: 44,
+      height: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    backText: { color: theme.colors.primary, fontSize: 38, lineHeight: 40 },
+    title: {
+      flex: 1,
+      color: theme.colors.text,
+      fontSize: 23,
+      fontWeight: '700',
+    },
+    headerSpacer: { width: 44 },
+    content: {
+      width: '100%',
+      maxWidth: 680,
+      padding: 20,
+      paddingBottom: 42,
+      alignSelf: 'center',
+    },
+    card: {
+      padding: 18,
+      backgroundColor: theme.colors.surface,
+      borderColor: theme.colors.border,
+      borderRadius: 24,
+      borderWidth: 1,
+    },
+    segmented: {
+      marginBottom: 24,
+      borderColor: theme.colors.textMuted,
+      borderRadius: 16,
+      borderWidth: 1,
+      flexDirection: 'row',
+      overflow: 'hidden',
+    },
+    segment: {
+      flex: 1,
+      minHeight: 48,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    segmentSelected: { backgroundColor: theme.colors.primaryMuted },
+    segmentText: {
+      color: theme.colors.textSecondary,
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    segmentTextSelected: { color: theme.colors.primary, fontWeight: '800' },
+    fieldLabel: {
+      color: theme.colors.textMuted,
+      fontSize: 13,
+      fontWeight: '700',
+    },
+    amount: {
+      paddingVertical: 8,
+      color: theme.colors.text,
+      fontSize: 38,
+      fontVariant: ['tabular-nums'],
+      fontWeight: '800',
+    },
+    fieldSection: {
+      paddingVertical: 16,
+      borderTopColor: theme.colors.border,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      gap: 10,
+    },
+    dayGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+    day: {
+      minWidth: 54,
+      minHeight: 42,
+      paddingHorizontal: 10,
+      backgroundColor: theme.colors.surfaceMuted,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    daySelected: { backgroundColor: theme.colors.primary },
+    dayText: {
+      color: theme.colors.textSecondary,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    dayTextSelected: { color: theme.colors.onPrimary, fontWeight: '800' },
+    selector: {
+      minHeight: 54,
+      paddingHorizontal: 14,
+      backgroundColor: theme.colors.surfaceMuted,
+      borderRadius: 14,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    selectorText: { color: theme.colors.text, fontSize: 16, fontWeight: '700' },
+    selectorArrow: { color: theme.colors.primary, fontSize: 27 },
+    mode: {
+      padding: 13,
+      backgroundColor: theme.colors.surfaceElevated,
+      borderColor: theme.colors.border,
+      borderRadius: 14,
+      borderWidth: 1,
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 11,
+    },
+    modeSelected: {
+      backgroundColor: theme.colors.surfacePressed,
+      borderColor: theme.colors.primary,
+    },
+    radio: {
+      width: 20,
+      height: 20,
+      marginTop: 1,
+      borderColor: theme.colors.textMuted,
+      borderRadius: 10,
+      borderWidth: 2,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    radioSelected: { borderColor: theme.colors.primary },
+    radioDot: {
+      width: 10,
+      height: 10,
+      backgroundColor: theme.colors.primary,
+      borderRadius: 5,
+    },
+    modeCopy: { flex: 1 },
+    modeTitle: { color: theme.colors.text, fontSize: 15, fontWeight: '800' },
+    modeDescription: {
+      marginTop: 4,
+      color: theme.colors.textMuted,
+      fontSize: 12,
+      lineHeight: 17,
+    },
+    error: {
+      padding: 12,
+      marginTop: 12,
+      color: theme.colors.negative,
+      backgroundColor: theme.colors.negativeMuted,
+      borderRadius: 12,
+      fontSize: 13,
+    },
+    save: {
+      minHeight: 54,
+      marginTop: 16,
+      backgroundColor: theme.colors.primary,
+      borderRadius: 17,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    saveText: {
+      color: theme.colors.onPrimary,
+      fontSize: 17,
+      fontWeight: '800',
+    },
+    deleteButton: {
+      minHeight: 54,
+      marginTop: 12,
+      backgroundColor: theme.colors.negative,
+      borderRadius: 17,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    deleteText: {
+      color: theme.colors.onNegative,
+      fontSize: 16,
+      fontWeight: '800',
+    },
+    disabled: { opacity: 0.55 },
+  });

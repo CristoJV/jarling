@@ -17,13 +17,12 @@ import { SelectionModal } from '@/presentation/components/common/selection-modal
 import { SafeBottomSheet } from '@/presentation/components/common/safe-bottom-sheet';
 import { Money } from '@/domain/value-objects/money';
 import { formatMoney } from '@/presentation/utils/money';
-
-const typeLabels: Record<AccountType, string> = {
-  checking: 'Corriente',
-  savings: 'Ahorro',
-  cash: 'Efectivo',
-  tracking: 'Seguimiento',
-};
+import { useTranslation } from '@/presentation/localization/localization-provider';
+import type { AppTheme } from '@/presentation/theme/theme';
+import {
+  useAppTheme,
+  useThemedStyles,
+} from '@/presentation/theme/theme-provider';
 
 type CreateAccountModalProps = Readonly<{
   visible: boolean;
@@ -36,6 +35,15 @@ export function CreateAccountModal({
   onDismiss,
   onCreate,
 }: CreateAccountModalProps) {
+  const { t } = useTranslation();
+  const theme = useAppTheme();
+  const styles = useThemedStyles(createStyles);
+  const typeLabels: Record<AccountType, string> = {
+    checking: t('accounts.checking'),
+    savings: t('accounts.savings'),
+    cash: t('accounts.cash'),
+    tracking: t('accounts.tracking'),
+  };
   const [name, setName] = useState('');
   const [type, setType] = useState<AccountType>('checking');
   const [openingBalanceCents, setOpeningBalanceCents] = useState(0);
@@ -55,7 +63,7 @@ export function CreateAccountModal({
 
   async function submit() {
     if (name.trim().length === 0) {
-      setError('Introduce un nombre para la cuenta.');
+      setError(t('accounts.nameRequired'));
       return;
     }
 
@@ -67,7 +75,7 @@ export function CreateAccountModal({
       resetAndDismiss();
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : 'No se pudo crear la cuenta.',
+        cause instanceof Error ? cause.message : t('accounts.createError'),
       );
     } finally {
       setSubmitting(false);
@@ -82,14 +90,14 @@ export function CreateAccountModal({
     >
       <SafeBottomSheet style={styles.sheet}>
         <View style={styles.header}>
-          <Text style={styles.title}>Nueva cuenta</Text>
+          <Text style={styles.title}>{t('accounts.new')}</Text>
           <Pressable
-            accessibilityLabel="Cerrar formulario"
+            accessibilityLabel={t('common.close')}
             accessibilityRole="button"
             hitSlop={10}
             onPress={resetAndDismiss}
           >
-            <Text style={styles.dismiss}>Cancelar</Text>
+            <Text style={styles.dismiss}>{t('common.cancel')}</Text>
           </Pressable>
         </View>
 
@@ -98,23 +106,23 @@ export function CreateAccountModal({
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.field}>
-            <Text style={styles.label}>Nombre</Text>
+            <Text style={styles.label}>{t('accounts.name')}</Text>
             <TextInput
-              accessibilityLabel="Nombre de la cuenta"
+              accessibilityLabel={t('accounts.name')}
               autoCapitalize="sentences"
               autoFocus
               onChangeText={setName}
-              placeholder="Ej. imagin"
-              placeholderTextColor="#929a93"
+              placeholder={t('accounts.namePlaceholder')}
+              placeholderTextColor={theme.colors.textMuted}
               style={styles.input}
               value={name}
             />
           </View>
 
           <View style={styles.field}>
-            <Text style={styles.label}>Tipo</Text>
+            <Text style={styles.label}>{t('accounts.type')}</Text>
             <Pressable
-              accessibilityLabel="Seleccionar tipo de cuenta"
+              accessibilityLabel={t('accounts.type')}
               onPress={() => setSelectingType(true)}
               style={styles.selector}
             >
@@ -124,12 +132,12 @@ export function CreateAccountModal({
           </View>
 
           <View style={styles.field}>
-            <Text style={styles.label}>Saldo inicial</Text>
-            <Text style={styles.help}>
-              Introduce el importe desde los céntimos. Usa ± para saldos
-              negativos.
-            </Text>
-            <Text accessibilityLabel="Saldo inicial" style={styles.amount}>
+            <Text style={styles.label}>{t('accounts.openingBalance')}</Text>
+            <Text style={styles.help}>{t('accounts.openingBalanceHelp')}</Text>
+            <Text
+              accessibilityLabel={t('accounts.openingBalance')}
+              style={styles.amount}
+            >
               {formatMoney(Money.fromCents(openingBalanceCents))}
             </Text>
             <MoneyKeypad
@@ -141,10 +149,8 @@ export function CreateAccountModal({
 
           <View style={styles.switchRow}>
             <View style={styles.switchCopy}>
-              <Text style={styles.label}>Incluir en el presupuesto</Text>
-              <Text style={styles.help}>
-                Las cuentas tracking no participan en Ready to Assign.
-              </Text>
+              <Text style={styles.label}>{t('accounts.includeBudget')}</Text>
+              <Text style={styles.help}>{t('accounts.trackingHelp')}</Text>
             </View>
             <Switch
               disabled={type === 'tracking'}
@@ -166,7 +172,7 @@ export function CreateAccountModal({
             style={[styles.submit, submitting && styles.submitDisabled]}
           >
             <Text style={styles.submitText}>
-              {submitting ? 'Creando…' : 'Crear cuenta'}
+              {submitting ? t('accounts.creating') : t('accounts.create')}
             </Text>
           </Pressable>
         </ScrollView>
@@ -183,146 +189,151 @@ export function CreateAccountModal({
             label: typeLabels[value],
             description:
               value === 'tracking'
-                ? 'Solo seguimiento; no participa en el presupuesto.'
-                : 'Puede incluirse en el presupuesto.',
+                ? t('accounts.trackingDescription')
+                : t('accounts.budgetAccountDescription'),
           }))}
           selectedValue={type}
-          title="Tipo de cuenta"
+          title={t('accounts.type')}
         />
       ) : null}
     </AnimatedBottomSheetModal>
   );
 }
 
-const styles = StyleSheet.create({
-  sheet: {
-    maxHeight: '92%',
-    backgroundColor: '#ffffff',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    overflow: 'hidden',
-  },
-  header: {
-    minHeight: 68,
-    paddingHorizontal: 24,
-    borderBottomColor: '#e6e8e4',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  title: {
-    color: '#18201a',
-    fontSize: 21,
-    fontWeight: '700',
-  },
-  dismiss: {
-    color: '#4f6b58',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  form: {
-    padding: 24,
-    paddingBottom: 40,
-    gap: 24,
-  },
-  field: {
-    gap: 8,
-  },
-  label: {
-    color: '#253028',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  input: {
-    minHeight: 50,
-    paddingHorizontal: 14,
-    color: '#18201a',
-    backgroundColor: '#f4f5f2',
-    borderColor: '#dfe3dc',
-    borderRadius: 12,
-    borderWidth: 1,
-    fontSize: 16,
-  },
-  amount: {
-    paddingVertical: 10,
-    color: '#18201a',
-    fontSize: 34,
-    fontVariant: ['tabular-nums'],
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  selector: {
-    minHeight: 52,
-    paddingHorizontal: 14,
-    backgroundColor: '#f4f5f2',
-    borderColor: '#dfe3dc',
-    borderRadius: 12,
-    borderWidth: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  selectorValue: { color: '#18201a', fontSize: 16, fontWeight: '600' },
-  selectorArrow: { color: '#647068', fontSize: 22 },
-  help: {
-    color: '#687268',
-    fontSize: 12,
-    lineHeight: 17,
-  },
-  typeGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  typeButton: {
-    minHeight: 42,
-    paddingHorizontal: 14,
-    borderColor: '#dfe3dc',
-    borderRadius: 21,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  typeButtonSelected: {
-    backgroundColor: '#294d36',
-    borderColor: '#294d36',
-  },
-  typeButtonText: {
-    color: '#445048',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  typeButtonTextSelected: {
-    color: '#ffffff',
-  },
-  switchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 20,
-  },
-  switchCopy: {
-    flex: 1,
-    gap: 4,
-  },
-  error: {
-    color: '#b42318',
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  submit: {
-    minHeight: 52,
-    backgroundColor: '#294d36',
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  submitDisabled: {
-    opacity: 0.55,
-  },
-  submitText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-});
+const createStyles = (theme: AppTheme) =>
+  StyleSheet.create({
+    sheet: {
+      maxHeight: '92%',
+      backgroundColor: theme.colors.surface,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      overflow: 'hidden',
+    },
+    header: {
+      minHeight: 68,
+      paddingHorizontal: 24,
+      borderBottomColor: theme.colors.border,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    title: {
+      color: theme.colors.text,
+      fontSize: 21,
+      fontWeight: '700',
+    },
+    dismiss: {
+      color: theme.colors.primary,
+      fontSize: 15,
+      fontWeight: '600',
+    },
+    form: {
+      padding: 24,
+      paddingBottom: 40,
+      gap: 24,
+    },
+    field: {
+      gap: 8,
+    },
+    label: {
+      color: theme.colors.text,
+      fontSize: 14,
+      fontWeight: '700',
+    },
+    input: {
+      minHeight: 50,
+      paddingHorizontal: 14,
+      color: theme.colors.text,
+      backgroundColor: theme.colors.surfaceMuted,
+      borderColor: theme.colors.border,
+      borderRadius: 12,
+      borderWidth: 1,
+      fontSize: 16,
+    },
+    amount: {
+      paddingVertical: 10,
+      color: theme.colors.text,
+      fontSize: 34,
+      fontVariant: ['tabular-nums'],
+      fontWeight: '700',
+      textAlign: 'center',
+    },
+    selector: {
+      minHeight: 52,
+      paddingHorizontal: 14,
+      backgroundColor: theme.colors.surfaceMuted,
+      borderColor: theme.colors.border,
+      borderRadius: 12,
+      borderWidth: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    selectorValue: {
+      color: theme.colors.text,
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    selectorArrow: { color: theme.colors.textMuted, fontSize: 22 },
+    help: {
+      color: theme.colors.textMuted,
+      fontSize: 12,
+      lineHeight: 17,
+    },
+    typeGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    typeButton: {
+      minHeight: 42,
+      paddingHorizontal: 14,
+      borderColor: theme.colors.border,
+      borderRadius: 21,
+      borderWidth: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    typeButtonSelected: {
+      backgroundColor: theme.colors.primary,
+      borderColor: theme.colors.primary,
+    },
+    typeButtonText: {
+      color: theme.colors.textSecondary,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    typeButtonTextSelected: {
+      color: theme.colors.onPrimary,
+    },
+    switchRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 20,
+    },
+    switchCopy: {
+      flex: 1,
+      gap: 4,
+    },
+    error: {
+      color: theme.colors.negative,
+      fontSize: 14,
+      lineHeight: 20,
+    },
+    submit: {
+      minHeight: 52,
+      backgroundColor: theme.colors.primary,
+      borderRadius: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    submitDisabled: {
+      opacity: 0.55,
+    },
+    submitText: {
+      color: theme.colors.onPrimary,
+      fontSize: 16,
+      fontWeight: '700',
+    },
+  });

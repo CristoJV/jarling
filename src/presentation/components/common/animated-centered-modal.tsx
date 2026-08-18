@@ -9,6 +9,7 @@ import {
   Pressable,
   StyleSheet,
 } from 'react-native';
+import { useAppTheme } from '@/presentation/theme/theme-provider';
 
 type AnimatedCenteredModalProps = PropsWithChildren<
   Readonly<{ onDismiss: () => void; keyboardAvoiding?: boolean }>
@@ -19,6 +20,7 @@ export function AnimatedCenteredModal({
   onDismiss,
   keyboardAvoiding = false,
 }: AnimatedCenteredModalProps) {
+  const theme = useAppTheme();
   const [progress] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
@@ -40,7 +42,10 @@ export function AnimatedCenteredModal({
     >
       <Animated.View
         pointerEvents="none"
-        style={[StyleSheet.absoluteFill, styles.scrim, { opacity: progress }]}
+        style={[
+          StyleSheet.absoluteFill,
+          { backgroundColor: theme.colors.scrim, opacity: progress },
+        ]}
       />
       <Pressable onPress={onDismiss} style={StyleSheet.absoluteFill} />
       <KeyboardAvoidingView
@@ -55,17 +60,20 @@ export function AnimatedCenteredModal({
         style={styles.positioner}
       >
         <Animated.View
-          style={{
-            opacity: progress,
-            transform: [
-              {
-                scale: progress.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0.96, 1],
-                }),
-              },
-            ],
-          }}
+          style={[
+            styles.content,
+            {
+              opacity: progress,
+              transform: [
+                {
+                  scale: progress.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0.96, 1],
+                  }),
+                },
+              ],
+            },
+          ]}
         >
           {children}
         </Animated.View>
@@ -75,11 +83,11 @@ export function AnimatedCenteredModal({
 }
 
 const styles = StyleSheet.create({
-  scrim: { backgroundColor: 'rgba(18, 24, 20, 0.42)' },
   positioner: {
     flex: 1,
-    padding: 20,
+    padding: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  content: { width: '100%', maxWidth: 680 },
 });

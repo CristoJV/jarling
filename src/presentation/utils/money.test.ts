@@ -27,9 +27,9 @@ describe('presentation money utilities', () => {
   );
 
   it('formats cents only at the presentation boundary', () => {
-    expect(formatMoney(Money.fromCents(200_050))).toMatch(
-      /2(?:[.\s]?000),50\s?€/u,
-    );
+    const formatted = formatMoney(Money.fromCents(200_050));
+    expect(formatted).toContain('€');
+    expect(formatted).toMatch(/2.+000[,.]50/u);
   });
 });
 

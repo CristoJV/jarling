@@ -25,6 +25,13 @@ import { TargetEditorModal } from '@/presentation/components/targets/target-edit
 import { useBudget } from '@/presentation/hooks/use-budget';
 import { useCategories } from '@/presentation/hooks/use-categories';
 import { useTargets } from '@/presentation/hooks/use-targets';
+import { useTranslation } from '@/presentation/localization/localization-provider';
+import type { TranslationKey } from '@/presentation/localization/translations';
+import type { AppTheme } from '@/presentation/theme/theme';
+import {
+  useAppTheme,
+  useThemedStyles,
+} from '@/presentation/theme/theme-provider';
 import { formatMoney } from '@/presentation/utils/money';
 
 type NameEditor =
@@ -33,18 +40,16 @@ type NameEditor =
   | Readonly<{ kind: 'rename-group'; id: string; name: string }>
   | Readonly<{ kind: 'rename-category'; id: string; name: string }>;
 
-const monthFormatter = new Intl.DateTimeFormat('en-US', {
-  month: 'short',
-  year: 'numeric',
-});
-
 function monthKey(date = new Date()): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
 
-function formatMonth(month: string): string {
+function formatMonth(month: string, language: string): string {
   const [year, monthNumber] = month.split('-').map(Number);
-  return monthFormatter.format(new Date(year ?? 0, (monthNumber ?? 1) - 1, 1));
+  return new Intl.DateTimeFormat(language, {
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date(year ?? 0, (monthNumber ?? 1) - 1, 1));
 }
 
 function todayKey(): string {
@@ -54,6 +59,9 @@ function todayKey(): string {
 
 export function BudgetScreen() {
   const router = useRouter();
+  const { language, t } = useTranslation();
+  const theme = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   const [month, setMonth] = useState(monthKey);
   const {
     groups,
@@ -95,7 +103,10 @@ export function BudgetScreen() {
   const [moveTarget, setMoveTarget] = useState<BudgetCategoryValues | null>(
     null,
   );
-  const monthLabel = useMemo(() => formatMonth(month), [month]);
+  const monthLabel = useMemo(
+    () => formatMonth(month, language),
+    [language, month],
+  );
   const valuesByCategoryId = useMemo(
     () =>
       new Map(
@@ -165,9 +176,9 @@ export function BudgetScreen() {
     <SafeAreaView edges={['top']} style={styles.safeArea}>
       <View style={styles.header}>
         <View style={styles.headerCopy}>
-          <Text style={styles.title}>Budget</Text>
+          <Text style={styles.title}>{t('budget.title')}</Text>
           <Pressable
-            accessibilityLabel="Choose budget month"
+            accessibilityLabel={t('budget.chooseMonth')}
             onPress={() => setSelectingMonth(true)}
             style={styles.monthSelector}
           >
@@ -181,12 +192,12 @@ export function BudgetScreen() {
             onPress={() => setEditingBudget(true)}
             style={styles.editButton}
           >
-            <Text style={styles.editButtonText}>Edit</Text>
+            <Text style={styles.editButtonText}>{t('common.edit')}</Text>
           </Pressable>
           <OverflowMenu
             items={[
               {
-                label: 'Edit Budget',
+                label: t('budget.edit'),
                 onPress: () => setEditingBudget(true),
               },
             ]}
@@ -221,15 +232,15 @@ export function BudgetScreen() {
             >
               {formatMoney(budget.readyToAssign)}
             </Text>
-            <Text style={styles.rtaLabel}>Ready to Assign</Text>
+            <Text style={styles.rtaLabel}>{t('budget.readyToAssign')}</Text>
           </View>
         ) : null}
 
         <View style={styles.sectionHeading}>
           <View>
-            <Text style={styles.sectionTitle}>Categorías</Text>
+            <Text style={styles.sectionTitle}>{t('budget.categories')}</Text>
             <Text style={styles.sectionDescription}>
-              Tap a category to assign, move money or view details.
+              {t('budget.categoryHint')}
             </Text>
           </View>
         </View>
@@ -242,22 +253,26 @@ export function BudgetScreen() {
 
         {(categoriesLoading || budgetLoading || targetsLoading) && !groups ? (
           <ActivityIndicator
-            accessibilityLabel="Cargando presupuesto"
-            color="#294d36"
+            accessibilityLabel={t('common.loading')}
+            color={theme.colors.primary}
           />
         ) : null}
 
         {groups?.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyTitle}>Crea tu primer grupo</Text>
+            <Text style={styles.emptyTitle}>
+              {t('budget.createFirstGroup')}
+            </Text>
             <Text style={styles.emptyDescription}>
-              Por ejemplo: Necesidades, Deseos o Ahorro.
+              {t('budget.createFirstGroupHint')}
             </Text>
             <Pressable
               onPress={() => setNameEditor({ kind: 'create-group' })}
               style={styles.emptyAction}
             >
-              <Text style={styles.emptyActionText}>Crear grupo</Text>
+              <Text style={styles.emptyActionText}>
+                {t('budget.createGroup')}
+              </Text>
             </Pressable>
           </View>
         ) : null}
@@ -275,13 +290,13 @@ export function BudgetScreen() {
       </ScrollView>
 
       <Pressable
-        accessibilityLabel="Añadir transacción"
+        accessibilityLabel={t('transactions.add')}
         onPress={() =>
           router.push({ pathname: '/transactions', params: { create: '1' } })
         }
         style={styles.fab}
       >
-        <Text style={styles.fabText}>+ Transaction</Text>
+        <Text style={styles.fabText}>+ {t('budget.addTransaction')}</Text>
       </Pressable>
 
       {editingBudget && groups ? (
@@ -319,15 +334,17 @@ export function BudgetScreen() {
           }
           label={
             nameEditor.kind.includes('group')
-              ? 'Nombre del grupo'
-              : 'Nombre de la categoría'
+              ? t('budget.groupName')
+              : t('budget.categoryName')
           }
           onDismiss={() => setNameEditor(null)}
           onSubmit={submitName}
           submitLabel={
-            nameEditor.kind.startsWith('create') ? 'Crear' : 'Guardar'
+            nameEditor.kind.startsWith('create')
+              ? t('budget.createGroup')
+              : t('common.save')
           }
-          title={editorTitle(nameEditor)}
+          title={t(editorTitleKey(nameEditor))}
         />
       ) : null}
 
@@ -407,145 +424,158 @@ export function BudgetScreen() {
   );
 }
 
-function editorTitle(editor: NameEditor): string {
+function editorTitleKey(editor: NameEditor): TranslationKey {
   switch (editor.kind) {
     case 'create-group':
-      return 'Nuevo grupo';
+      return 'budget.newGroup';
     case 'create-category':
-      return 'Nueva categoría';
+      return 'budget.newCategory';
     case 'rename-group':
-      return 'Renombrar grupo';
+      return 'budget.renameGroup';
     case 'rename-category':
-      return 'Renombrar categoría';
+      return 'budget.renameCategory';
   }
 }
 
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#f7f7f5' },
-  header: {
-    minHeight: 82,
-    paddingHorizontal: 20,
-    borderBottomColor: '#dfe3dc',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  headerCopy: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  title: {
-    color: '#18201a',
-    fontSize: 28,
-    fontWeight: '700',
-    letterSpacing: -0.6,
-  },
-  monthSelector: {
-    minHeight: 42,
-    paddingHorizontal: 12,
-    backgroundColor: '#edf1ed',
-    borderRadius: 13,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-  },
-  month: {
-    color: '#253028',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  monthArrow: {
-    color: '#496451',
-    fontSize: 17,
-  },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  editButton: {
-    minHeight: 40,
-    paddingHorizontal: 12,
-    borderRadius: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  editButtonText: { color: '#315a3e', fontSize: 14, fontWeight: '700' },
-  content: {
-    width: '100%',
-    maxWidth: 820,
-    padding: 20,
-    paddingBottom: 120,
-    alignSelf: 'center',
-    gap: 14,
-  },
-  rtaCard: {
-    minHeight: 74,
-    paddingHorizontal: 22,
-    backgroundColor: '#cfe8d2',
-    borderRadius: 37,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  rtaCardNegative: { backgroundColor: '#fde8e5' },
-  rtaLabel: {
-    color: '#285136',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  rtaValue: {
-    color: '#1e5530',
-    fontSize: 28,
-    fontVariant: ['tabular-nums'],
-    fontWeight: '800',
-  },
-  rtaNegative: { color: '#b42318' },
-  sectionHeading: {
-    marginTop: 4,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 16,
-  },
-  sectionTitle: { color: '#253028', fontSize: 20, fontWeight: '700' },
-  sectionDescription: {
-    maxWidth: 430,
-    marginTop: 3,
-    color: '#687268',
-    fontSize: 12,
-  },
-  error: {
-    padding: 12,
-    color: '#b42318',
-    backgroundColor: '#fef3f2',
-    borderRadius: 10,
-    fontSize: 14,
-  },
-  emptyState: { paddingVertical: 64, alignItems: 'center', gap: 10 },
-  emptyTitle: { color: '#253028', fontSize: 20, fontWeight: '700' },
-  emptyDescription: { color: '#687268', fontSize: 15, textAlign: 'center' },
-  emptyAction: {
-    minHeight: 46,
-    paddingHorizontal: 18,
-    marginTop: 12,
-    borderColor: '#294d36',
-    borderRadius: 23,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyActionText: { color: '#294d36', fontSize: 14, fontWeight: '700' },
-  fab: {
-    position: 'absolute',
-    right: 22,
-    bottom: 22,
-    minHeight: 52,
-    paddingHorizontal: 20,
-    backgroundColor: '#294d36',
-    borderRadius: 26,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 7,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  fabText: { color: '#ffffff', fontSize: 14, fontWeight: '700' },
-});
+const createStyles = (theme: AppTheme) =>
+  StyleSheet.create({
+    safeArea: { flex: 1, backgroundColor: theme.colors.background },
+    header: {
+      minHeight: 82,
+      paddingHorizontal: 20,
+      borderBottomColor: theme.colors.border,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    headerCopy: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+    title: {
+      color: theme.colors.text,
+      fontSize: 28,
+      fontWeight: '700',
+      letterSpacing: -0.6,
+    },
+    monthSelector: {
+      minHeight: 42,
+      paddingHorizontal: 12,
+      backgroundColor: theme.colors.surfaceMuted,
+      borderRadius: 13,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 7,
+    },
+    month: {
+      color: theme.colors.text,
+      fontSize: 15,
+      fontWeight: '700',
+    },
+    monthArrow: {
+      color: theme.colors.primary,
+      fontSize: 17,
+    },
+    headerActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    editButton: {
+      minHeight: 40,
+      paddingHorizontal: 12,
+      borderRadius: 11,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    editButtonText: {
+      color: theme.colors.primary,
+      fontSize: 14,
+      fontWeight: '700',
+    },
+    content: {
+      width: '100%',
+      maxWidth: 820,
+      padding: 20,
+      paddingBottom: 120,
+      alignSelf: 'center',
+      gap: 14,
+    },
+    rtaCard: {
+      minHeight: 74,
+      paddingHorizontal: 22,
+      backgroundColor: theme.colors.positiveMuted,
+      borderRadius: 37,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 12,
+    },
+    rtaCardNegative: { backgroundColor: theme.colors.negativeMuted },
+    rtaLabel: {
+      color: theme.colors.positive,
+      fontSize: 15,
+      fontWeight: '700',
+    },
+    rtaValue: {
+      color: theme.colors.positive,
+      fontSize: 28,
+      fontVariant: ['tabular-nums'],
+      fontWeight: '800',
+    },
+    rtaNegative: { color: theme.colors.negative },
+    sectionHeading: {
+      marginTop: 4,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 16,
+    },
+    sectionTitle: { color: theme.colors.text, fontSize: 20, fontWeight: '700' },
+    sectionDescription: {
+      maxWidth: 430,
+      marginTop: 3,
+      color: theme.colors.textMuted,
+      fontSize: 12,
+    },
+    error: {
+      padding: 12,
+      color: theme.colors.negative,
+      backgroundColor: theme.colors.negativeMuted,
+      borderRadius: 10,
+      fontSize: 14,
+    },
+    emptyState: { paddingVertical: 64, alignItems: 'center', gap: 10 },
+    emptyTitle: { color: theme.colors.text, fontSize: 20, fontWeight: '700' },
+    emptyDescription: {
+      color: theme.colors.textMuted,
+      fontSize: 15,
+      textAlign: 'center',
+    },
+    emptyAction: {
+      minHeight: 46,
+      paddingHorizontal: 18,
+      marginTop: 12,
+      borderColor: theme.colors.primary,
+      borderRadius: 23,
+      borderWidth: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    emptyActionText: {
+      color: theme.colors.primary,
+      fontSize: 14,
+      fontWeight: '700',
+    },
+    fab: {
+      position: 'absolute',
+      right: 22,
+      bottom: 22,
+      minHeight: 52,
+      paddingHorizontal: 20,
+      backgroundColor: theme.colors.primary,
+      borderRadius: 26,
+      shadowColor: '#000000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.2,
+      shadowRadius: 8,
+      elevation: 7,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    fabText: { color: theme.colors.onPrimary, fontSize: 14, fontWeight: '700' },
+  });

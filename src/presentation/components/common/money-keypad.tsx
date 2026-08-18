@@ -10,6 +10,9 @@ import {
   calculateMoneyOperation,
   type MoneyOperator,
 } from '@/presentation/utils/money-calculator';
+import { useTranslation } from '@/presentation/localization/localization-provider';
+import type { AppTheme } from '@/presentation/theme/theme';
+import { useThemedStyles } from '@/presentation/theme/theme-provider';
 
 type MoneyKeypadProps = Readonly<{
   valueCents: number;
@@ -26,6 +29,8 @@ export function MoneyKeypad({
   calculator = false,
   onDone,
 }: MoneyKeypadProps) {
+  const { t } = useTranslation();
+  const styles = useThemedStyles(createStyles);
   const [pending, setPending] = useState<
     Readonly<{ leftCents: number; operator: MoneyOperator }> | undefined
   >();
@@ -53,7 +58,10 @@ export function MoneyKeypad({
 
   if (calculator) {
     return (
-      <View accessibilityLabel="Teclado de importe" style={styles.calculator}>
+      <View
+        accessibilityLabel={t('transactions.amount')}
+        style={styles.calculator}
+      >
         <View style={styles.calculatorStatus}>
           <Text style={styles.calculatorStatusText}>
             {pending
@@ -112,7 +120,7 @@ export function MoneyKeypad({
               onPress={() => chooseOperator('-')}
             />
             <Key full label="=" onPress={evaluate} />
-            <Key full label="Done" onPress={finish} primary />
+            <Key full label={t('common.done')} onPress={finish} primary />
           </View>
         </View>
       </View>
@@ -124,7 +132,7 @@ export function MoneyKeypad({
   }
 
   return (
-    <View accessibilityLabel="Teclado de importe" style={styles.keypad}>
+    <View accessibilityLabel={t('transactions.amount')} style={styles.keypad}>
       {[7, 8, 9, 4, 5, 6, 1, 2, 3].map((digit) => (
         <Key
           third
@@ -177,9 +185,11 @@ function Key({
   primary?: boolean;
   third?: boolean;
 }>) {
+  const { t } = useTranslation();
+  const styles = useThemedStyles(createStyles);
   return (
     <Pressable
-      accessibilityLabel={label === '⌫' ? 'Borrar último dígito' : label}
+      accessibilityLabel={label === '⌫' ? t('common.delete') : label}
       accessibilityRole="button"
       onPress={onPress}
       style={({ pressed }) => [
@@ -199,46 +209,55 @@ function Key({
   );
 }
 
-const styles = StyleSheet.create({
-  keypad: {
-    width: '100%',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  calculator: {
-    width: '100%',
-    paddingHorizontal: 10,
-    paddingTop: 4,
-    paddingBottom: 6,
-    backgroundColor: '#edf0f4',
-  },
-  calculatorStatus: {
-    height: 20,
-    paddingHorizontal: 8,
-    alignItems: 'flex-end',
-  },
-  calculatorStatusText: { color: '#687268', fontSize: 12, fontWeight: '700' },
-  calculatorBody: { flexDirection: 'row' },
-  digitGrid: { width: '72%', flexDirection: 'row', flexWrap: 'wrap' },
-  operationGrid: { width: '28%', flexDirection: 'row', flexWrap: 'wrap' },
-  key: {
-    width: '100%',
-    minHeight: 48,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  keyHalf: { width: '50%' },
-  keyFull: { width: '100%' },
-  keyThird: { width: '33.3333%' },
-  keyEmphasized: { backgroundColor: '#dde2e9' },
-  keyPrimary: { backgroundColor: '#315a3e' },
-  keyPressed: { backgroundColor: '#e6ece7' },
-  keyText: {
-    color: '#18201a',
-    fontSize: 24,
-    fontVariant: ['tabular-nums'],
-    fontWeight: '500',
-  },
-  keyTextPrimary: { color: '#ffffff', fontSize: 18, fontWeight: '800' },
-});
+const createStyles = (theme: AppTheme) =>
+  StyleSheet.create({
+    keypad: {
+      width: '100%',
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+    },
+    calculator: {
+      width: '100%',
+      paddingHorizontal: 10,
+      paddingTop: 4,
+      paddingBottom: 6,
+      backgroundColor: theme.colors.surfaceElevated,
+    },
+    calculatorStatus: {
+      height: 20,
+      paddingHorizontal: 8,
+      alignItems: 'flex-end',
+    },
+    calculatorStatusText: {
+      color: theme.colors.textMuted,
+      fontSize: 12,
+      fontWeight: '700',
+    },
+    calculatorBody: { flexDirection: 'row' },
+    digitGrid: { width: '72%', flexDirection: 'row', flexWrap: 'wrap' },
+    operationGrid: { width: '28%', flexDirection: 'row', flexWrap: 'wrap' },
+    key: {
+      width: '100%',
+      minHeight: 48,
+      borderRadius: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    keyHalf: { width: '50%' },
+    keyFull: { width: '100%' },
+    keyThird: { width: '33.3333%' },
+    keyEmphasized: { backgroundColor: theme.colors.surfaceMuted },
+    keyPrimary: { backgroundColor: theme.colors.primary },
+    keyPressed: { backgroundColor: theme.colors.surfacePressed },
+    keyText: {
+      color: theme.colors.text,
+      fontSize: 24,
+      fontVariant: ['tabular-nums'],
+      fontWeight: '500',
+    },
+    keyTextPrimary: {
+      color: theme.colors.onPrimary,
+      fontSize: 18,
+      fontWeight: '800',
+    },
+  });

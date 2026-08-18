@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -18,33 +18,43 @@ import type {
 import { Money } from '@/domain/value-objects/money';
 import { OverflowMenu } from '@/presentation/components/common/overflow-menu';
 import { useReports } from '@/presentation/hooks/use-reports';
+import { useTranslation } from '@/presentation/localization/localization-provider';
+import type { SupportedLanguage } from '@/presentation/localization/translator';
+import type { AppTheme } from '@/presentation/theme/theme';
+import {
+  useAppTheme,
+  useThemedStyles,
+} from '@/presentation/theme/theme-provider';
 import { formatMoney } from '@/presentation/utils/money';
 
 type ReportKind = 'spending' | 'income' | 'netWorth';
-
-const monthFormatter = new Intl.DateTimeFormat('en-US', { month: 'short' });
 
 function currentMonth(): string {
   const date = new Date();
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
 
-function monthLabel(month: string): string {
+function monthLabel(month: string, language: SupportedLanguage): string {
   const [year, number] = month.split('-').map(Number);
-  return monthFormatter.format(new Date(year ?? 0, (number ?? 1) - 1, 1));
+  return new Intl.DateTimeFormat(language, { month: 'short' }).format(
+    new Date(year ?? 0, (number ?? 1) - 1, 1),
+  );
 }
 
 export function ReportsScreen() {
-  const throughMonth = useMemo(() => currentMonth(), []);
+  const [throughMonth] = useState(currentMonth);
   const { reports, error, loading, refresh } = useReports(throughMonth);
   const [kind, setKind] = useState<ReportKind>('spending');
+  const { t } = useTranslation();
+  const theme = useAppTheme();
+  const styles = useThemedStyles(createStyles);
 
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.title}>Reports</Text>
-          <Text style={styles.period}>Last 6 months</Text>
+          <Text style={styles.title}>{t('reports.title')}</Text>
+          <Text style={styles.period}>{t('reports.lastSixMonths')}</Text>
         </View>
         <OverflowMenu />
       </View>
@@ -52,44 +62,44 @@ export function ReportsScreen() {
         <ReportTab
           active={kind === 'spending'}
           icon="chart-donut"
-          label="Spending"
+          label={t('reports.spending')}
           onPress={() => setKind('spending')}
         />
         <ReportTab
           active={kind === 'income'}
           icon="chart-bar"
-          label="Income"
+          label={t('reports.income')}
           onPress={() => setKind('income')}
         />
         <ReportTab
           active={kind === 'netWorth'}
           icon="chart-line"
-          label="Net worth"
+          label={t('reports.netWorth')}
           onPress={() => setKind('netWorth')}
         />
       </View>
-
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={
           <RefreshControl
             onRefresh={() => void refresh()}
             refreshing={loading && reports !== null}
+            tintColor={theme.colors.primary}
           />
         }
       >
         {loading && !reports ? (
-          <ActivityIndicator color="#294d36" size="large" />
+          <ActivityIndicator color={theme.colors.primary} size="large" />
         ) : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
         {reports && kind === 'spending' ? (
           <SpendingReport reports={reports} />
         ) : null}
         {reports && kind === 'income' ? (
-          <IncomeReport months={reports.months} />
+          <MonthlyReport kind="income" months={reports.months} />
         ) : null}
         {reports && kind === 'netWorth' ? (
-          <NetWorthReport months={reports.months} />
+          <MonthlyReport kind="netWorth" months={reports.months} />
         ) : null}
       </ScrollView>
     </SafeAreaView>
@@ -107,6 +117,8 @@ function ReportTab({
   label: string;
   onPress: () => void;
 }>) {
+  const theme = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   return (
     <Pressable
       accessibilityRole="tab"
@@ -115,7 +127,7 @@ function ReportTab({
       style={[styles.tab, active && styles.tabActive]}
     >
       <MaterialCommunityIcons
-        color={active ? '#ffffff' : '#536158'}
+        color={active ? theme.colors.onPrimary : theme.colors.textSecondary}
         name={icon}
         size={18}
       />
@@ -127,21 +139,21 @@ function ReportTab({
 }
 
 function SpendingReport({ reports }: Readonly<{ reports: ReportsSnapshot }>) {
+  const { t } = useTranslation();
+  const styles = useThemedStyles(createStyles);
   return (
     <>
-      <View style={styles.heroCard}>
-        <Text style={styles.eyebrow}>TOTAL SPENDING</Text>
-        <Text style={styles.heroAmount}>
-          {formatMoney(reports.spending.total)}
-        </Text>
-        <Text style={styles.heroCaption}>
-          {formatMoney(reports.spending.monthlyAverage)} monthly average
-        </Text>
-      </View>
+      <Hero
+        amount={formatMoney(reports.spending.total)}
+        caption={t('reports.monthlyAverage', {
+          amount: formatMoney(reports.spending.monthlyAverage),
+        })}
+        eyebrow={t('reports.totalSpending')}
+      />
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Spending breakdown</Text>
+        <Text style={styles.cardTitle}>{t('reports.spendingBreakdown')}</Text>
         {reports.spending.categories.length === 0 ? (
-          <EmptyReport message="Categorised spending will appear here." />
+          <Text style={styles.empty}>{t('reports.emptySpending')}</Text>
         ) : (
           reports.spending.categories.map((category) => (
             <View key={category.categoryId} style={styles.categoryRow}>
@@ -177,119 +189,107 @@ function SpendingReport({ reports }: Readonly<{ reports: ReportsSnapshot }>) {
   );
 }
 
-function IncomeReport({
+function MonthlyReport({
+  kind,
   months,
-}: Readonly<{ months: readonly ReportMonth[] }>) {
+}: Readonly<{
+  kind: 'income' | 'netWorth';
+  months: readonly ReportMonth[];
+}>) {
+  const { language, t } = useTranslation();
+  const theme = useAppTheme();
+  const styles = useThemedStyles(createStyles);
+  const incomeReport = kind === 'income';
   const maximum = Math.max(
     1,
-    ...months.flatMap((month) => [month.income.cents, month.spending.cents]),
+    ...months.flatMap((month) =>
+      incomeReport
+        ? [month.income.cents, month.spending.cents]
+        : [month.assets.cents, month.debt.cents],
+    ),
   );
-  const totalNet = months.reduce(
-    (sum, month) => sum + month.netIncome.cents,
-    0,
-  );
+  const netCents = incomeReport
+    ? months.reduce((sum, month) => sum + month.netIncome.cents, 0)
+    : (months.at(-1)?.netWorth.cents ?? 0);
+  const firstLabel = incomeReport ? t('reports.income') : t('reports.assets');
+  const secondLabel = incomeReport ? t('reports.spending') : t('reports.debt');
 
   return (
     <>
-      <View style={styles.heroCard}>
-        <Text style={styles.eyebrow}>NET INCOME</Text>
-        <Text style={[styles.heroAmount, totalNet < 0 && styles.negative]}>
-          {formatMoney(Money.fromCents(totalNet))}
-        </Text>
-        <Text style={styles.heroCaption}>Income minus spending</Text>
-      </View>
+      <Hero
+        amount={formatMoney(Money.fromCents(netCents))}
+        caption={
+          incomeReport
+            ? t('reports.incomeMinusSpending')
+            : t('reports.assetsMinusDebt')
+        }
+        eyebrow={
+          incomeReport ? t('reports.netIncome') : t('reports.netWorthUpper')
+        }
+        negative={netCents < 0}
+      />
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Income vs spending</Text>
+        <Text style={styles.cardTitle}>
+          {incomeReport
+            ? t('reports.incomeVsSpending')
+            : t('reports.netWorthTrend')}
+        </Text>
         <View style={styles.legend}>
-          <Legend color="#4d9461" label="Income" />
-          <Legend color="#de776d" label="Spending" />
+          <Legend color={theme.colors.positive} label={firstLabel} />
+          <Legend color={theme.colors.negative} label={secondLabel} />
         </View>
-        {months.map((month) => (
-          <View key={month.month} style={styles.monthRow}>
-            <Text style={styles.monthLabel}>{monthLabel(month.month)}</Text>
-            <View style={styles.monthBars}>
-              <MetricBar
-                color="#4d9461"
-                maximum={maximum}
-                value={month.income.cents}
-              />
-              <MetricBar
-                color="#de776d"
-                maximum={maximum}
-                value={month.spending.cents}
-              />
+        {months.map((month) => {
+          const first = incomeReport ? month.income.cents : month.assets.cents;
+          const second = incomeReport ? month.spending.cents : month.debt.cents;
+          const net = incomeReport ? month.netIncome : month.netWorth;
+          return (
+            <View key={month.month} style={styles.monthRow}>
+              <Text style={styles.monthLabel}>
+                {monthLabel(month.month, language)}
+              </Text>
+              <View style={styles.monthBars}>
+                <MetricBar
+                  color={theme.colors.positive}
+                  maximum={maximum}
+                  value={first}
+                />
+                <MetricBar
+                  color={theme.colors.negative}
+                  maximum={maximum}
+                  value={second}
+                />
+              </View>
+              <Text style={[styles.monthNet, net.cents < 0 && styles.negative]}>
+                {formatMoney(net)}
+              </Text>
             </View>
-            <Text
-              style={[
-                styles.monthNet,
-                month.netIncome.cents < 0 && styles.negative,
-              ]}
-            >
-              {formatMoney(month.netIncome)}
-            </Text>
-          </View>
-        ))}
+          );
+        })}
       </View>
     </>
   );
 }
 
-function NetWorthReport({
-  months,
-}: Readonly<{ months: readonly ReportMonth[] }>) {
-  const latest = months.at(-1);
-  const maximum = Math.max(
-    1,
-    ...months.flatMap((month) => [month.assets.cents, month.debt.cents]),
-  );
-
+function Hero({
+  amount,
+  caption,
+  eyebrow,
+  negative = false,
+}: Readonly<{
+  amount: string;
+  caption: string;
+  eyebrow: string;
+  negative?: boolean;
+}>) {
+  const styles = useThemedStyles(createStyles);
   return (
-    <>
-      <View style={styles.heroCard}>
-        <Text style={styles.eyebrow}>NET WORTH</Text>
-        <Text
-          style={[
-            styles.heroAmount,
-            (latest?.netWorth.cents ?? 0) < 0 && styles.negative,
-          ]}
-        >
-          {latest ? formatMoney(latest.netWorth) : '—'}
-        </Text>
-        <Text style={styles.heroCaption}>Assets minus debt</Text>
-      </View>
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Net worth trend</Text>
-        <View style={styles.legend}>
-          <Legend color="#528f68" label="Assets" />
-          <Legend color="#d86b63" label="Debt" />
-        </View>
-        {months.map((month) => (
-          <View key={month.month} style={styles.monthRow}>
-            <Text style={styles.monthLabel}>{monthLabel(month.month)}</Text>
-            <View style={styles.monthBars}>
-              <MetricBar
-                color="#528f68"
-                maximum={maximum}
-                value={month.assets.cents}
-              />
-              <MetricBar
-                color="#d86b63"
-                maximum={maximum}
-                value={month.debt.cents}
-              />
-            </View>
-            <Text
-              style={[
-                styles.monthNet,
-                month.netWorth.cents < 0 && styles.negative,
-              ]}
-            >
-              {formatMoney(month.netWorth)}
-            </Text>
-          </View>
-        ))}
-      </View>
-    </>
+    <View style={styles.heroCard}>
+      <Text style={styles.eyebrow}>{eyebrow}</Text>
+      <Text style={[styles.heroAmount, negative && styles.heroNegative]}>
+        {amount}
+      </Text>
+      <Text style={styles.heroCaption}>{caption}</Text>
+    </View>
   );
 }
 
@@ -298,6 +298,7 @@ function MetricBar({
   maximum,
   value,
 }: Readonly<{ color: string; maximum: number; value: number }>) {
+  const styles = useThemedStyles(createStyles);
   return (
     <View style={styles.metricTrack}>
       <View
@@ -314,6 +315,7 @@ function MetricBar({
 }
 
 function Legend({ color, label }: Readonly<{ color: string; label: string }>) {
+  const styles = useThemedStyles(createStyles);
   return (
     <View style={styles.legendItem}>
       <View style={[styles.legendDot, { backgroundColor: color }]} />
@@ -322,149 +324,170 @@ function Legend({ color, label }: Readonly<{ color: string; label: string }>) {
   );
 }
 
-function EmptyReport({ message }: Readonly<{ message: string }>) {
-  return <Text style={styles.empty}>{message}</Text>;
-}
-
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#f7f7f5' },
-  header: {
-    minHeight: 78,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  title: {
-    color: '#18201a',
-    fontSize: 28,
-    fontWeight: '800',
-    letterSpacing: -0.6,
-  },
-  period: { marginTop: 2, color: '#6d776f', fontSize: 12, fontWeight: '600' },
-  tabs: {
-    marginHorizontal: 20,
-    padding: 4,
-    backgroundColor: '#e8ede8',
-    borderRadius: 18,
-    flexDirection: 'row',
-    gap: 4,
-  },
-  tab: {
-    minHeight: 46,
-    paddingHorizontal: 8,
-    borderRadius: 14,
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  tabActive: { backgroundColor: '#294d36' },
-  tabText: { color: '#536158', fontSize: 12, fontWeight: '700' },
-  tabTextActive: { color: '#ffffff' },
-  content: {
-    width: '100%',
-    maxWidth: 820,
-    padding: 20,
-    paddingBottom: 36,
-    alignSelf: 'center',
-    gap: 16,
-  },
-  heroCard: {
-    minHeight: 154,
-    padding: 24,
-    backgroundColor: '#294d36',
-    borderRadius: 26,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  eyebrow: {
-    color: '#c9ddce',
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 1.1,
-  },
-  heroAmount: {
-    marginTop: 8,
-    color: '#ffffff',
-    fontSize: 34,
-    fontVariant: ['tabular-nums'],
-    fontWeight: '800',
-  },
-  heroCaption: {
-    marginTop: 4,
-    color: '#c9ddce',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  card: {
-    padding: 18,
-    backgroundColor: '#ffffff',
-    borderColor: '#e1e5df',
-    borderRadius: 22,
-    borderWidth: 1,
-    gap: 14,
-  },
-  cardTitle: { color: '#202b23', fontSize: 18, fontWeight: '800' },
-  categoryRow: { paddingTop: 3, gap: 8 },
-  rowHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  rowCopy: { flex: 1 },
-  rowTitle: { color: '#253028', fontSize: 15, fontWeight: '700' },
-  rowSubtitle: { marginTop: 2, color: '#7a837c', fontSize: 11 },
-  rowAmountCopy: { alignItems: 'flex-end' },
-  rowAmount: {
-    color: '#253028',
-    fontSize: 14,
-    fontVariant: ['tabular-nums'],
-    fontWeight: '700',
-  },
-  percentage: { color: '#758078', fontSize: 10, fontWeight: '700' },
-  track: {
-    height: 8,
-    backgroundColor: '#e5e9e5',
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  spendingBar: { height: '100%', backgroundColor: '#5f9d70', borderRadius: 4 },
-  legend: { flexDirection: 'row', gap: 18 },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  legendDot: { width: 9, height: 9, borderRadius: 5 },
-  legendText: { color: '#667169', fontSize: 11, fontWeight: '700' },
-  monthRow: {
-    minHeight: 48,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  monthLabel: { width: 30, color: '#566159', fontSize: 12, fontWeight: '700' },
-  monthBars: { flex: 1, gap: 4 },
-  metricTrack: {
-    height: 7,
-    backgroundColor: '#edf0ed',
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  metricFill: { height: '100%', borderRadius: 4 },
-  monthNet: {
-    width: 92,
-    color: '#285d39',
-    fontSize: 12,
-    fontVariant: ['tabular-nums'],
-    fontWeight: '800',
-    textAlign: 'right',
-  },
-  negative: { color: '#c4574f' },
-  empty: {
-    paddingVertical: 34,
-    color: '#727c74',
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  error: {
-    padding: 14,
-    color: '#b42318',
-    backgroundColor: '#fef3f2',
-    borderRadius: 12,
-  },
-});
+const createStyles = (theme: AppTheme) =>
+  StyleSheet.create({
+    safeArea: { flex: 1, backgroundColor: theme.colors.background },
+    header: {
+      minHeight: 78,
+      paddingHorizontal: 20,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    title: { color: theme.colors.text, fontSize: 28, fontWeight: '800' },
+    period: {
+      marginTop: 2,
+      color: theme.colors.textMuted,
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    tabs: {
+      marginHorizontal: 20,
+      padding: 4,
+      backgroundColor: theme.colors.surfaceMuted,
+      borderRadius: 18,
+      flexDirection: 'row',
+      gap: 4,
+    },
+    tab: {
+      minHeight: 46,
+      paddingHorizontal: 8,
+      borderRadius: 14,
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+    },
+    tabActive: { backgroundColor: theme.colors.primary },
+    tabText: {
+      color: theme.colors.textSecondary,
+      fontSize: 12,
+      fontWeight: '700',
+    },
+    tabTextActive: { color: theme.colors.onPrimary },
+    content: {
+      width: '100%',
+      maxWidth: 820,
+      padding: 20,
+      paddingBottom: 36,
+      alignSelf: 'center',
+      gap: 16,
+    },
+    heroCard: {
+      minHeight: 154,
+      padding: 24,
+      backgroundColor: theme.colors.primary,
+      borderRadius: 26,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    eyebrow: {
+      color: theme.colors.onPrimary,
+      opacity: 0.78,
+      fontSize: 11,
+      fontWeight: '800',
+      letterSpacing: 1.1,
+    },
+    heroAmount: {
+      marginTop: 8,
+      color: theme.colors.onPrimary,
+      fontSize: 34,
+      fontVariant: ['tabular-nums'],
+      fontWeight: '800',
+    },
+    heroNegative: { color: theme.colors.negativeMuted },
+    heroCaption: {
+      marginTop: 4,
+      color: theme.colors.onPrimary,
+      opacity: 0.78,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    card: {
+      padding: 18,
+      backgroundColor: theme.colors.surface,
+      borderColor: theme.colors.border,
+      borderRadius: 22,
+      borderWidth: 1,
+      gap: 14,
+    },
+    cardTitle: { color: theme.colors.text, fontSize: 18, fontWeight: '800' },
+    categoryRow: { paddingTop: 3, gap: 8 },
+    rowHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    rowCopy: { flex: 1 },
+    rowTitle: { color: theme.colors.text, fontSize: 15, fontWeight: '700' },
+    rowSubtitle: { marginTop: 2, color: theme.colors.textMuted, fontSize: 11 },
+    rowAmountCopy: { alignItems: 'flex-end' },
+    rowAmount: {
+      color: theme.colors.text,
+      fontSize: 14,
+      fontVariant: ['tabular-nums'],
+      fontWeight: '700',
+    },
+    percentage: {
+      color: theme.colors.textMuted,
+      fontSize: 10,
+      fontWeight: '700',
+    },
+    track: {
+      height: 8,
+      backgroundColor: theme.colors.track,
+      borderRadius: 4,
+      overflow: 'hidden',
+    },
+    spendingBar: {
+      height: '100%',
+      backgroundColor: theme.colors.positive,
+      borderRadius: 4,
+    },
+    legend: { flexDirection: 'row', gap: 18 },
+    legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    legendDot: { width: 9, height: 9, borderRadius: 5 },
+    legendText: {
+      color: theme.colors.textMuted,
+      fontSize: 11,
+      fontWeight: '700',
+    },
+    monthRow: {
+      minHeight: 48,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    monthLabel: {
+      width: 30,
+      color: theme.colors.textSecondary,
+      fontSize: 12,
+      fontWeight: '700',
+    },
+    monthBars: { flex: 1, gap: 4 },
+    metricTrack: {
+      height: 7,
+      backgroundColor: theme.colors.track,
+      borderRadius: 4,
+      overflow: 'hidden',
+    },
+    metricFill: { height: '100%', borderRadius: 4 },
+    monthNet: {
+      width: 92,
+      color: theme.colors.positive,
+      fontSize: 12,
+      fontVariant: ['tabular-nums'],
+      fontWeight: '800',
+      textAlign: 'right',
+    },
+    negative: { color: theme.colors.negative },
+    empty: {
+      paddingVertical: 34,
+      color: theme.colors.textMuted,
+      fontSize: 14,
+      textAlign: 'center',
+    },
+    error: {
+      padding: 14,
+      color: theme.colors.negative,
+      backgroundColor: theme.colors.negativeMuted,
+      borderRadius: 12,
+    },
+  });

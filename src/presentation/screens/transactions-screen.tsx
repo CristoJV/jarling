@@ -19,19 +19,27 @@ import { OverflowMenu } from '@/presentation/components/common/overflow-menu';
 import { TransactionEditorModal } from '@/presentation/components/transactions/transaction-editor-modal';
 import { TransactionRow } from '@/presentation/components/transactions/transaction-row';
 import { useTransactions } from '@/presentation/hooks/use-transactions';
+import { useTranslation } from '@/presentation/localization/localization-provider';
+import type { AppTheme } from '@/presentation/theme/theme';
+import {
+  useAppTheme,
+  useThemedStyles,
+} from '@/presentation/theme/theme-provider';
 
 type EditorState = 'create' | TransactionSummary | null;
 type SearchField = 'search' | 'payee' | 'memo';
 type AppliedSearch = Readonly<{ field: SearchField; value: string }>;
 
-const searchLabels: Record<SearchField, string> = {
-  search: 'Anything',
-  payee: 'Payee',
-  memo: 'Memo',
-};
-
 export function TransactionsScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
+  const theme = useAppTheme();
+  const styles = useThemedStyles(createStyles);
+  const searchLabels: Record<SearchField, string> = {
+    search: t('transactions.anything'),
+    payee: t('transactions.payee'),
+    memo: t('transactions.memo'),
+  };
   const parameters = useLocalSearchParams<{ create?: string }>();
   const [searchDraft, setSearchDraft] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
@@ -83,14 +91,16 @@ export function TransactionsScreen() {
   function requestDelete(summary: TransactionSummary) {
     const transfer = Boolean(summary.transaction.transactionGroupId);
     Alert.alert(
-      transfer ? 'Eliminar transferencia' : 'Eliminar transacción',
       transfer
-        ? 'Se eliminarán los dos movimientos enlazados definitivamente.'
-        : `Se eliminará ${summary.transaction.payee ?? 'esta transacción'} definitivamente.`,
+        ? t('transactions.deleteTransfer')
+        : t('transactions.deleteConfirmTitle'),
+      transfer
+        ? t('transactions.deleteTransferBody')
+        : t('transactions.deleteConfirmBody'),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Eliminar',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: () => void deleteTransaction(summary.transaction.id),
         },
@@ -101,8 +111,8 @@ export function TransactionsScreen() {
   function edit(summary: TransactionSummary) {
     if (summary.transaction.status === 'reconciled') {
       Alert.alert(
-        'Transacción conciliada',
-        'No se puede modificar una transacción conciliada.',
+        t('transactions.reconciledTitle'),
+        t('transactions.reconciledBody'),
       );
       return;
     }
@@ -116,20 +126,24 @@ export function TransactionsScreen() {
     <SafeAreaView edges={['top']} style={styles.safeArea}>
       <View style={styles.header}>
         <View style={styles.titleRow}>
-          <Text style={styles.title}>Transactions</Text>
+          <Text style={styles.title}>{t('transactions.title')}</Text>
           <OverflowMenu />
         </View>
         <View style={styles.searchArea}>
           <View style={styles.searchBox}>
-            <MaterialCommunityIcons color="#667169" name="magnify" size={21} />
+            <MaterialCommunityIcons
+              color={theme.colors.textMuted}
+              name="magnify"
+              size={21}
+            />
             <TextInput
-              accessibilityLabel="Buscar transacciones"
+              accessibilityLabel={t('transactions.search')}
               onBlur={() => setTimeout(() => setSearchFocused(false), 120)}
               onChangeText={setSearchDraft}
               onFocus={() => setSearchFocused(true)}
               onSubmitEditing={() => applySearch('search')}
-              placeholder="Search transactions"
-              placeholderTextColor="#89918b"
+              placeholder={t('transactions.search')}
+              placeholderTextColor={theme.colors.textMuted}
               returnKeyType="search"
               style={styles.search}
               value={searchDraft}
@@ -145,7 +159,7 @@ export function TransactionsScreen() {
                     style={styles.suggestion}
                   >
                     <MaterialCommunityIcons
-                      color="#315a3e"
+                      color={theme.colors.primary}
                       name={
                         field === 'payee'
                           ? 'currency-eur'
@@ -156,7 +170,10 @@ export function TransactionsScreen() {
                       size={20}
                     />
                     <Text style={styles.suggestionText}>
-                      {searchLabels[field]} contains: “{searchDraft.trim()}”
+                      {t('transactions.contains', {
+                        field: searchLabels[field],
+                        value: searchDraft.trim(),
+                      })}
                     </Text>
                   </Pressable>
                 ))
@@ -165,7 +182,7 @@ export function TransactionsScreen() {
                   keyboardShouldPersistTaps="handled"
                   style={styles.suggestionList}
                 >
-                  <SuggestionSection title="Accounts" />
+                  <SuggestionSection title={t('transactions.accountsFilter')} />
                   {data?.accounts.accounts.map(({ account }) => (
                     <SuggestionOption
                       icon="bank-outline"
@@ -178,7 +195,9 @@ export function TransactionsScreen() {
                       selected={account.id === accountId}
                     />
                   ))}
-                  <SuggestionSection title="Categories" />
+                  <SuggestionSection
+                    title={t('transactions.categoriesFilter')}
+                  />
                   {categories.map((category) => (
                     <SuggestionOption
                       icon="shape-outline"
@@ -208,7 +227,7 @@ export function TransactionsScreen() {
                   {searchLabels[field]}: {value}
                 </Text>
                 <MaterialCommunityIcons
-                  color="#315a3e"
+                  color={theme.colors.primary}
                   name="close"
                   size={16}
                 />
@@ -216,13 +235,22 @@ export function TransactionsScreen() {
             ))}
             {accountId ? (
               <AppliedFilter
-                label={`Account: ${data?.accounts.accounts.find(({ account }) => account.id === accountId)?.account.name ?? accountId}`}
+                label={t('transactions.accountFilter', {
+                  value:
+                    data?.accounts.accounts.find(
+                      ({ account }) => account.id === accountId,
+                    )?.account.name ?? accountId,
+                })}
                 onRemove={() => setAccountId(undefined)}
               />
             ) : null}
             {categoryId ? (
               <AppliedFilter
-                label={`Category: ${categories.find(({ id }) => id === categoryId)?.name ?? categoryId}`}
+                label={t('transactions.categoryFilter', {
+                  value:
+                    categories.find(({ id }) => id === categoryId)?.name ??
+                    categoryId,
+                })}
                 onRemove={() => setCategoryId(undefined)}
               />
             ) : null}
@@ -240,14 +268,18 @@ export function TransactionsScreen() {
         }
       >
         {error ? <Text style={styles.error}>{error}</Text> : null}
-        {loading && !data ? <ActivityIndicator color="#294d36" /> : null}
+        {loading && !data ? (
+          <ActivityIndicator color={theme.colors.primary} />
+        ) : null}
         {data?.transactions.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyTitle}>No hay transacciones</Text>
+            <Text style={styles.emptyTitle}>
+              {t('transactions.noTransactions')}
+            </Text>
             <Text style={styles.emptyDescription}>
               {appliedSearches.length > 0 || accountId || categoryId
-                ? 'No hay resultados para estos filtros.'
-                : 'Registra tu primer ingreso o gasto.'}
+                ? t('transactions.noResults')
+                : t('transactions.emptyHint')}
             </Text>
           </View>
         ) : null}
@@ -262,12 +294,12 @@ export function TransactionsScreen() {
       </ScrollView>
 
       <Pressable
-        accessibilityLabel="Añadir transacción"
+        accessibilityLabel={t('transactions.add')}
         accessibilityRole="button"
         onPress={() => setEditor('create')}
         style={styles.fab}
       >
-        <Text style={styles.fabText}>+ Transaction</Text>
+        <Text style={styles.fabText}>+ {t('budget.addTransaction')}</Text>
       </Pressable>
 
       {visibleEditor && data ? (
@@ -306,6 +338,7 @@ export function TransactionsScreen() {
 }
 
 function SuggestionSection({ title }: Readonly<{ title: string }>) {
+  const styles = useThemedStyles(createStyles);
   return (
     <View style={styles.suggestionSection}>
       <Text style={styles.suggestionSectionText}>{title}</Text>
@@ -325,12 +358,22 @@ function SuggestionOption({
   selected: boolean;
   onPress: () => void;
 }>) {
+  const theme = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   return (
     <Pressable onPress={onPress} style={styles.suggestion}>
-      <MaterialCommunityIcons color="#315a3e" name={icon} size={20} />
+      <MaterialCommunityIcons
+        color={theme.colors.primary}
+        name={icon}
+        size={20}
+      />
       <Text style={styles.suggestionText}>{label}</Text>
       {selected ? (
-        <MaterialCommunityIcons color="#315a3e" name="check" size={19} />
+        <MaterialCommunityIcons
+          color={theme.colors.primary}
+          name="check"
+          size={19}
+        />
       ) : null}
     </Pressable>
   );
@@ -340,141 +383,160 @@ function AppliedFilter({
   label,
   onRemove,
 }: Readonly<{ label: string; onRemove: () => void }>) {
+  const theme = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   return (
     <Pressable onPress={onRemove} style={styles.appliedSearch}>
       <Text style={styles.appliedSearchText}>{label}</Text>
-      <MaterialCommunityIcons color="#315a3e" name="close" size={16} />
+      <MaterialCommunityIcons
+        color={theme.colors.primary}
+        name="close"
+        size={16}
+      />
     </Pressable>
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#f7f7f5' },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 14,
-    borderBottomColor: '#dfe3dc',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    gap: 12,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  title: {
-    color: '#18201a',
-    fontSize: 28,
-    fontWeight: '700',
-    letterSpacing: -0.6,
-  },
-  searchArea: { position: 'relative', zIndex: 20 },
-  searchBox: {
-    minHeight: 44,
-    paddingHorizontal: 14,
-    backgroundColor: '#ecefeb',
-    borderRadius: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  search: {
-    flex: 1,
-    minHeight: 44,
-    color: '#18201a',
-    fontSize: 15,
-  },
-  suggestions: {
-    position: 'absolute',
-    top: 50,
-    left: 0,
-    right: 0,
-    padding: 8,
-    backgroundColor: '#ffffff',
-    borderColor: '#dce1dc',
-    borderRadius: 16,
-    borderWidth: 1,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.16,
-    shadowRadius: 14,
-    elevation: 10,
-  },
-  suggestionList: { maxHeight: 380 },
-  suggestion: {
-    minHeight: 52,
-    paddingHorizontal: 12,
-    borderBottomColor: '#edf0ed',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  suggestionText: {
-    flex: 1,
-    color: '#253028',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  suggestionSection: {
-    paddingHorizontal: 12,
-    paddingTop: 12,
-    paddingBottom: 5,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 9,
-  },
-  suggestionSectionText: {
-    color: '#737d76',
-    fontSize: 11,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-  },
-  suggestionSeparator: { height: 1, backgroundColor: '#e4e8e4', flex: 1 },
-  appliedSearches: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
-  appliedSearch: {
-    minHeight: 32,
-    paddingHorizontal: 10,
-    backgroundColor: '#e2ece4',
-    borderRadius: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  appliedSearchText: { color: '#315a3e', fontSize: 11, fontWeight: '700' },
-  content: {
-    width: '100%',
-    maxWidth: 760,
-    paddingHorizontal: 20,
-    paddingBottom: 120,
-    alignSelf: 'center',
-  },
-  error: {
-    padding: 12,
-    marginTop: 12,
-    color: '#b42318',
-    backgroundColor: '#fef3f2',
-    borderRadius: 10,
-  },
-  emptyState: { paddingVertical: 70, alignItems: 'center', gap: 8 },
-  emptyTitle: { color: '#253028', fontSize: 20, fontWeight: '700' },
-  emptyDescription: { color: '#687268', fontSize: 15, textAlign: 'center' },
-  fab: {
-    position: 'absolute',
-    right: 22,
-    bottom: 22,
-    minHeight: 52,
-    paddingHorizontal: 20,
-    backgroundColor: '#294d36',
-    borderRadius: 26,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 7,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  fabText: { color: '#ffffff', fontSize: 14, fontWeight: '700' },
-});
+const createStyles = (theme: AppTheme) =>
+  StyleSheet.create({
+    safeArea: { flex: 1, backgroundColor: theme.colors.background },
+    header: {
+      paddingHorizontal: 20,
+      paddingTop: 12,
+      paddingBottom: 14,
+      borderBottomColor: theme.colors.border,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      gap: 12,
+    },
+    titleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    title: {
+      color: theme.colors.text,
+      fontSize: 28,
+      fontWeight: '700',
+      letterSpacing: -0.6,
+    },
+    searchArea: { position: 'relative', zIndex: 20 },
+    searchBox: {
+      minHeight: 44,
+      paddingHorizontal: 14,
+      backgroundColor: theme.colors.surfaceMuted,
+      borderRadius: 12,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    search: {
+      flex: 1,
+      minHeight: 44,
+      color: theme.colors.text,
+      fontSize: 15,
+    },
+    suggestions: {
+      position: 'absolute',
+      top: 50,
+      left: 0,
+      right: 0,
+      padding: 8,
+      backgroundColor: theme.colors.surface,
+      borderColor: theme.colors.border,
+      borderRadius: 16,
+      borderWidth: 1,
+      shadowColor: '#000000',
+      shadowOffset: { width: 0, height: 5 },
+      shadowOpacity: 0.16,
+      shadowRadius: 14,
+      elevation: 10,
+    },
+    suggestionList: { maxHeight: 380 },
+    suggestion: {
+      minHeight: 52,
+      paddingHorizontal: 12,
+      borderBottomColor: theme.colors.border,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    suggestionText: {
+      flex: 1,
+      color: theme.colors.text,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    suggestionSection: {
+      paddingHorizontal: 12,
+      paddingTop: 12,
+      paddingBottom: 5,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 9,
+    },
+    suggestionSectionText: {
+      color: theme.colors.textMuted,
+      fontSize: 11,
+      fontWeight: '800',
+      textTransform: 'uppercase',
+    },
+    suggestionSeparator: {
+      height: 1,
+      backgroundColor: theme.colors.border,
+      flex: 1,
+    },
+    appliedSearches: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+    appliedSearch: {
+      minHeight: 32,
+      paddingHorizontal: 10,
+      backgroundColor: theme.colors.primaryMuted,
+      borderRadius: 16,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    appliedSearchText: {
+      color: theme.colors.primary,
+      fontSize: 11,
+      fontWeight: '700',
+    },
+    content: {
+      width: '100%',
+      maxWidth: 760,
+      paddingHorizontal: 20,
+      paddingBottom: 120,
+      alignSelf: 'center',
+    },
+    error: {
+      padding: 12,
+      marginTop: 12,
+      color: theme.colors.negative,
+      backgroundColor: theme.colors.negativeMuted,
+      borderRadius: 10,
+    },
+    emptyState: { paddingVertical: 70, alignItems: 'center', gap: 8 },
+    emptyTitle: { color: theme.colors.text, fontSize: 20, fontWeight: '700' },
+    emptyDescription: {
+      color: theme.colors.textMuted,
+      fontSize: 15,
+      textAlign: 'center',
+    },
+    fab: {
+      position: 'absolute',
+      right: 22,
+      bottom: 22,
+      minHeight: 52,
+      paddingHorizontal: 20,
+      backgroundColor: theme.colors.primary,
+      borderRadius: 26,
+      shadowColor: '#000000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.2,
+      shadowRadius: 8,
+      elevation: 7,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    fabText: { color: theme.colors.onPrimary, fontSize: 14, fontWeight: '700' },
+  });

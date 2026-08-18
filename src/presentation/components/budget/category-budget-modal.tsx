@@ -7,6 +7,9 @@ import { MoneyKeypad } from '@/presentation/components/common/money-keypad';
 import { AnimatedBottomSheetModal } from '@/presentation/components/common/animated-bottom-sheet-modal';
 import { SafeBottomSheet } from '@/presentation/components/common/safe-bottom-sheet';
 import { formatMoney } from '@/presentation/utils/money';
+import { useTranslation } from '@/presentation/localization/localization-provider';
+import type { AppTheme } from '@/presentation/theme/theme';
+import { useThemedStyles } from '@/presentation/theme/theme-provider';
 
 type CategoryBudgetModalProps = Readonly<{
   values: BudgetCategoryValues;
@@ -23,6 +26,8 @@ export function CategoryBudgetModal({
   onMoveMoney,
   onSave,
 }: CategoryBudgetModalProps) {
+  const { t } = useTranslation();
+  const styles = useThemedStyles(createStyles);
   const [amountCents, setAmountCents] = useState(values.assigned.cents);
   const [showDetails, setShowDetails] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +40,7 @@ export function CategoryBudgetModal({
       await onSave(amountCents);
       onDismiss();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'No se pudo asignar.');
+      setError(cause instanceof Error ? cause.message : t('form.couldNotSave'));
     } finally {
       setSubmitting(false);
     }
@@ -52,11 +57,13 @@ export function CategoryBudgetModal({
             <Text style={styles.subtitle}>{monthLabel}</Text>
           </View>
           <Pressable hitSlop={10} onPress={onDismiss}>
-            <Text style={styles.dismiss}>Close</Text>
+            <Text style={styles.dismiss}>{t('common.close')}</Text>
           </Pressable>
         </View>
         <ScrollView contentContainerStyle={styles.content}>
-          <Text style={styles.amountLabel}>ASSIGNED</Text>
+          <Text style={styles.amountLabel}>
+            {t('budget.assigned').toUpperCase()}
+          </Text>
           <Text style={styles.amount}>
             {formatMoney(Money.fromCents(amountCents))}
           </Text>
@@ -64,22 +71,31 @@ export function CategoryBudgetModal({
           <View style={styles.actions}>
             <Pressable onPress={onMoveMoney} style={styles.action}>
               <Text style={styles.actionIcon}>→</Text>
-              <Text style={styles.actionText}>Move Money</Text>
+              <Text style={styles.actionText}>{t('budget.moveMoney')}</Text>
             </Pressable>
             <Pressable
               onPress={() => setShowDetails((current) => !current)}
               style={styles.action}
             >
               <Text style={styles.actionIcon}>•••</Text>
-              <Text style={styles.actionText}>Details</Text>
+              <Text style={styles.actionText}>{t('budget.details')}</Text>
             </Pressable>
           </View>
 
           {showDetails ? (
             <View style={styles.details}>
-              <Detail label="Assigned" value={formatMoney(values.assigned)} />
-              <Detail label="Activity" value={formatMoney(values.activity)} />
-              <Detail label="Available" value={formatMoney(values.available)} />
+              <Detail
+                label={t('budget.assigned')}
+                value={formatMoney(values.assigned)}
+              />
+              <Detail
+                label={t('budget.activity')}
+                value={formatMoney(values.activity)}
+              />
+              <Detail
+                label={t('budget.available')}
+                value={formatMoney(values.available)}
+              />
             </View>
           ) : null}
 
@@ -91,7 +107,7 @@ export function CategoryBudgetModal({
             style={[styles.save, submitting && styles.disabled]}
           >
             <Text style={styles.saveText}>
-              {submitting ? 'Saving…' : 'Done'}
+              {submitting ? t('transactions.saving') : t('common.done')}
             </Text>
           </Pressable>
         </ScrollView>
@@ -101,6 +117,7 @@ export function CategoryBudgetModal({
 }
 
 function Detail({ label, value }: Readonly<{ label: string; value: string }>) {
+  const styles = useThemedStyles(createStyles);
   return (
     <View style={styles.detail}>
       <Text style={styles.detailLabel}>{label}</Text>
@@ -109,84 +126,107 @@ function Detail({ label, value }: Readonly<{ label: string; value: string }>) {
   );
 }
 
-const styles = StyleSheet.create({
-  sheet: {
-    maxHeight: '94%',
-    backgroundColor: '#f7f8f6',
-    borderTopLeftRadius: 26,
-    borderTopRightRadius: 26,
-    overflow: 'hidden',
-  },
-  header: {
-    minHeight: 72,
-    paddingHorizontal: 22,
-    borderBottomColor: '#e1e5df',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  title: { maxWidth: 270, color: '#18201a', fontSize: 21, fontWeight: '700' },
-  subtitle: { marginTop: 2, color: '#687268', fontSize: 12 },
-  dismiss: { color: '#315a3e', fontSize: 14, fontWeight: '700' },
-  content: { padding: 22, paddingBottom: 38, alignItems: 'center' },
-  amountLabel: {
-    color: '#7b867e',
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 1.1,
-  },
-  amount: {
-    marginTop: 5,
-    marginBottom: 18,
-    color: '#18201a',
-    fontSize: 42,
-    fontVariant: ['tabular-nums'],
-    fontWeight: '800',
-  },
-  actions: { width: '100%', flexDirection: 'row', gap: 10 },
-  action: {
-    flex: 1,
-    minHeight: 66,
-    backgroundColor: '#e4eae5',
-    borderRadius: 17,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionIcon: { color: '#315a3e', fontSize: 22, fontWeight: '800' },
-  actionText: {
-    marginTop: 2,
-    color: '#39463d',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  details: {
-    width: '100%',
-    padding: 15,
-    marginTop: 12,
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  detail: { alignItems: 'center', gap: 3 },
-  detailLabel: { color: '#7a857d', fontSize: 10, fontWeight: '700' },
-  detailValue: {
-    color: '#253028',
-    fontSize: 13,
-    fontVariant: ['tabular-nums'],
-    fontWeight: '700',
-  },
-  error: { width: '100%', marginTop: 10, color: '#b42318', fontSize: 13 },
-  save: {
-    width: '100%',
-    minHeight: 52,
-    marginTop: 8,
-    backgroundColor: '#315a3e',
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  saveText: { color: '#ffffff', fontSize: 17, fontWeight: '800' },
-  disabled: { opacity: 0.55 },
-});
+const createStyles = (theme: AppTheme) =>
+  StyleSheet.create({
+    sheet: {
+      maxHeight: '94%',
+      backgroundColor: theme.colors.background,
+      borderTopLeftRadius: 26,
+      borderTopRightRadius: 26,
+      overflow: 'hidden',
+    },
+    header: {
+      minHeight: 72,
+      paddingHorizontal: 22,
+      borderBottomColor: theme.colors.border,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    title: {
+      maxWidth: 270,
+      color: theme.colors.text,
+      fontSize: 21,
+      fontWeight: '700',
+    },
+    subtitle: { marginTop: 2, color: theme.colors.textMuted, fontSize: 12 },
+    dismiss: { color: theme.colors.primary, fontSize: 14, fontWeight: '700' },
+    content: { padding: 22, paddingBottom: 38, alignItems: 'center' },
+    amountLabel: {
+      color: theme.colors.textMuted,
+      fontSize: 10,
+      fontWeight: '800',
+      letterSpacing: 1.1,
+    },
+    amount: {
+      marginTop: 5,
+      marginBottom: 18,
+      color: theme.colors.text,
+      fontSize: 42,
+      fontVariant: ['tabular-nums'],
+      fontWeight: '800',
+    },
+    actions: { width: '100%', flexDirection: 'row', gap: 10 },
+    action: {
+      flex: 1,
+      minHeight: 66,
+      backgroundColor: theme.colors.surfaceMuted,
+      borderRadius: 17,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    actionIcon: {
+      color: theme.colors.primary,
+      fontSize: 22,
+      fontWeight: '800',
+    },
+    actionText: {
+      marginTop: 2,
+      color: theme.colors.textSecondary,
+      fontSize: 12,
+      fontWeight: '700',
+    },
+    details: {
+      width: '100%',
+      padding: 15,
+      marginTop: 12,
+      backgroundColor: theme.colors.surface,
+      borderRadius: 16,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+    },
+    detail: { alignItems: 'center', gap: 3 },
+    detailLabel: {
+      color: theme.colors.textMuted,
+      fontSize: 10,
+      fontWeight: '700',
+    },
+    detailValue: {
+      color: theme.colors.text,
+      fontSize: 13,
+      fontVariant: ['tabular-nums'],
+      fontWeight: '700',
+    },
+    error: {
+      width: '100%',
+      marginTop: 10,
+      color: theme.colors.negative,
+      fontSize: 13,
+    },
+    save: {
+      width: '100%',
+      minHeight: 52,
+      marginTop: 8,
+      backgroundColor: theme.colors.primary,
+      borderRadius: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    saveText: {
+      color: theme.colors.onPrimary,
+      fontSize: 17,
+      fontWeight: '800',
+    },
+    disabled: { opacity: 0.55 },
+  });

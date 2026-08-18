@@ -3,10 +3,12 @@ import { useCallback, useState } from 'react';
 
 import type { BudgetMonthValues } from '@/domain/services/calculate-budget-month';
 import { useApplication } from '@/presentation/contexts/application-context';
+import { useTranslation } from '@/presentation/localization/localization-provider';
 import { domainErrorMessage } from '@/presentation/utils/domain-error-message';
 
 export function useBudget(month: string) {
   const application = useApplication();
+  const { t } = useTranslation();
   const [budget, setBudget] = useState<BudgetMonthValues | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -17,11 +19,11 @@ export function useBudget(month: string) {
     try {
       setBudget(await application.budget.getMonth.execute(month));
     } catch (cause) {
-      setError(domainErrorMessage(cause));
+      setError(domainErrorMessage(cause, t));
     } finally {
       setLoading(false);
     }
-  }, [application, month]);
+  }, [application, month, t]);
 
   useFocusEffect(
     useCallback(() => {
@@ -35,7 +37,7 @@ export function useBudget(month: string) {
         },
         (cause: unknown) => {
           if (active) {
-            setError(domainErrorMessage(cause));
+            setError(domainErrorMessage(cause, t));
             setLoading(false);
           }
         },
@@ -44,7 +46,7 @@ export function useBudget(month: string) {
       return () => {
         active = false;
       };
-    }, [application, month]),
+    }, [application, month, t]),
   );
 
   const assign = useCallback(
@@ -58,12 +60,12 @@ export function useBudget(month: string) {
         });
         await refresh();
       } catch (cause) {
-        const message = domainErrorMessage(cause);
+        const message = domainErrorMessage(cause, t);
         setError(message);
         throw new Error(message, { cause });
       }
     },
-    [application, month, refresh],
+    [application, month, refresh, t],
   );
 
   const move = useCallback(
@@ -82,12 +84,12 @@ export function useBudget(month: string) {
         });
         await refresh();
       } catch (cause) {
-        const message = domainErrorMessage(cause);
+        const message = domainErrorMessage(cause, t);
         setError(message);
         throw new Error(message, { cause });
       }
     },
-    [application, month, refresh],
+    [application, month, refresh, t],
   );
 
   return { budget, error, loading, refresh, assign, move };

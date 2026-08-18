@@ -9,6 +9,7 @@ import {
   Pressable,
   StyleSheet,
 } from 'react-native';
+import { useAppTheme } from '@/presentation/theme/theme-provider';
 
 type AnimatedBottomSheetModalProps = PropsWithChildren<
   Readonly<{
@@ -24,6 +25,7 @@ export function AnimatedBottomSheetModal({
   visible = true,
   keyboardAvoiding = false,
 }: AnimatedBottomSheetModalProps) {
+  const theme = useAppTheme();
   const [progress] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
@@ -51,6 +53,7 @@ export function AnimatedBottomSheetModal({
         style={[
           StyleSheet.absoluteFill,
           styles.scrim,
+          { backgroundColor: theme.colors.scrim },
           {
             opacity: progress.interpolate({
               inputRange: [0, 1],
@@ -91,6 +94,6 @@ export function AnimatedBottomSheetModal({
 }
 
 const styles = StyleSheet.create({
-  scrim: { backgroundColor: 'rgba(18, 24, 20, 0.42)' },
+  scrim: {},
   positioner: { flex: 1, justifyContent: 'flex-end' },
 });

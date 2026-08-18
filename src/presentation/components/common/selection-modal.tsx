@@ -8,6 +8,9 @@ import {
 } from 'react-native';
 import { AnimatedBottomSheetModal } from '@/presentation/components/common/animated-bottom-sheet-modal';
 import { SafeBottomSheet } from '@/presentation/components/common/safe-bottom-sheet';
+import { useTranslation } from '@/presentation/localization/localization-provider';
+import type { AppTheme } from '@/presentation/theme/theme';
+import { useThemedStyles } from '@/presentation/theme/theme-provider';
 
 export type SelectionOption<Value extends string> = Readonly<{
   value: Value;
@@ -32,6 +35,8 @@ export function SelectionModal<Value extends string>({
   onDismiss,
   placement = 'bottom',
 }: SelectionModalProps<Value>) {
+  const { t } = useTranslation();
+  const styles = useThemedStyles(createStyles);
   const centered = placement === 'center';
   const sheet = (
     <Pressable style={[styles.sheet, centered && styles.sheetCentered]}>
@@ -40,7 +45,7 @@ export function SelectionModal<Value extends string>({
         <View style={styles.header}>
           <Text style={styles.title}>{title}</Text>
           <Pressable hitSlop={10} onPress={onDismiss}>
-            <Text style={styles.dismiss}>Cerrar</Text>
+            <Text style={styles.dismiss}>{t('common.close')}</Text>
           </Pressable>
         </View>
         <ScrollView contentContainerStyle={styles.options}>
@@ -91,58 +96,68 @@ export function SelectionModal<Value extends string>({
   );
 }
 
-const styles = StyleSheet.create({
-  backdropCentered: {
-    flex: 1,
-    padding: 24,
-    backgroundColor: 'rgba(18, 24, 20, 0.35)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sheet: {
-    width: '100%',
-    maxHeight: '82%',
-    backgroundColor: '#ffffff',
-    borderTopLeftRadius: 26,
-    borderTopRightRadius: 26,
-    overflow: 'hidden',
-  },
-  sheetCentered: {
-    width: '100%',
-    maxWidth: 460,
-    borderRadius: 24,
-  },
-  handle: {
-    width: 42,
-    height: 5,
-    marginTop: 10,
-    backgroundColor: '#d2d7d2',
-    borderRadius: 3,
-    alignSelf: 'center',
-  },
-  header: {
-    minHeight: 64,
-    paddingHorizontal: 22,
-    borderBottomColor: '#e6e9e5',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  title: { color: '#18201a', fontSize: 20, fontWeight: '700' },
-  dismiss: { color: '#315a3e', fontSize: 14, fontWeight: '700' },
-  options: { paddingHorizontal: 16, paddingBottom: 34 },
-  option: {
-    minHeight: 64,
-    paddingHorizontal: 10,
-    borderBottomColor: '#edf0ec',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  optionSelected: { backgroundColor: '#f0f6f1' },
-  optionCopy: { flex: 1, paddingVertical: 12 },
-  optionLabel: { color: '#253028', fontSize: 16, fontWeight: '600' },
-  optionDescription: { marginTop: 3, color: '#738077', fontSize: 12 },
-  check: { width: 28, color: '#2b6740', fontSize: 20, textAlign: 'center' },
-});
+const createStyles = (theme: AppTheme) =>
+  StyleSheet.create({
+    backdropCentered: {
+      flex: 1,
+      padding: 24,
+      backgroundColor: theme.colors.scrim,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    sheet: {
+      width: '100%',
+      maxHeight: '82%',
+      backgroundColor: theme.colors.surface,
+      borderTopLeftRadius: 26,
+      borderTopRightRadius: 26,
+      overflow: 'hidden',
+    },
+    sheetCentered: {
+      width: '100%',
+      maxWidth: 460,
+      borderRadius: 24,
+    },
+    handle: {
+      width: 42,
+      height: 5,
+      marginTop: 10,
+      backgroundColor: theme.colors.border,
+      borderRadius: 3,
+      alignSelf: 'center',
+    },
+    header: {
+      minHeight: 64,
+      paddingHorizontal: 22,
+      borderBottomColor: theme.colors.border,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    title: { color: theme.colors.text, fontSize: 20, fontWeight: '700' },
+    dismiss: { color: theme.colors.primary, fontSize: 14, fontWeight: '700' },
+    options: { paddingHorizontal: 16, paddingBottom: 34 },
+    option: {
+      minHeight: 64,
+      paddingHorizontal: 10,
+      borderBottomColor: theme.colors.border,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    optionSelected: { backgroundColor: theme.colors.surfacePressed },
+    optionCopy: { flex: 1, paddingVertical: 12 },
+    optionLabel: { color: theme.colors.text, fontSize: 16, fontWeight: '600' },
+    optionDescription: {
+      marginTop: 3,
+      color: theme.colors.textMuted,
+      fontSize: 12,
+    },
+    check: {
+      width: 28,
+      color: theme.colors.primary,
+      fontSize: 20,
+      textAlign: 'center',
+    },
+  });

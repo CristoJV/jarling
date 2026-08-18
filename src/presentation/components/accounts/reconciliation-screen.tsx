@@ -8,6 +8,9 @@ import { Money } from '@/domain/value-objects/money';
 import { FullScreenModal } from '@/presentation/components/common/full-screen-modal';
 import { MoneyKeypad } from '@/presentation/components/common/money-keypad';
 import { formatMoney } from '@/presentation/utils/money';
+import { useTranslation } from '@/presentation/localization/localization-provider';
+import type { AppTheme } from '@/presentation/theme/theme';
+import { useThemedStyles } from '@/presentation/theme/theme-provider';
 
 type ReconciliationScreenProps = Readonly<{
   preview: ReconciliationPreview;
@@ -20,6 +23,8 @@ export function ReconciliationScreen({
   onDismiss,
   onReconcile,
 }: ReconciliationScreenProps) {
+  const { t } = useTranslation();
+  const styles = useThemedStyles(createStyles);
   const [actualBalanceCents, setActualBalanceCents] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,14 +40,12 @@ export function ReconciliationScreen({
         createAdjustment,
       });
       Alert.alert(
-        'Cuenta conciliada',
-        'Las transacciones confirmadas han quedado protegidas.',
+        t('reconciliation.success'),
+        t('reconciliation.successBody'),
         [{ text: 'OK', onPress: onDismiss }],
       );
     } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : 'No se pudo conciliar.',
-      );
+      setError(cause instanceof Error ? cause.message : t('form.couldNotSave'));
     } finally {
       setSubmitting(false);
     }
@@ -54,12 +57,14 @@ export function ReconciliationScreen({
       return;
     }
     Alert.alert(
-      'Crear ajuste de conciliación',
-      `Jarling creará un ajuste de ${formatMoney(Money.fromCents(differenceCents))} para igualar el saldo confirmado.`,
+      t('reconciliation.adjustTitle'),
+      t('reconciliation.adjustBody', {
+        amount: formatMoney(Money.fromCents(differenceCents)),
+      }),
       [
-        { text: 'Revisar', style: 'cancel' },
+        { text: t('reconciliation.review'), style: 'cancel' },
         {
-          text: 'Ajustar y conciliar',
+          text: t('reconciliation.adjust'),
           onPress: () => void finish(true),
         },
       ],
@@ -74,40 +79,37 @@ export function ReconciliationScreen({
             <Text style={styles.back}>‹</Text>
           </Pressable>
           <Text numberOfLines={1} style={styles.title}>
-            Reconcile {preview.account.name}
+            {t('reconciliation.title', { name: preview.account.name })}
           </Text>
           <View style={styles.spacer} />
         </View>
 
         <View style={styles.content}>
-          <Text style={styles.question}>
-            ¿Cuál es el saldo actual del banco?
-          </Text>
-          <Text style={styles.help}>
-            Introduce el saldo confirmado, incluyendo únicamente movimientos ya
-            reflejados por el banco.
-          </Text>
+          <Text style={styles.question}>{t('reconciliation.question')}</Text>
+          <Text style={styles.help}>{t('reconciliation.help')}</Text>
           <Text style={styles.amount}>
             {formatMoney(Money.fromCents(actualBalanceCents))}
           </Text>
 
           <View style={styles.summary}>
             <SummaryRow
-              label="Cleared en Jarling"
+              label={t('reconciliation.clearedBalance')}
               value={formatMoney(preview.clearedBalance)}
             />
             <SummaryRow
-              label="Working balance"
+              label={t('reconciliation.workingBalance')}
               value={formatMoney(preview.workingBalance)}
             />
             <SummaryRow
-              label="Diferencia"
+              label={t('reconciliation.difference')}
               strong
               value={formatMoney(Money.fromCents(differenceCents))}
             />
             <Text style={styles.counts}>
-              {preview.clearedCount} confirmadas · {preview.unclearedCount}{' '}
-              pendientes
+              {t('reconciliation.counts', {
+                cleared: preview.clearedCount,
+                pending: preview.unclearedCount,
+              })}
             </Text>
           </View>
 
@@ -119,8 +121,8 @@ export function ReconciliationScreen({
           >
             <Text style={styles.reconcileText}>
               {differenceCents === 0
-                ? 'Finish Reconciliation'
-                : 'Create Adjustment & Reconcile'}
+                ? t('reconciliation.finish')
+                : t('reconciliation.adjust')}
             </Text>
           </Pressable>
         </View>
@@ -140,6 +142,7 @@ function SummaryRow({
   value,
   strong = false,
 }: Readonly<{ label: string; value: string; strong?: boolean }>) {
+  const styles = useThemedStyles(createStyles);
   return (
     <View style={styles.summaryRow}>
       <Text style={styles.summaryLabel}>{label}</Text>
@@ -150,68 +153,82 @@ function SummaryRow({
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#f6f7f5' },
-  header: {
-    minHeight: 64,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  back: { width: 36, color: '#253028', fontSize: 42, lineHeight: 44 },
-  title: { flex: 1, color: '#18201a', fontSize: 20, fontWeight: '800' },
-  spacer: { width: 36 },
-  content: { flex: 1, paddingHorizontal: 24, alignItems: 'center' },
-  question: {
-    marginTop: 18,
-    color: '#18201a',
-    fontSize: 22,
-    fontWeight: '800',
-  },
-  help: {
-    maxWidth: 460,
-    marginTop: 8,
-    color: '#69736c',
-    fontSize: 13,
-    lineHeight: 19,
-    textAlign: 'center',
-  },
-  amount: {
-    marginVertical: 24,
-    color: '#1f5030',
-    fontSize: 42,
-    fontVariant: ['tabular-nums'],
-    fontWeight: '800',
-  },
-  summary: {
-    width: '100%',
-    maxWidth: 520,
-    padding: 18,
-    backgroundColor: '#ffffff',
-    borderRadius: 20,
-    gap: 12,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  summaryLabel: { color: '#6a756d', fontSize: 13 },
-  summaryValue: { color: '#253028', fontSize: 14, fontWeight: '700' },
-  summaryValueStrong: { color: '#315a3e', fontSize: 16 },
-  counts: { color: '#7b857e', fontSize: 11, textAlign: 'center' },
-  error: { marginTop: 12, color: '#b42318', fontSize: 13 },
-  reconcile: {
-    width: '100%',
-    maxWidth: 520,
-    minHeight: 52,
-    marginTop: 18,
-    backgroundColor: '#315a3e',
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  reconcileText: { color: '#ffffff', fontSize: 15, fontWeight: '800' },
-  disabled: { opacity: 0.55 },
-});
+const createStyles = (theme: AppTheme) =>
+  StyleSheet.create({
+    safeArea: { flex: 1, backgroundColor: theme.colors.background },
+    header: {
+      minHeight: 64,
+      paddingHorizontal: 20,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    back: { width: 36, color: theme.colors.text, fontSize: 42, lineHeight: 44 },
+    title: {
+      flex: 1,
+      color: theme.colors.text,
+      fontSize: 20,
+      fontWeight: '800',
+    },
+    spacer: { width: 36 },
+    content: { flex: 1, paddingHorizontal: 24, alignItems: 'center' },
+    question: {
+      marginTop: 18,
+      color: theme.colors.text,
+      fontSize: 22,
+      fontWeight: '800',
+    },
+    help: {
+      maxWidth: 460,
+      marginTop: 8,
+      color: theme.colors.textMuted,
+      fontSize: 13,
+      lineHeight: 19,
+      textAlign: 'center',
+    },
+    amount: {
+      marginVertical: 24,
+      color: theme.colors.positive,
+      fontSize: 42,
+      fontVariant: ['tabular-nums'],
+      fontWeight: '800',
+    },
+    summary: {
+      width: '100%',
+      maxWidth: 520,
+      padding: 18,
+      backgroundColor: theme.colors.surface,
+      borderRadius: 20,
+      gap: 12,
+    },
+    summaryRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      gap: 12,
+    },
+    summaryLabel: { color: theme.colors.textMuted, fontSize: 13 },
+    summaryValue: { color: theme.colors.text, fontSize: 14, fontWeight: '700' },
+    summaryValueStrong: { color: theme.colors.primary, fontSize: 16 },
+    counts: {
+      color: theme.colors.textMuted,
+      fontSize: 11,
+      textAlign: 'center',
+    },
+    error: { marginTop: 12, color: theme.colors.negative, fontSize: 13 },
+    reconcile: {
+      width: '100%',
+      maxWidth: 520,
+      minHeight: 52,
+      marginTop: 18,
+      backgroundColor: theme.colors.primary,
+      borderRadius: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    reconcileText: {
+      color: theme.colors.onPrimary,
+      fontSize: 15,
+      fontWeight: '800',
+    },
+    disabled: { opacity: 0.55 },
+  });

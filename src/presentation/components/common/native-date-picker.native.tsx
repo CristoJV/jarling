@@ -9,6 +9,12 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useTranslation } from '@/presentation/localization/localization-provider';
+import type { AppTheme } from '@/presentation/theme/theme';
+import {
+  useAppTheme,
+  useThemedStyles,
+} from '@/presentation/theme/theme-provider';
 
 type NativeDatePickerProps = Readonly<{
   title: string;
@@ -32,6 +38,9 @@ export function NativeDatePicker({
   onChange,
   onDismiss,
 }: NativeDatePickerProps) {
+  const { t } = useTranslation();
+  const theme = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   function select(_: DateTimePickerChangeEvent, date: Date) {
     onChange(isoDate(date));
     if (Platform.OS === 'android') onDismiss();
@@ -43,6 +52,7 @@ export function NativeDatePicker({
       mode="date"
       onDismiss={onDismiss}
       onValueChange={select}
+      themeVariant={theme.mode}
       value={parseDate(value)}
     />
   );
@@ -56,7 +66,7 @@ export function NativeDatePicker({
           <Text style={styles.title}>{title}</Text>
           {picker}
           <Pressable onPress={onDismiss} style={styles.done}>
-            <Text style={styles.doneText}>Done</Text>
+            <Text style={styles.doneText}>{t('common.done')}</Text>
           </Pressable>
         </View>
       </View>
@@ -64,29 +74,34 @@ export function NativeDatePicker({
   );
 }
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    padding: 24,
-    backgroundColor: 'rgba(18,24,20,0.38)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dialog: {
-    width: '100%',
-    maxWidth: 480,
-    padding: 22,
-    backgroundColor: '#fff',
-    borderRadius: 24,
-  },
-  title: { color: '#18201a', fontSize: 20, fontWeight: '700' },
-  done: {
-    minHeight: 48,
-    marginTop: 12,
-    backgroundColor: '#315a3e',
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  doneText: { color: '#fff', fontSize: 16, fontWeight: '800' },
-});
+const createStyles = (theme: AppTheme) =>
+  StyleSheet.create({
+    backdrop: {
+      flex: 1,
+      padding: 24,
+      backgroundColor: theme.colors.scrim,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    dialog: {
+      width: '100%',
+      maxWidth: 480,
+      padding: 22,
+      backgroundColor: theme.colors.surface,
+      borderRadius: 24,
+    },
+    title: { color: theme.colors.text, fontSize: 20, fontWeight: '700' },
+    done: {
+      minHeight: 48,
+      marginTop: 12,
+      backgroundColor: theme.colors.primary,
+      borderRadius: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    doneText: {
+      color: theme.colors.onPrimary,
+      fontSize: 16,
+      fontWeight: '800',
+    },
+  });

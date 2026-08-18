@@ -4,10 +4,12 @@ import { useCallback, useState } from 'react';
 import type { CategoryGroupSummary } from '@/application/use-cases/categories/get-category-groups';
 import type { ReorderDirection } from '@/application/use-cases/categories/reorder-category-groups';
 import { useApplication } from '@/presentation/contexts/application-context';
+import { useTranslation } from '@/presentation/localization/localization-provider';
 import { domainErrorMessage } from '@/presentation/utils/domain-error-message';
 
 export function useCategories() {
   const application = useApplication();
+  const { t } = useTranslation();
   const [groups, setGroups] = useState<readonly CategoryGroupSummary[] | null>(
     null,
   );
@@ -21,11 +23,11 @@ export function useCategories() {
     try {
       setGroups(await application.categories.getGroups.execute());
     } catch (cause) {
-      setError(domainErrorMessage(cause));
+      setError(domainErrorMessage(cause, t));
     } finally {
       setLoading(false);
     }
-  }, [application]);
+  }, [application, t]);
 
   useFocusEffect(
     useCallback(() => {
@@ -40,7 +42,7 @@ export function useCategories() {
         },
         (cause: unknown) => {
           if (active) {
-            setError(domainErrorMessage(cause));
+            setError(domainErrorMessage(cause, t));
             setLoading(false);
           }
         },
@@ -49,7 +51,7 @@ export function useCategories() {
       return () => {
         active = false;
       };
-    }, [application]),
+    }, [application, t]),
   );
 
   const mutate = useCallback(
@@ -60,7 +62,7 @@ export function useCategories() {
         await operation();
         await refresh();
       } catch (cause) {
-        const message = domainErrorMessage(cause);
+        const message = domainErrorMessage(cause, t);
         setError(message);
 
         if (rethrow) {
@@ -68,7 +70,7 @@ export function useCategories() {
         }
       }
     },
-    [refresh],
+    [refresh, t],
   );
 
   const createGroup = useCallback(

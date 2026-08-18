@@ -1,8 +1,10 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
-import { StyleSheet, type ColorValue } from 'react-native';
+import { type ColorValue } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { ComponentProps } from 'react';
+import { useTranslation } from '@/presentation/localization/localization-provider';
+import { useAppTheme } from '@/presentation/theme/theme-provider';
 
 type TabIconProps = Readonly<{
   color: ColorValue;
@@ -15,16 +17,22 @@ function TabIcon({ color, name }: TabIconProps) {
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
+  const theme = useAppTheme();
+  const { t } = useTranslation();
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#294d36',
-        tabBarInactiveTintColor: '#747d76',
-        tabBarLabelStyle: styles.label,
+        tabBarActiveTintColor: theme.colors.primary,
+        tabBarInactiveTintColor: theme.colors.textMuted,
+        tabBarLabelStyle: { paddingBottom: 5, fontSize: 11, fontWeight: '600' },
         tabBarStyle: [
-          styles.tabBar,
+          {
+            paddingTop: 6,
+            backgroundColor: theme.colors.navigation,
+            borderTopColor: theme.colors.border,
+          },
           {
             height: 62 + insets.bottom,
             paddingBottom: Math.max(insets.bottom, 8),
@@ -35,7 +43,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="budget"
         options={{
-          title: 'Budget',
+          title: t('tabs.budget'),
           tabBarIcon: ({ color }) => (
             <TabIcon color={color} name="piggy-bank-outline" />
           ),
@@ -44,7 +52,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="accounts"
         options={{
-          title: 'Accounts',
+          title: t('tabs.accounts'),
           tabBarIcon: ({ color }) => (
             <TabIcon color={color} name="bank-outline" />
           ),
@@ -53,30 +61,17 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="transactions"
         options={{
-          title: 'Transactions',
+          title: t('tabs.transactions'),
           tabBarIcon: ({ color }) => <TabIcon color={color} name="cash" />,
         }}
       />
       <Tabs.Screen
         name="reports"
         options={{
-          title: 'Reports',
+          title: t('tabs.reports'),
           tabBarIcon: ({ color }) => <TabIcon color={color} name="chart-bar" />,
         }}
       />
     </Tabs>
   );
 }
-
-const styles = StyleSheet.create({
-  tabBar: {
-    paddingTop: 6,
-    backgroundColor: '#ffffff',
-    borderTopColor: '#dfe3dc',
-  },
-  label: {
-    paddingBottom: 5,
-    fontSize: 11,
-    fontWeight: '600',
-  },
-});

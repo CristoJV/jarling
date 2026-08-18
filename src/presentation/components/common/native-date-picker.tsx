@@ -7,6 +7,9 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useTranslation } from '@/presentation/localization/localization-provider';
+import type { AppTheme } from '@/presentation/theme/theme';
+import { useThemedStyles } from '@/presentation/theme/theme-provider';
 
 type NativeDatePickerProps = Readonly<{
   title: string;
@@ -21,6 +24,8 @@ export function NativeDatePicker({
   onChange,
   onDismiss,
 }: NativeDatePickerProps) {
+  const { t } = useTranslation();
+  const styles = useThemedStyles(createStyles);
   const [date, setDate] = useState(value);
   const valid =
     /^\d{4}-\d{2}-\d{2}$/.test(date) &&
@@ -30,7 +35,7 @@ export function NativeDatePicker({
       <View style={styles.backdrop}>
         <View style={styles.dialog}>
           <Text style={styles.title}>{title}</Text>
-          <Text style={styles.label}>Date (YYYY-MM-DD)</Text>
+          <Text style={styles.label}>{t('common.dateFormat')}</Text>
           <TextInput
             autoFocus
             onChangeText={setDate}
@@ -39,7 +44,7 @@ export function NativeDatePicker({
           />
           <View style={styles.actions}>
             <Pressable onPress={onDismiss} style={styles.cancel}>
-              <Text style={styles.cancelText}>Cancel</Text>
+              <Text style={styles.cancelText}>{t('common.cancel')}</Text>
             </Pressable>
             <Pressable
               disabled={!valid}
@@ -49,7 +54,7 @@ export function NativeDatePicker({
               }}
               style={[styles.done, !valid && styles.disabled]}
             >
-              <Text style={styles.doneText}>Choose</Text>
+              <Text style={styles.doneText}>{t('common.choose')}</Text>
             </Pressable>
           </View>
         </View>
@@ -58,50 +63,59 @@ export function NativeDatePicker({
   );
 }
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    padding: 24,
-    backgroundColor: 'rgba(18,24,20,0.38)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dialog: {
-    width: '100%',
-    maxWidth: 440,
-    padding: 24,
-    backgroundColor: '#fff',
-    borderRadius: 24,
-    gap: 12,
-  },
-  title: { color: '#18201a', fontSize: 20, fontWeight: '700' },
-  label: { color: '#647068', fontSize: 13, fontWeight: '700' },
-  input: {
-    minHeight: 50,
-    paddingHorizontal: 14,
-    color: '#18201a',
-    backgroundColor: '#f4f5f2',
-    borderColor: '#dfe3dc',
-    borderRadius: 12,
-    borderWidth: 1,
-    fontSize: 16,
-  },
-  actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10 },
-  cancel: {
-    minHeight: 46,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cancelText: { color: '#526057', fontSize: 15, fontWeight: '700' },
-  done: {
-    minHeight: 46,
-    paddingHorizontal: 20,
-    backgroundColor: '#315a3e',
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  doneText: { color: '#fff', fontSize: 15, fontWeight: '800' },
-  disabled: { opacity: 0.45 },
-});
+const createStyles = (theme: AppTheme) =>
+  StyleSheet.create({
+    backdrop: {
+      flex: 1,
+      padding: 24,
+      backgroundColor: theme.colors.scrim,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    dialog: {
+      width: '100%',
+      maxWidth: 440,
+      padding: 24,
+      backgroundColor: theme.colors.surface,
+      borderRadius: 24,
+      gap: 12,
+    },
+    title: { color: theme.colors.text, fontSize: 20, fontWeight: '700' },
+    label: { color: theme.colors.textMuted, fontSize: 13, fontWeight: '700' },
+    input: {
+      minHeight: 50,
+      paddingHorizontal: 14,
+      color: theme.colors.text,
+      backgroundColor: theme.colors.surfaceMuted,
+      borderColor: theme.colors.border,
+      borderRadius: 12,
+      borderWidth: 1,
+      fontSize: 16,
+    },
+    actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10 },
+    cancel: {
+      minHeight: 46,
+      paddingHorizontal: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    cancelText: {
+      color: theme.colors.textSecondary,
+      fontSize: 15,
+      fontWeight: '700',
+    },
+    done: {
+      minHeight: 46,
+      paddingHorizontal: 20,
+      backgroundColor: theme.colors.primary,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    doneText: {
+      color: theme.colors.onPrimary,
+      fontSize: 15,
+      fontWeight: '800',
+    },
+    disabled: { opacity: 0.45 },
+  });

@@ -4,10 +4,12 @@ import { useCallback, useState } from 'react';
 import type { SetCategoryTargetInput } from '@/application/use-cases/targets/set-category-target';
 import type { CategoryTarget } from '@/domain/entities/category-target';
 import { useApplication } from '@/presentation/contexts/application-context';
+import { useTranslation } from '@/presentation/localization/localization-provider';
 import { domainErrorMessage } from '@/presentation/utils/domain-error-message';
 
 export function useTargets() {
   const application = useApplication();
+  const { t } = useTranslation();
   const [targets, setTargets] = useState<readonly CategoryTarget[] | null>(
     null,
   );
@@ -20,11 +22,11 @@ export function useTargets() {
     try {
       setTargets(await application.targets.getAll.execute());
     } catch (cause) {
-      setError(domainErrorMessage(cause));
+      setError(domainErrorMessage(cause, t));
     } finally {
       setLoading(false);
     }
-  }, [application]);
+  }, [application, t]);
 
   useFocusEffect(
     useCallback(() => {
@@ -38,7 +40,7 @@ export function useTargets() {
         },
         (cause: unknown) => {
           if (active) {
-            setError(domainErrorMessage(cause));
+            setError(domainErrorMessage(cause, t));
             setLoading(false);
           }
         },
@@ -46,7 +48,7 @@ export function useTargets() {
       return () => {
         active = false;
       };
-    }, [application]),
+    }, [application, t]),
   );
 
   const setTarget = useCallback(
@@ -56,12 +58,12 @@ export function useTargets() {
         await application.targets.set.execute(input);
         await refresh();
       } catch (cause) {
-        const message = domainErrorMessage(cause);
+        const message = domainErrorMessage(cause, t);
         setError(message);
         throw new Error(message, { cause });
       }
     },
-    [application, refresh],
+    [application, refresh, t],
   );
 
   const deleteTarget = useCallback(
@@ -71,12 +73,12 @@ export function useTargets() {
         await application.targets.delete.execute(categoryId);
         await refresh();
       } catch (cause) {
-        const message = domainErrorMessage(cause);
+        const message = domainErrorMessage(cause, t);
         setError(message);
         throw new Error(message, { cause });
       }
     },
-    [application, refresh],
+    [application, refresh, t],
   );
 
   return { targets, error, loading, refresh, setTarget, deleteTarget };

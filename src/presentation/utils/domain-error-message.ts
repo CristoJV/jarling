@@ -16,79 +16,82 @@ import { InvalidTransactionAmountError } from '@/domain/errors/invalid-transacti
 import { InvalidTransactionDateError } from '@/domain/errors/invalid-transaction-date-error';
 import { InvalidTransferError } from '@/domain/errors/invalid-transfer-error';
 import { TransactionNotFoundError } from '@/domain/errors/transaction-not-found-error';
+import type { TranslationKey } from '@/presentation/localization/translations';
 
-export function domainErrorMessage(error: unknown): string {
+type Translate = (key: TranslationKey) => string;
+
+export function domainErrorMessage(error: unknown, t: Translate): string {
   if (error instanceof InvalidAccountNameError) {
-    return 'Introduce un nombre para la cuenta.';
+    return t('errors.invalidAccountName');
   }
 
   if (error instanceof InvalidMoneyError) {
-    return 'El saldo debe tener como máximo dos decimales.';
+    return t('errors.invalidMoney');
   }
 
   if (error instanceof AccountNotFoundError) {
-    return 'La cuenta ya no existe.';
+    return t('errors.accountNotFound');
   }
 
   if (error instanceof InvalidCategoryNameError) {
-    return 'Introduce un nombre para la categoría.';
+    return t('errors.invalidCategoryName');
   }
 
   if (error instanceof InvalidCategoryTargetError) {
-    return 'Revisa el importe, la frecuencia y la fecha del target.';
+    return t('errors.invalidTarget');
   }
 
   if (error instanceof CategoryGroupNotFoundError) {
-    return 'El grupo de categorías ya no existe.';
+    return t('errors.groupNotFound');
   }
 
   if (error instanceof CategoryNotFoundError) {
-    return 'La categoría ya no existe.';
+    return t('errors.categoryNotFound');
   }
 
   if (error instanceof InvalidTransactionAmountError) {
-    return 'Introduce un importe positivo mayor que cero.';
+    return t('errors.invalidAmount');
   }
 
   if (error instanceof InvalidTransactionDateError) {
-    return 'Introduce una fecha válida con formato YYYY-MM-DD.';
+    return t('errors.invalidDate');
   }
 
   if (error instanceof InvalidTransferError) {
-    return 'Elige dos cuentas distintas y un importe positivo.';
+    return t('errors.invalidTransfer');
   }
 
   if (error instanceof InvalidReconciliationError) {
-    return 'El saldo confirmado no coincide. Revisa el importe o autoriza el ajuste.';
+    return t('errors.invalidReconciliation');
   }
 
   if (error instanceof CategoryRequiredForExpenseError) {
-    return 'Selecciona una categoría para el gasto.';
+    return t('errors.categoryRequired');
   }
 
   if (error instanceof ClosedAccountError) {
-    return 'No se pueden añadir movimientos a una cuenta cerrada.';
+    return t('errors.closedAccount');
   }
 
   if (error instanceof TransactionNotFoundError) {
-    return 'La transacción ya no existe.';
+    return t('errors.transactionNotFound');
   }
 
   if (error instanceof CannotModifyReconciledTransactionError) {
-    return 'Una transacción conciliada no se puede modificar ni eliminar.';
+    return t('errors.reconciledTransaction');
   }
 
   if (error instanceof InsufficientReadyToAssignError) {
-    return 'No hay suficiente dinero en Ready to Assign para esa asignación.';
+    return t('errors.insufficientReadyToAssign');
   }
 
   if (error instanceof InsufficientCategoryAvailableError) {
-    return 'La categoría de origen no tiene suficiente Available.';
+    return t('errors.insufficientAvailable');
   }
 
   if (error instanceof InvalidBudgetMoveError) {
-    return 'Elige dos categorías distintas y un importe positivo.';
+    return t('errors.invalidBudgetMove');
   }
 
-  return 'No se pudo completar la operación. Inténtalo de nuevo.';
+  return t('errors.unknown');
 }

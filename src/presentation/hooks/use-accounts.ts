@@ -6,10 +6,12 @@ import type { AccountsOverview } from '@/application/use-cases/accounts/get-acco
 import type { ReconciliationPreview } from '@/application/use-cases/accounts/get-reconciliation';
 import type { ReconcileAccountInput } from '@/application/use-cases/accounts/reconcile-account';
 import { useApplication } from '@/presentation/contexts/application-context';
+import { useTranslation } from '@/presentation/localization/localization-provider';
 import { domainErrorMessage } from '@/presentation/utils/domain-error-message';
 
 export function useAccounts() {
   const application = useApplication();
+  const { t } = useTranslation();
   const [overview, setOverview] = useState<AccountsOverview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -21,11 +23,11 @@ export function useAccounts() {
     try {
       setOverview(await application.accounts.getAll.execute());
     } catch (cause) {
-      setError(domainErrorMessage(cause));
+      setError(domainErrorMessage(cause, t));
     } finally {
       setLoading(false);
     }
-  }, [application]);
+  }, [application, t]);
 
   useFocusEffect(
     useCallback(() => {
@@ -40,7 +42,7 @@ export function useAccounts() {
         },
         (cause: unknown) => {
           if (active) {
-            setError(domainErrorMessage(cause));
+            setError(domainErrorMessage(cause, t));
             setLoading(false);
           }
         },
@@ -49,7 +51,7 @@ export function useAccounts() {
       return () => {
         active = false;
       };
-    }, [application]),
+    }, [application, t]),
   );
 
   const createAccount = useCallback(
@@ -60,12 +62,12 @@ export function useAccounts() {
         await application.accounts.create.execute(input);
         await refresh();
       } catch (cause) {
-        const message = domainErrorMessage(cause);
+        const message = domainErrorMessage(cause, t);
         setError(message);
         throw new Error(message, { cause });
       }
     },
-    [application, refresh],
+    [application, refresh, t],
   );
 
   const closeAccount = useCallback(
@@ -76,10 +78,10 @@ export function useAccounts() {
         await application.accounts.close.execute(accountId);
         await refresh();
       } catch (cause) {
-        setError(domainErrorMessage(cause));
+        setError(domainErrorMessage(cause, t));
       }
     },
-    [application, refresh],
+    [application, refresh, t],
   );
 
   const getReconciliation = useCallback(
@@ -87,12 +89,12 @@ export function useAccounts() {
       try {
         return await application.accounts.getReconciliation.execute(accountId);
       } catch (cause) {
-        const message = domainErrorMessage(cause);
+        const message = domainErrorMessage(cause, t);
         setError(message);
         throw new Error(message, { cause });
       }
     },
-    [application],
+    [application, t],
   );
 
   const reconcile = useCallback(
@@ -102,12 +104,12 @@ export function useAccounts() {
         await refresh();
         return result;
       } catch (cause) {
-        const message = domainErrorMessage(cause);
+        const message = domainErrorMessage(cause, t);
         setError(message);
         throw new Error(message, { cause });
       }
     },
-    [application, refresh],
+    [application, refresh, t],
   );
 
   return {

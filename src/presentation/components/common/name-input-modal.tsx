@@ -3,6 +3,12 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { AnimatedBottomSheetModal } from '@/presentation/components/common/animated-bottom-sheet-modal';
 import { AnimatedCenteredModal } from '@/presentation/components/common/animated-centered-modal';
 import { SafeBottomSheet } from '@/presentation/components/common/safe-bottom-sheet';
+import { useTranslation } from '@/presentation/localization/localization-provider';
+import type { AppTheme } from '@/presentation/theme/theme';
+import {
+  useAppTheme,
+  useThemedStyles,
+} from '@/presentation/theme/theme-provider';
 
 type NameInputModalProps = Readonly<{
   initialValue?: string;
@@ -27,13 +33,16 @@ export function NameInputModal({
   multiline = false,
   placement = 'bottom',
 }: NameInputModalProps) {
+  const { t } = useTranslation();
+  const theme = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   const [name, setName] = useState(initialValue);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   async function submit() {
     if (!allowEmpty && name.trim().length === 0) {
-      setError('Introduce un nombre.');
+      setError(t('form.enterName'));
       return;
     }
 
@@ -44,7 +53,7 @@ export function NameInputModal({
       await onSubmit(name);
       onDismiss();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'No se pudo guardar.');
+      setError(cause instanceof Error ? cause.message : t('form.couldNotSave'));
     } finally {
       setSubmitting(false);
     }
@@ -64,7 +73,7 @@ export function NameInputModal({
           multiline={multiline}
           onChangeText={setName}
           onSubmitEditing={() => void submit()}
-          placeholderTextColor="#929a93"
+          placeholderTextColor={theme.colors.textMuted}
           returnKeyType={multiline ? 'default' : 'done'}
           selectTextOnFocus={initialValue.length > 0}
           style={[styles.input, multiline && styles.inputMultiline]}
@@ -84,7 +93,7 @@ export function NameInputModal({
           onPress={onDismiss}
           style={styles.cancel}
         >
-          <Text style={styles.cancelText}>Cancelar</Text>
+          <Text style={styles.cancelText}>{t('common.cancel')}</Text>
         </Pressable>
         <Pressable
           disabled={submitting}
@@ -92,7 +101,7 @@ export function NameInputModal({
           style={[styles.submit, submitting && styles.disabled]}
         >
           <Text style={styles.submitText}>
-            {submitting ? 'Guardando…' : submitLabel}
+            {submitting ? t('form.saving') : submitLabel}
           </Text>
         </Pressable>
       </View>
@@ -110,77 +119,87 @@ export function NameInputModal({
   );
 }
 
-const styles = StyleSheet.create({
-  dialog: {
-    width: '92%',
-    maxWidth: 440,
-    maxHeight: '90%',
-    padding: 24,
-    backgroundColor: '#ffffff',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    gap: 20,
-    alignSelf: 'center',
-  },
-  dialogCentered: { borderRadius: 24 },
-  inputMultiline: { minHeight: 110, paddingTop: 14, textAlignVertical: 'top' },
-  title: {
-    color: '#18201a',
-    fontSize: 21,
-    fontWeight: '700',
-  },
-  field: {
-    gap: 8,
-  },
-  label: {
-    color: '#253028',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  input: {
-    minHeight: 50,
-    paddingHorizontal: 14,
-    color: '#18201a',
-    backgroundColor: '#f4f5f2',
-    borderColor: '#dfe3dc',
-    borderRadius: 12,
-    borderWidth: 1,
-    fontSize: 16,
-  },
-  error: {
-    color: '#b42318',
-    fontSize: 14,
-  },
-  actions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 10,
-  },
-  cancel: {
-    minHeight: 44,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cancelText: {
-    color: '#4f6b58',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  submit: {
-    minHeight: 44,
-    paddingHorizontal: 18,
-    backgroundColor: '#294d36',
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  submitText: {
-    color: '#ffffff',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  disabled: {
-    opacity: 0.55,
-  },
-});
+const createStyles = (theme: AppTheme) =>
+  StyleSheet.create({
+    dialog: {
+      width: '92%',
+      maxWidth: 440,
+      maxHeight: '90%',
+      padding: 24,
+      backgroundColor: theme.colors.surface,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      gap: 20,
+      alignSelf: 'center',
+    },
+    dialogCentered: {
+      width: '100%',
+      maxWidth: 640,
+      minHeight: 300,
+      borderRadius: 24,
+    },
+    inputMultiline: {
+      minHeight: 150,
+      paddingTop: 14,
+      textAlignVertical: 'top',
+    },
+    title: {
+      color: theme.colors.text,
+      fontSize: 21,
+      fontWeight: '700',
+    },
+    field: {
+      gap: 8,
+    },
+    label: {
+      color: theme.colors.textSecondary,
+      fontSize: 14,
+      fontWeight: '700',
+    },
+    input: {
+      minHeight: 50,
+      paddingHorizontal: 14,
+      color: theme.colors.text,
+      backgroundColor: theme.colors.surfaceMuted,
+      borderColor: theme.colors.border,
+      borderRadius: 12,
+      borderWidth: 1,
+      fontSize: 16,
+    },
+    error: {
+      color: theme.colors.negative,
+      fontSize: 14,
+    },
+    actions: {
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      gap: 10,
+    },
+    cancel: {
+      minHeight: 44,
+      paddingHorizontal: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    cancelText: {
+      color: theme.colors.primary,
+      fontSize: 15,
+      fontWeight: '600',
+    },
+    submit: {
+      minHeight: 44,
+      paddingHorizontal: 18,
+      backgroundColor: theme.colors.primary,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    submitText: {
+      color: theme.colors.onPrimary,
+      fontSize: 15,
+      fontWeight: '700',
+    },
+    disabled: {
+      opacity: 0.55,
+    },
+  });

@@ -10,6 +10,7 @@ import type {
 import type { TransactionInput } from '@/application/use-cases/transactions/transaction-input';
 import type { TransferInput } from '@/application/use-cases/transfers/transfer-input';
 import { useApplication } from '@/presentation/contexts/application-context';
+import { useTranslation } from '@/presentation/localization/localization-provider';
 import { domainErrorMessage } from '@/presentation/utils/domain-error-message';
 
 export type TransactionScreenData = Readonly<{
@@ -24,6 +25,7 @@ export type TransactionEditorInput = TransactionInput | TransferInput;
 
 export function useTransactions(filters: GetTransactionsInput) {
   const application = useApplication();
+  const { t } = useTranslation();
   const [data, setData] = useState<TransactionScreenData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -46,11 +48,11 @@ export function useTransactions(filters: GetTransactionsInput) {
     try {
       setData(await load());
     } catch (cause) {
-      setError(domainErrorMessage(cause));
+      setError(domainErrorMessage(cause, t));
     } finally {
       setLoading(false);
     }
-  }, [load]);
+  }, [load, t]);
 
   useFocusEffect(
     useCallback(() => {
@@ -65,7 +67,7 @@ export function useTransactions(filters: GetTransactionsInput) {
         },
         (cause: unknown) => {
           if (active) {
-            setError(domainErrorMessage(cause));
+            setError(domainErrorMessage(cause, t));
             setLoading(false);
           }
         },
@@ -74,7 +76,7 @@ export function useTransactions(filters: GetTransactionsInput) {
       return () => {
         active = false;
       };
-    }, [load]),
+    }, [load, t]),
   );
 
   const save = useCallback(
@@ -104,12 +106,12 @@ export function useTransactions(filters: GetTransactionsInput) {
         }
         await refresh();
       } catch (cause) {
-        const message = domainErrorMessage(cause);
+        const message = domainErrorMessage(cause, t);
         setError(message);
         throw new Error(message, { cause });
       }
     },
-    [application, refresh],
+    [application, refresh, t],
   );
 
   const deleteTransaction = useCallback(
@@ -119,10 +121,10 @@ export function useTransactions(filters: GetTransactionsInput) {
         await application.transactions.delete.execute(transactionId);
         await refresh();
       } catch (cause) {
-        setError(domainErrorMessage(cause));
+        setError(domainErrorMessage(cause, t));
       }
     },
-    [application, refresh],
+    [application, refresh, t],
   );
 
   return { data, error, loading, refresh, save, deleteTransaction };

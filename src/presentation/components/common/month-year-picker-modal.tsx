@@ -1,5 +1,8 @@
 import { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from '@/presentation/localization/localization-provider';
+import type { AppTheme } from '@/presentation/theme/theme';
+import { useThemedStyles } from '@/presentation/theme/theme-provider';
 
 type MonthYearPickerModalProps = Readonly<{
   value: string;
@@ -7,26 +10,18 @@ type MonthYearPickerModalProps = Readonly<{
   onDismiss: () => void;
 }>;
 
-const months = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-] as const;
-
 export function MonthYearPickerModal({
   value,
   onSelect,
   onDismiss,
 }: MonthYearPickerModalProps) {
+  const { language, t } = useTranslation();
+  const styles = useThemedStyles(createStyles);
+  const months = Array.from({ length: 12 }, (_, index) =>
+    new Intl.DateTimeFormat(language, { month: 'short' }).format(
+      new Date(2026, index, 1),
+    ),
+  );
   const [selectedYear, selectedMonth] = value.split('-').map(Number);
   const [year, setYear] = useState(selectedYear ?? new Date().getFullYear());
 
@@ -37,7 +32,7 @@ export function MonthYearPickerModal({
           <View style={styles.handle} />
           <View style={styles.yearHeader}>
             <Pressable
-              accessibilityLabel="Previous year"
+              accessibilityLabel={t('common.previousYear')}
               onPress={() => setYear((current) => current - 1)}
               style={styles.yearButton}
             >
@@ -45,7 +40,7 @@ export function MonthYearPickerModal({
             </Pressable>
             <Text style={styles.year}>{year}</Text>
             <Pressable
-              accessibilityLabel="Next year"
+              accessibilityLabel={t('common.nextYear')}
               onPress={() => setYear((current) => current + 1)}
               style={styles.yearButton}
             >
@@ -87,60 +82,65 @@ export function MonthYearPickerModal({
   );
 }
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    padding: 24,
-    backgroundColor: 'rgba(18, 24, 20, 0.38)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sheet: {
-    width: '100%',
-    maxWidth: 520,
-    paddingHorizontal: 22,
-    paddingBottom: 24,
-    backgroundColor: '#ffffff',
-    borderRadius: 28,
-  },
-  handle: {
-    width: 44,
-    height: 5,
-    marginTop: 12,
-    backgroundColor: '#ccd2cd',
-    borderRadius: 3,
-    alignSelf: 'center',
-  },
-  yearHeader: {
-    minHeight: 76,
-    borderBottomColor: '#e4e8e3',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  yearButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  yearArrow: { color: '#315a3e', fontSize: 38, lineHeight: 40 },
-  year: { color: '#18201a', fontSize: 24, fontWeight: '700' },
-  months: {
-    paddingTop: 18,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  month: {
-    width: '25%',
-    minHeight: 58,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  monthSelected: { backgroundColor: '#315a3e' },
-  monthText: { color: '#59655d', fontSize: 17, fontWeight: '600' },
-  monthTextSelected: { color: '#ffffff', fontWeight: '800' },
-});
+const createStyles = (theme: AppTheme) =>
+  StyleSheet.create({
+    backdrop: {
+      flex: 1,
+      padding: 24,
+      backgroundColor: theme.colors.scrim,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    sheet: {
+      width: '100%',
+      maxWidth: 520,
+      paddingHorizontal: 22,
+      paddingBottom: 24,
+      backgroundColor: theme.colors.surface,
+      borderRadius: 28,
+    },
+    handle: {
+      width: 44,
+      height: 5,
+      marginTop: 12,
+      backgroundColor: theme.colors.border,
+      borderRadius: 3,
+      alignSelf: 'center',
+    },
+    yearHeader: {
+      minHeight: 76,
+      borderBottomColor: theme.colors.border,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    yearButton: {
+      width: 50,
+      height: 50,
+      borderRadius: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    yearArrow: { color: theme.colors.primary, fontSize: 38, lineHeight: 40 },
+    year: { color: theme.colors.text, fontSize: 24, fontWeight: '700' },
+    months: {
+      paddingTop: 18,
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+    },
+    month: {
+      width: '25%',
+      minHeight: 58,
+      borderRadius: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    monthSelected: { backgroundColor: theme.colors.primary },
+    monthText: {
+      color: theme.colors.textSecondary,
+      fontSize: 17,
+      fontWeight: '600',
+    },
+    monthTextSelected: { color: theme.colors.onPrimary, fontWeight: '800' },
+  });

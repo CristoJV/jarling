@@ -1,4 +1,5 @@
 import type { Money } from '@/domain/value-objects/money';
+import { getLocales } from 'expo-localization';
 
 const MONEY_INPUT_PATTERN = /^([+-]?)(\d+)(?:[.,](\d{1,2}))?$/;
 
@@ -17,13 +18,11 @@ export function parseMoneyInput(input: string): number | null {
   return Number.isSafeInteger(cents) ? cents : null;
 }
 
-const euroFormatter = new Intl.NumberFormat('es-ES', {
-  style: 'currency',
-  currency: 'EUR',
-});
-
 export function formatMoney(money: Money): string {
-  return euroFormatter.format(money.cents / 100);
+  return new Intl.NumberFormat(getLocales()[0]?.languageTag ?? 'en-US', {
+    style: 'currency',
+    currency: 'EUR',
+  }).format(money.cents / 100);
 }
 
 export function appendMoneyDigit(cents: number, digit: number): number {
