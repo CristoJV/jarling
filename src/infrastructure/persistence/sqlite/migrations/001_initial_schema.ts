@@ -70,7 +70,7 @@ export const initialSchemaMigration: Migration = {
       kind TEXT NOT NULL CHECK (kind IN ('weekly', 'monthly', 'yearly', 'custom')),
       amount INTEGER NOT NULL CHECK (typeof(amount) = 'integer' AND amount > 0),
       day_of_week INTEGER CHECK (day_of_week BETWEEN 1 AND 7),
-      weekly_funding_mode TEXT CHECK (weekly_funding_mode IN ('set_aside', 'refill_up_to')),
+      funding_mode TEXT CHECK (funding_mode IN ('set_aside', 'refill_up_to')),
       day_of_month INTEGER CHECK (day_of_month BETWEEN 0 AND 31),
       target_date TEXT CHECK (
         target_date IS NULL OR (
@@ -85,13 +85,13 @@ export const initialSchemaMigration: Migration = {
       updated_at TEXT NOT NULL,
       FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE RESTRICT,
       CHECK (
-        (kind = 'weekly' AND day_of_week IS NOT NULL AND weekly_funding_mode IS NOT NULL
+        (kind = 'weekly' AND day_of_week IS NOT NULL AND funding_mode IS NOT NULL
           AND day_of_month IS NULL AND target_date IS NULL AND custom_funding_mode IS NULL)
-        OR (kind = 'monthly' AND day_of_week IS NULL AND weekly_funding_mode IS NULL
+        OR (kind = 'monthly' AND day_of_week IS NULL AND funding_mode IS NOT NULL
           AND day_of_month IS NOT NULL AND target_date IS NULL AND custom_funding_mode IS NULL)
-        OR (kind = 'yearly' AND day_of_week IS NULL AND weekly_funding_mode IS NULL
+        OR (kind = 'yearly' AND day_of_week IS NULL AND funding_mode IS NOT NULL
           AND day_of_month IS NULL AND target_date IS NOT NULL AND custom_funding_mode IS NULL)
-        OR (kind = 'custom' AND day_of_week IS NULL AND weekly_funding_mode IS NULL
+        OR (kind = 'custom' AND day_of_week IS NULL AND funding_mode IS NULL
           AND day_of_month IS NULL AND target_date IS NULL AND custom_funding_mode IS NOT NULL)
       )
     );

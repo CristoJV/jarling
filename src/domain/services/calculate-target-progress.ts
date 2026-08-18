@@ -71,7 +71,8 @@ function targetFunding(
   available: Money,
 ): Money {
   const usesAssigned =
-    (target.kind === 'weekly' && target.weeklyFundingMode === 'set_aside') ||
+    ((target.kind === 'weekly' || target.kind === 'monthly') &&
+      target.fundingMode === 'set_aside') ||
     (target.kind === 'custom' && target.customFundingMode === 'set_aside');
   return usesAssigned ? assigned : available;
 }

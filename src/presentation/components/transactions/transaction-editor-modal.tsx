@@ -1,33 +1,46 @@
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import type { ComponentProps } from 'react';
 import { useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import {
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 
 import type { AccountsOverview } from '@/application/use-cases/accounts/get-accounts';
 import type { CategoryGroupSummary } from '@/application/use-cases/categories/get-category-groups';
 import type { TransactionSummary } from '@/application/use-cases/transactions/get-transactions';
 import type { TransactionInput } from '@/application/use-cases/transactions/transaction-input';
+import type { TransferInput } from '@/application/use-cases/transfers/transfer-input';
 import { Money } from '@/domain/value-objects/money';
 import { MoneyKeypad } from '@/presentation/components/common/money-keypad';
+import { FullScreenModal } from '@/presentation/components/common/full-screen-modal';
 import { NameInputModal } from '@/presentation/components/common/name-input-modal';
+import { NativeDatePicker } from '@/presentation/components/common/native-date-picker';
 import { SelectionModal } from '@/presentation/components/common/selection-modal';
+import { PayeeSelectionScreen } from '@/presentation/components/transactions/payee-selection-screen';
 import { formatMoney } from '@/presentation/utils/money';
 
 type TransactionEditorModalProps = Readonly<{
   accounts: AccountsOverview;
   categoryGroups: readonly CategoryGroupSummary[];
+  payees: readonly string[];
   transaction?: TransactionSummary;
+  linkedTransaction?: TransactionSummary;
   onDismiss: () => void;
-  onSave: (input: TransactionInput) => Promise<void>;
+  onSave: (input: TransactionInput | TransferInput) => Promise<void>;
 }>;
 
-type Editor = 'kind' | 'account' | 'category' | 'payee' | 'date' | null;
+type TransactionKind = 'expense' | 'income' | 'transfer';
+type Editor =
+  | 'kind'
+  | 'account'
+  | 'destination-account'
+  | 'category'
+  | 'payee'
+  | 'date'
+  | 'memo'
+  | null;
 
 function today(): string {
   const date = new Date();
@@ -49,11 +62,25 @@ function formatDate(date: string): string {
 export function TransactionEditorModal({
   accounts,
   categoryGroups,
+  payees,
   transaction: summary,
+  linkedTransaction: linkedSummary,
   onDismiss,
   onSave,
 }: TransactionEditorModalProps) {
+  const insets = useSafeAreaInsets();
   const existing = summary?.transaction;
+  const linked = linkedSummary?.transaction;
+  const existingTransfer = Boolean(existing?.transactionGroupId && linked);
+  const transferLegs = [existing, linked].filter(
+    (transaction) => transaction !== undefined,
+  );
+  const sourceLeg = existingTransfer
+    ? transferLegs.find(({ amount }) => amount.cents < 0)
+    : undefined;
+  const destinationLeg = existingTransfer
+    ? transferLegs.find(({ amount }) => amount.cents > 0)
+    : undefined;
   const availableAccounts = useMemo(
     () => accounts.accounts.filter(({ account }) => !account.closed),
     [accounts],
@@ -67,18 +94,32 @@ export function TransactionEditorModal({
       ),
     [categoryGroups],
   );
-  const [kind, setKind] = useState<'expense' | 'income'>(
-    existing && existing.amount.cents >= 0 ? 'income' : 'expense',
+  const [kind, setKind] = useState<TransactionKind>(
+    existingTransfer
+      ? 'transfer'
+      : existing && existing.amount.cents >= 0
+        ? 'income'
+        : 'expense',
   );
   const [amountCents, setAmountCents] = useState(
     Math.abs(existing?.amount.cents ?? 0),
   );
   const [accountId, setAccountId] = useState(
-    existing?.accountId ?? availableAccounts[0]?.account.id ?? '',
+    sourceLeg?.accountId ??
+      existing?.accountId ??
+      availableAccounts[0]?.account.id ??
+      '',
+  );
+  const [destinationAccountId, setDestinationAccountId] = useState(
+    destinationLeg?.accountId ??
+      availableAccounts.find(({ account }) => account.id !== accountId)?.account
+        .id ??
+      '',
   );
   const [categoryId, setCategoryId] = useState(existing?.categoryId ?? '');
   const [payee, setPayee] = useState(existing?.payee ?? '');
   const [date, setDate] = useState(existing?.date ?? today());
+  const [memo, setMemo] = useState(existing?.notes ?? '');
   const [editor, setEditor] = useState<Editor>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -89,6 +130,9 @@ export function TransactionEditorModal({
   const categoryName = availableCategories.find(
     ({ category }) => category.id === categoryId,
   )?.category.name;
+  const destinationAccountName =
+    availableAccounts.find(({ account }) => account.id === destinationAccountId)
+      ?.account.name ?? 'Choose Destination';
 
   async function submit() {
     if (amountCents <= 0) {
@@ -103,22 +147,46 @@ export function TransactionEditorModal({
       setError('Selecciona una categoría para el gasto.');
       return;
     }
+    if (kind === 'transfer' && !destinationAccountId) {
+      setError('Selecciona una cuenta de destino.');
+      return;
+    }
+    if (kind === 'transfer' && accountId === destinationAccountId) {
+      setError('Las cuentas de origen y destino deben ser diferentes.');
+      return;
+    }
 
     setSubmitting(true);
     setError(null);
     try {
       const common = {
-        accountId,
         amountCents,
-        payee: payee.trim() || undefined,
         date,
-        notes: existing?.notes,
+        notes: memo.trim() || undefined,
         status: existing?.status === 'uncleared' ? 'uncleared' : 'cleared',
       } as const;
       await onSave(
-        kind === 'expense'
-          ? { ...common, kind, categoryId }
-          : { ...common, kind },
+        kind === 'transfer'
+          ? {
+              ...common,
+              kind,
+              sourceAccountId: accountId,
+              destinationAccountId,
+            }
+          : kind === 'expense'
+            ? {
+                ...common,
+                kind,
+                accountId,
+                categoryId,
+                payee: payee.trim() || undefined,
+              }
+            : {
+                ...common,
+                kind,
+                accountId,
+                payee: payee.trim() || undefined,
+              },
       );
       onDismiss();
     } catch (cause) {
@@ -129,8 +197,8 @@ export function TransactionEditorModal({
   }
 
   return (
-    <Modal animationType="slide" onRequestClose={onDismiss} visible>
-      <SafeAreaView style={styles.safeArea}>
+    <FullScreenModal onRequestClose={onDismiss}>
+      <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
         <View style={styles.header}>
           <Pressable
             accessibilityLabel="Cerrar"
@@ -155,42 +223,72 @@ export function TransactionEditorModal({
           </Text>
 
           <Pressable onPress={() => setEditor('kind')} style={styles.kindPill}>
-            <Text style={styles.kindIcon}>
-              {kind === 'expense' ? '−' : '+'}
-            </Text>
+            <MaterialCommunityIcons
+              color="#315a3e"
+              name={
+                kind === 'transfer'
+                  ? 'bank-transfer'
+                  : kind === 'expense'
+                    ? 'minus-box-outline'
+                    : 'plus-box-outline'
+              }
+              size={22}
+            />
             <Text style={styles.kindText}>
-              {kind === 'expense' ? 'Spending' : 'Inflow'}
+              {kind === 'transfer'
+                ? 'Transfer'
+                : kind === 'expense'
+                  ? 'Spending'
+                  : 'Inflow'}
             </Text>
             <Text style={styles.chevron}>⌄</Text>
           </Pressable>
 
           <View style={styles.formCard}>
-            <FieldRow
-              icon="↔"
-              label={payee || 'Choose Payee'}
-              muted={!payee}
-              onPress={() => setEditor('payee')}
-            />
+            {kind !== 'transfer' ? (
+              <FieldRow
+                icon="currency-eur"
+                label={payee || 'Choose Payee'}
+                muted={!payee}
+                onPress={() => setEditor('payee')}
+              />
+            ) : null}
             {kind === 'expense' ? (
               <FieldRow
-                icon="▤"
+                icon="shape-outline"
                 label={categoryName ?? 'Choose Category'}
                 muted={!categoryName}
                 onPress={() => setEditor('category')}
               />
             ) : null}
             <FieldRow
-              icon="▣"
+              icon="cash"
               label={accountName}
               muted={!accountId}
               onPress={() => setEditor('account')}
-              overline="Account"
+              overline={kind === 'transfer' ? 'From Account' : 'Account'}
             />
+            {kind === 'transfer' ? (
+              <FieldRow
+                icon="bank-transfer-in"
+                label={destinationAccountName}
+                muted={!destinationAccountId}
+                onPress={() => setEditor('destination-account')}
+                overline="To Account"
+              />
+            ) : null}
             <FieldRow
-              icon="□"
+              icon="calendar-outline"
               label={formatDate(date)}
               onPress={() => setEditor('date')}
               overline="Date"
+            />
+            <FieldRow
+              icon="note-text-outline"
+              label={memo || 'Add Memo'}
+              muted={!memo}
+              onPress={() => setEditor('memo')}
+              overline={memo ? 'Memo' : undefined}
             />
           </View>
 
@@ -203,46 +301,94 @@ export function TransactionEditorModal({
           <MoneyKeypad onChange={setAmountCents} valueCents={amountCents} />
         </ScrollView>
 
-        <Pressable
-          disabled={submitting || availableAccounts.length === 0}
-          onPress={() => void submit()}
-          style={[styles.save, submitting && styles.disabled]}
+        <View
+          style={[
+            styles.actionBar,
+            { paddingBottom: Math.max(insets.bottom + 12, 26) },
+          ]}
         >
-          <Text style={styles.saveText}>
-            {submitting ? 'Saving…' : '✓  Save'}
-          </Text>
-        </Pressable>
+          <Pressable
+            disabled={submitting || availableAccounts.length === 0}
+            onPress={() => void submit()}
+            style={[styles.save, submitting && styles.disabled]}
+          >
+            <Text style={styles.saveText}>
+              {submitting ? 'Saving…' : '✓  Save'}
+            </Text>
+          </Pressable>
+        </View>
 
         {editor === 'kind' ? (
           <SelectionModal
             onDismiss={() => setEditor(null)}
             onSelect={(value) => setKind(value)}
             options={[
-              {
-                value: 'expense',
-                label: 'Spending',
-                description: 'Money leaving an account.',
-              },
-              {
-                value: 'income',
-                label: 'Inflow',
-                description: 'Money entering an account.',
-              },
+              ...(existingTransfer
+                ? []
+                : [
+                    {
+                      value: 'expense',
+                      label: 'Spending',
+                      description: 'Money leaving an account.',
+                    } as const,
+                    {
+                      value: 'income',
+                      label: 'Inflow',
+                      description: 'Money entering an account.',
+                    } as const,
+                  ]),
+              ...(!existing
+                ? [
+                    {
+                      value: 'transfer',
+                      label: 'Transfer',
+                      description: 'Move money between two accounts.',
+                    } as const,
+                  ]
+                : existingTransfer
+                  ? [
+                      {
+                        value: 'transfer',
+                        label: 'Transfer',
+                        description: 'Move money between two accounts.',
+                      } as const,
+                    ]
+                  : []),
             ]}
             selectedValue={kind}
             title="Transaction type"
+            placement="center"
           />
         ) : null}
         {editor === 'account' ? (
           <SelectionModal
             onDismiss={() => setEditor(null)}
             onSelect={setAccountId}
-            options={availableAccounts.map(({ account }) => ({
-              value: account.id,
-              label: account.name,
-            }))}
+            options={availableAccounts
+              .filter(
+                ({ account }) =>
+                  kind !== 'transfer' || account.id !== destinationAccountId,
+              )
+              .map(({ account }) => ({
+                value: account.id,
+                label: account.name,
+              }))}
             selectedValue={accountId}
             title="Choose Account"
+          />
+        ) : null}
+        {editor === 'destination-account' ? (
+          <SelectionModal
+            onDismiss={() => setEditor(null)}
+            onSelect={setDestinationAccountId}
+            options={availableAccounts
+              .filter(({ account }) => account.id !== accountId)
+              .map(({ account }) => ({
+                value: account.id,
+                label: account.name,
+              }))}
+            selectedValue={destinationAccountId}
+            title="Choose Destination Account"
           />
         ) : null}
         {editor === 'category' ? (
@@ -259,27 +405,35 @@ export function TransactionEditorModal({
           />
         ) : null}
         {editor === 'payee' ? (
-          <NameInputModal
-            initialValue={payee}
-            label="Payee"
+          <PayeeSelectionScreen
+            payees={payees}
+            selectedPayee={payee || undefined}
             onDismiss={() => setEditor(null)}
-            onSubmit={async (value) => setPayee(value.trim())}
-            submitLabel="Choose"
-            title="Choose Payee"
+            onSelect={setPayee}
           />
         ) : null}
         {editor === 'date' ? (
-          <NameInputModal
-            initialValue={date}
-            label="Date (YYYY-MM-DD)"
+          <NativeDatePicker
+            value={date}
             onDismiss={() => setEditor(null)}
-            onSubmit={async (value) => setDate(value.trim())}
-            submitLabel="Choose"
             title="Choose Date"
+            onChange={setDate}
+          />
+        ) : null}
+        {editor === 'memo' ? (
+          <NameInputModal
+            allowEmpty
+            initialValue={memo}
+            label="Memo"
+            multiline
+            onDismiss={() => setEditor(null)}
+            onSubmit={async (value) => setMemo(value.trim())}
+            submitLabel="Save Memo"
+            title="Transaction Memo"
           />
         ) : null}
       </SafeAreaView>
-    </Modal>
+    </FullScreenModal>
   );
 }
 
@@ -290,7 +444,7 @@ function FieldRow({
   overline,
   onPress,
 }: Readonly<{
-  icon: string;
+  icon: ComponentProps<typeof MaterialCommunityIcons>['name'];
   label: string;
   muted?: boolean;
   overline?: string;
@@ -298,7 +452,9 @@ function FieldRow({
 }>) {
   return (
     <Pressable onPress={onPress} style={styles.fieldRow}>
-      <Text style={styles.fieldIcon}>{icon}</Text>
+      <View style={styles.fieldIcon}>
+        <MaterialCommunityIcons color="#647068" name={icon} size={23} />
+      </View>
       <View style={styles.fieldCopy}>
         {overline ? <Text style={styles.overline}>{overline}</Text> : null}
         <Text style={[styles.fieldLabel, muted && styles.fieldMuted]}>
@@ -337,7 +493,7 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 620,
     paddingHorizontal: 20,
-    paddingBottom: 100,
+    paddingBottom: 20,
     alignSelf: 'center',
     alignItems: 'center',
   },
@@ -360,7 +516,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 9,
   },
-  kindIcon: { color: '#315a3e', fontSize: 22, fontWeight: '800' },
   kindText: { color: '#203b29', fontSize: 17, fontWeight: '700' },
   chevron: { color: '#496451', fontSize: 17 },
   formCard: {
@@ -384,7 +539,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  fieldIcon: { width: 36, color: '#647068', fontSize: 22, textAlign: 'center' },
+  fieldIcon: { width: 36, alignItems: 'center', justifyContent: 'center' },
   fieldCopy: { flex: 1, paddingHorizontal: 12 },
   overline: {
     marginBottom: 2,
@@ -405,9 +560,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   save: {
-    position: 'absolute',
-    right: 22,
-    bottom: 22,
     minHeight: 54,
     paddingHorizontal: 23,
     backgroundColor: '#315a3e',
@@ -421,5 +573,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   saveText: { color: '#ffffff', fontSize: 17, fontWeight: '800' },
+  actionBar: {
+    minHeight: 92,
+    paddingTop: 16,
+    paddingHorizontal: 22,
+    backgroundColor: '#f4f6f3',
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+  },
   disabled: { opacity: 0.55 },
 });

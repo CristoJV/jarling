@@ -9,6 +9,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { SafeBottomSheet } from '@/presentation/components/common/safe-bottom-sheet';
 
 type NameInputModalProps = Readonly<{
   initialValue?: string;
@@ -17,6 +18,8 @@ type NameInputModalProps = Readonly<{
   title: string;
   onDismiss: () => void;
   onSubmit: (name: string) => Promise<void>;
+  allowEmpty?: boolean;
+  multiline?: boolean;
 }>;
 
 export function NameInputModal({
@@ -26,13 +29,15 @@ export function NameInputModal({
   title,
   onDismiss,
   onSubmit,
+  allowEmpty = false,
+  multiline = false,
 }: NameInputModalProps) {
   const [name, setName] = useState(initialValue);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   async function submit() {
-    if (name.trim().length === 0) {
+    if (!allowEmpty && name.trim().length === 0) {
       setError('Introduce un nombre.');
       return;
     }
@@ -51,12 +56,12 @@ export function NameInputModal({
   }
 
   return (
-    <Modal animationType="fade" onRequestClose={onDismiss} transparent visible>
+    <Modal animationType="slide" onRequestClose={onDismiss} transparent visible>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.backdrop}
       >
-        <View style={styles.dialog}>
+        <SafeBottomSheet style={styles.dialog}>
           <Text style={styles.title}>{title}</Text>
           <View style={styles.field}>
             <Text style={styles.label}>{label}</Text>
@@ -64,12 +69,13 @@ export function NameInputModal({
               accessibilityLabel={label}
               autoCapitalize="sentences"
               autoFocus
+              multiline={multiline}
               onChangeText={setName}
               onSubmitEditing={() => void submit()}
               placeholderTextColor="#929a93"
-              returnKeyType="done"
+              returnKeyType={multiline ? 'default' : 'done'}
               selectTextOnFocus={initialValue.length > 0}
-              style={styles.input}
+              style={[styles.input, multiline && styles.inputMultiline]}
               value={name}
             />
           </View>
@@ -98,7 +104,7 @@ export function NameInputModal({
               </Text>
             </Pressable>
           </View>
-        </View>
+        </SafeBottomSheet>
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -110,16 +116,18 @@ const styles = StyleSheet.create({
     padding: 24,
     backgroundColor: 'rgba(18, 24, 20, 0.42)',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-end',
   },
   dialog: {
     width: '100%',
     maxWidth: 440,
     padding: 24,
     backgroundColor: '#ffffff',
-    borderRadius: 20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     gap: 20,
   },
+  inputMultiline: { minHeight: 110, paddingTop: 14, textAlignVertical: 'top' },
   title: {
     color: '#18201a',
     fontSize: 21,

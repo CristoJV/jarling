@@ -165,6 +165,8 @@ describe('SQLite repositories', () => {
         accountId: 'account-1',
         categoryId: 'category-1',
         search: 'market',
+        payee: 'mercado',
+        memo: 'weekly',
         dateFrom: '2026-08-01',
         dateTo: '2026-08-31',
       }),
@@ -177,6 +179,8 @@ describe('SQLite repositories', () => {
       '2026-08-31',
       '%market%',
       '%market%',
+      '%mercado%',
+      '%weekly%',
     );
     await expect(repository.findById('opening-1')).resolves.toEqual(
       transactionFromRow(transactionRow),
@@ -185,6 +189,19 @@ describe('SQLite repositories', () => {
     expect(runAsync).toHaveBeenLastCalledWith(
       'DELETE FROM transactions WHERE id = ?',
       'opening-1',
+    );
+
+    await expect(repository.findByGroup('group-1')).resolves.toEqual([
+      transactionFromRow(transactionRow),
+    ]);
+    expect(getAllAsync).toHaveBeenLastCalledWith(
+      expect.stringContaining('WHERE transaction_group_id = ?'),
+      'group-1',
+    );
+    await repository.deleteByGroup('group-1');
+    expect(runAsync).toHaveBeenLastCalledWith(
+      'DELETE FROM transactions WHERE transaction_group_id = ?',
+      'group-1',
     );
   });
 });

@@ -14,9 +14,9 @@ const dayLabels = [
 export function targetDescription(target: CategoryTarget): string {
   switch (target.kind) {
     case 'weekly':
-      return `${target.weeklyFundingMode === 'refill_up_to' ? 'Refill up to' : 'Set aside'} ${formatMoney(target.amount)} weekly · ${dayLabels[(target.dayOfWeek ?? 1) - 1]}`;
+      return `${target.fundingMode === 'refill_up_to' ? 'Refill up to' : 'Set aside'} ${formatMoney(target.amount)} weekly · ${dayLabels[(target.dayOfWeek ?? 1) - 1]}`;
     case 'monthly':
-      return `${formatMoney(target.amount)} monthly · ${target.dayOfMonth === 0 ? 'Last day' : `Day ${target.dayOfMonth}`}`;
+      return `${target.fundingMode === 'refill_up_to' ? 'Refill up to' : 'Set aside'} ${formatMoney(target.amount)} monthly · ${target.dayOfMonth === 0 ? 'Last day' : `Day ${target.dayOfMonth}`}`;
     case 'yearly': {
       const date = new Date(`${target.targetDate}T12:00:00`);
       const label = Number.isNaN(date.getTime())
@@ -26,7 +26,7 @@ export function targetDescription(target: CategoryTarget): string {
             month: 'short',
             year: 'numeric',
           }).format(date);
-      return `${formatMoney(target.amount)} by ${label}`;
+      return `${target.fundingMode === 'refill_up_to' ? 'Refill up to' : 'Set aside'} ${formatMoney(target.amount)} by ${label}`;
     }
     case 'custom': {
       const mode =

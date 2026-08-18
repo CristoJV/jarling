@@ -16,6 +16,7 @@ import type { CreateAccountInput } from '@/application/use-cases/accounts/create
 import { ACCOUNT_TYPES, type AccountType } from '@/domain/entities/account';
 import { MoneyKeypad } from '@/presentation/components/common/money-keypad';
 import { SelectionModal } from '@/presentation/components/common/selection-modal';
+import { SafeBottomSheet } from '@/presentation/components/common/safe-bottom-sheet';
 import { Money } from '@/domain/value-objects/money';
 import { formatMoney } from '@/presentation/utils/money';
 
@@ -86,7 +87,7 @@ export function CreateAccountModal({
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.backdrop}
       >
-        <View style={styles.sheet}>
+        <SafeBottomSheet style={styles.sheet}>
           <View style={styles.header}>
             <Text style={styles.title}>Nueva cuenta</Text>
             <Pressable
@@ -176,7 +177,7 @@ export function CreateAccountModal({
               </Text>
             </Pressable>
           </ScrollView>
-        </View>
+        </SafeBottomSheet>
       </KeyboardAvoidingView>
       {selectingType ? (
         <SelectionModal

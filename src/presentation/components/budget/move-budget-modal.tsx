@@ -13,6 +13,7 @@ import {
 import type { BudgetCategoryValues } from '@/domain/services/calculate-budget-month';
 import { Money } from '@/domain/value-objects/money';
 import { MoneyKeypad } from '@/presentation/components/common/money-keypad';
+import { SafeBottomSheet } from '@/presentation/components/common/safe-bottom-sheet';
 import { formatMoney } from '@/presentation/utils/money';
 
 type MoveBudgetModalProps = Readonly<{
@@ -86,7 +87,7 @@ export function MoveBudgetModal({
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.backdrop}
       >
-        <View style={styles.sheet}>
+        <SafeBottomSheet style={styles.sheet}>
           <View style={styles.header}>
             <View>
               <Text style={styles.title}>Mover presupuesto</Text>
@@ -128,7 +129,7 @@ export function MoveBudgetModal({
               </Text>
             </Pressable>
           </ScrollView>
-        </View>
+        </SafeBottomSheet>
       </KeyboardAvoidingView>
     </Modal>
   );

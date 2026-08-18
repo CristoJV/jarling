@@ -6,7 +6,7 @@ import {
   type CustomFundingMode,
   type IsoDayOfWeek,
   type TargetKind,
-  type WeeklyFundingMode,
+  type RecurringFundingMode,
 } from '@/domain/entities/category-target';
 import type { CategoryTargetRepository } from '@/domain/repositories/category-target-repository';
 import { Money } from '@/domain/value-objects/money';
@@ -17,7 +17,7 @@ export type CategoryTargetRow = {
   kind: TargetKind;
   amount: number;
   day_of_week: number | null;
-  weekly_funding_mode: WeeklyFundingMode | null;
+  funding_mode: RecurringFundingMode | null;
   day_of_month: number | null;
   target_date: string | null;
   custom_funding_mode: CustomFundingMode | null;
@@ -34,9 +34,7 @@ export function categoryTargetFromRow(row: CategoryTargetRow): CategoryTarget {
     ...(row.day_of_week !== null
       ? { dayOfWeek: row.day_of_week as IsoDayOfWeek }
       : {}),
-    ...(row.weekly_funding_mode !== null
-      ? { weeklyFundingMode: row.weekly_funding_mode }
-      : {}),
+    ...(row.funding_mode !== null ? { fundingMode: row.funding_mode } : {}),
     ...(row.day_of_month !== null ? { dayOfMonth: row.day_of_month } : {}),
     ...(row.target_date !== null ? { targetDate: row.target_date } : {}),
     ...(row.custom_funding_mode !== null
@@ -48,7 +46,7 @@ export function categoryTargetFromRow(row: CategoryTargetRow): CategoryTarget {
 }
 
 const columns = `
-  id, category_id, kind, amount, day_of_week, weekly_funding_mode,
+  id, category_id, kind, amount, day_of_week, funding_mode,
   day_of_month, target_date, custom_funding_mode, created_at, updated_at
 `;
 
@@ -73,14 +71,14 @@ export class SQLiteCategoryTargetRepository implements CategoryTargetRepository 
   async save(target: CategoryTarget): Promise<void> {
     await this.database.runAsync(
       `INSERT INTO category_targets (
-         id, category_id, kind, amount, day_of_week, weekly_funding_mode,
+         id, category_id, kind, amount, day_of_week, funding_mode,
          day_of_month, target_date, custom_funding_mode, created_at, updated_at
        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(category_id) DO UPDATE SET
          kind = excluded.kind,
          amount = excluded.amount,
          day_of_week = excluded.day_of_week,
-         weekly_funding_mode = excluded.weekly_funding_mode,
+         funding_mode = excluded.funding_mode,
          day_of_month = excluded.day_of_month,
          target_date = excluded.target_date,
          custom_funding_mode = excluded.custom_funding_mode,
@@ -90,7 +88,7 @@ export class SQLiteCategoryTargetRepository implements CategoryTargetRepository 
       target.kind,
       target.amount.cents,
       target.dayOfWeek ?? null,
-      target.weeklyFundingMode ?? null,
+      target.fundingMode ?? null,
       target.dayOfMonth ?? null,
       target.targetDate ?? null,
       target.customFundingMode ?? null,

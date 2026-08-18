@@ -133,6 +133,7 @@ describe('accounts, transactions and budget integration', () => {
       kind: 'monthly',
       amountCents: 50_000,
       dayOfMonth: 0,
+      fundingMode: 'refill_up_to',
     });
     const afterTarget = await getBudget.execute('2026-08');
 

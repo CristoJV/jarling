@@ -4,7 +4,7 @@ import type { Money } from '@/domain/value-objects/money';
 export const TARGET_KINDS = ['weekly', 'monthly', 'yearly', 'custom'] as const;
 export type TargetKind = (typeof TARGET_KINDS)[number];
 export type IsoDayOfWeek = 1 | 2 | 3 | 4 | 5 | 6 | 7;
-export type WeeklyFundingMode = 'set_aside' | 'refill_up_to';
+export type RecurringFundingMode = 'set_aside' | 'refill_up_to';
 export type CustomFundingMode = 'set_aside' | 'fill_up_to' | 'balance';
 
 export type CategoryTarget = Readonly<{
@@ -13,7 +13,7 @@ export type CategoryTarget = Readonly<{
   kind: TargetKind;
   amount: Money;
   dayOfWeek?: IsoDayOfWeek;
-  weeklyFundingMode?: WeeklyFundingMode;
+  fundingMode?: RecurringFundingMode;
   dayOfMonth?: number; // 0 means last day; otherwise 1..31
   targetDate?: string;
   customFundingMode?: CustomFundingMode;
@@ -43,7 +43,6 @@ function hasOnlyWeeklyFields(target: CategoryTarget): boolean {
 function hasOnlyMonthlyFields(target: CategoryTarget): boolean {
   return (
     target.dayOfWeek === undefined &&
-    target.weeklyFundingMode === undefined &&
     target.targetDate === undefined &&
     target.customFundingMode === undefined
   );
@@ -52,7 +51,6 @@ function hasOnlyMonthlyFields(target: CategoryTarget): boolean {
 function hasOnlyYearlyFields(target: CategoryTarget): boolean {
   return (
     target.dayOfWeek === undefined &&
-    target.weeklyFundingMode === undefined &&
     target.dayOfMonth === undefined &&
     target.customFundingMode === undefined
   );
@@ -61,7 +59,7 @@ function hasOnlyYearlyFields(target: CategoryTarget): boolean {
 function hasOnlyCustomFields(target: CategoryTarget): boolean {
   return (
     target.dayOfWeek === undefined &&
-    target.weeklyFundingMode === undefined &&
+    target.fundingMode === undefined &&
     target.dayOfMonth === undefined &&
     target.targetDate === undefined
   );
@@ -80,9 +78,7 @@ export function createCategoryTarget(
         !properties.dayOfWeek ||
         properties.dayOfWeek < 1 ||
         properties.dayOfWeek > 7 ||
-        !['set_aside', 'refill_up_to'].includes(
-          properties.weeklyFundingMode ?? '',
-        ) ||
+        !['set_aside', 'refill_up_to'].includes(properties.fundingMode ?? '') ||
         !hasOnlyWeeklyFields(properties)
       ) {
         throw new InvalidCategoryTargetError(
@@ -93,6 +89,7 @@ export function createCategoryTarget(
     case 'monthly':
       if (
         properties.dayOfMonth === undefined ||
+        !['set_aside', 'refill_up_to'].includes(properties.fundingMode ?? '') ||
         !Number.isInteger(properties.dayOfMonth) ||
         properties.dayOfMonth < 0 ||
         properties.dayOfMonth > 31 ||
@@ -106,6 +103,7 @@ export function createCategoryTarget(
     case 'yearly':
       if (
         !properties.targetDate ||
+        !['set_aside', 'refill_up_to'].includes(properties.fundingMode ?? '') ||
         !isValidDate(properties.targetDate) ||
         !hasOnlyYearlyFields(properties)
       ) {

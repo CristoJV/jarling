@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import {
   Alert,
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,12 +14,13 @@ import {
   type CategoryTarget,
   type CustomFundingMode,
   type IsoDayOfWeek,
+  type RecurringFundingMode,
   type TargetKind,
-  type WeeklyFundingMode,
 } from '@/domain/entities/category-target';
 import { Money } from '@/domain/value-objects/money';
-import { DatePickerModal } from '@/presentation/components/common/date-picker-modal';
 import { MoneyKeypad } from '@/presentation/components/common/money-keypad';
+import { FullScreenModal } from '@/presentation/components/common/full-screen-modal';
+import { NativeDatePicker } from '@/presentation/components/common/native-date-picker';
 import {
   SelectionModal,
   type SelectionOption,
@@ -121,8 +121,8 @@ export function TargetEditorModal({
   const [dayOfWeek, setDayOfWeek] = useState<IsoDayOfWeek>(
     target?.dayOfWeek ?? 6,
   );
-  const [weeklyFundingMode, setWeeklyFundingMode] = useState<WeeklyFundingMode>(
-    target?.weeklyFundingMode ?? 'set_aside',
+  const [fundingMode, setFundingMode] = useState<RecurringFundingMode>(
+    target?.fundingMode ?? 'set_aside',
   );
   const [dayOfMonth, setDayOfMonth] = useState(target?.dayOfMonth ?? 0);
   const [targetDate, setTargetDate] = useState(target?.targetDate ?? today());
@@ -143,11 +143,11 @@ export function TargetEditorModal({
     const common = { categoryId, amountCents } as const;
     const input: SetCategoryTargetInput =
       kind === 'weekly'
-        ? { ...common, kind, dayOfWeek, weeklyFundingMode }
+        ? { ...common, kind, dayOfWeek, fundingMode }
         : kind === 'monthly'
-          ? { ...common, kind, dayOfMonth }
+          ? { ...common, kind, dayOfMonth, fundingMode }
           : kind === 'yearly'
-            ? { ...common, kind, targetDate }
+            ? { ...common, kind, targetDate, fundingMode }
             : { ...common, kind, customFundingMode };
     setSubmitting(true);
     setError(null);
@@ -186,7 +186,7 @@ export function TargetEditorModal({
   }
 
   return (
-    <Modal animationType="slide" onRequestClose={onDismiss} visible>
+    <FullScreenModal onRequestClose={onDismiss}>
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
           <Pressable
@@ -253,47 +253,65 @@ export function TargetEditorModal({
                 <View style={styles.fieldSection}>
                   <Text style={styles.fieldLabel}>Next month I want to</Text>
                   <ModeRow
-                    selected={weeklyFundingMode === 'set_aside'}
+                    selected={fundingMode === 'set_aside'}
                     title={`Set aside another ${amount}/week`}
-                    onPress={() => setWeeklyFundingMode('set_aside')}
+                    description="Add this amount every week regardless of the category's current balance."
+                    onPress={() => setFundingMode('set_aside')}
                   />
                   <ModeRow
-                    selected={weeklyFundingMode === 'refill_up_to'}
+                    selected={fundingMode === 'refill_up_to'}
                     title={`Refill up to ${amount}/week`}
-                    onPress={() => setWeeklyFundingMode('refill_up_to')}
+                    description="Count existing money and replace only what was spent."
+                    onPress={() => setFundingMode('refill_up_to')}
                   />
                 </View>
               </>
             ) : null}
 
             {kind === 'monthly' ? (
-              <View style={styles.fieldSection}>
-                <Text style={styles.fieldLabel}>By</Text>
-                <Pressable
-                  onPress={() => setSelectingMonthlyDay(true)}
-                  style={styles.selector}
-                >
-                  <Text style={styles.selectorText}>
-                    {dayOfMonth === 0 ? 'Last Day' : ordinal(dayOfMonth)}
-                  </Text>
-                  <Text style={styles.selectorArrow}>›</Text>
-                </Pressable>
-              </View>
+              <>
+                <View style={styles.fieldSection}>
+                  <Text style={styles.fieldLabel}>By</Text>
+                  <Pressable
+                    onPress={() => setSelectingMonthlyDay(true)}
+                    style={styles.selector}
+                  >
+                    <Text style={styles.selectorText}>
+                      {dayOfMonth === 0 ? 'Last Day' : ordinal(dayOfMonth)}
+                    </Text>
+                    <Text style={styles.selectorArrow}>›</Text>
+                  </Pressable>
+                </View>
+                <RecurringModeSection
+                  amount={amount}
+                  fundingMode={fundingMode}
+                  onChange={setFundingMode}
+                  period="month"
+                />
+              </>
             ) : null}
 
             {kind === 'yearly' ? (
-              <View style={styles.fieldSection}>
-                <Text style={styles.fieldLabel}>By</Text>
-                <Pressable
-                  onPress={() => setSelectingDate(true)}
-                  style={styles.selector}
-                >
-                  <Text style={styles.selectorText}>
-                    {dateLabel(targetDate)}
-                  </Text>
-                  <Text style={styles.selectorArrow}>›</Text>
-                </Pressable>
-              </View>
+              <>
+                <View style={styles.fieldSection}>
+                  <Text style={styles.fieldLabel}>By</Text>
+                  <Pressable
+                    onPress={() => setSelectingDate(true)}
+                    style={styles.selector}
+                  >
+                    <Text style={styles.selectorText}>
+                      {dateLabel(targetDate)}
+                    </Text>
+                    <Text style={styles.selectorArrow}>›</Text>
+                  </Pressable>
+                </View>
+                <RecurringModeSection
+                  amount={amount}
+                  fundingMode={fundingMode}
+                  onChange={setFundingMode}
+                  period="year"
+                />
+              </>
             ) : null}
 
             {kind === 'custom' ? (
@@ -344,14 +362,14 @@ export function TargetEditorModal({
         />
       ) : null}
       {selectingDate ? (
-        <DatePickerModal
+        <NativeDatePicker
           title="Yearly target date"
           value={targetDate}
           onChange={setTargetDate}
           onDismiss={() => setSelectingDate(false)}
         />
       ) : null}
-    </Modal>
+    </FullScreenModal>
   );
 }
 
@@ -371,6 +389,36 @@ function ChoiceChip({
         {label}
       </Text>
     </Pressable>
+  );
+}
+
+function RecurringModeSection({
+  amount,
+  fundingMode,
+  period,
+  onChange,
+}: Readonly<{
+  amount: string;
+  fundingMode: RecurringFundingMode;
+  period: 'month' | 'year';
+  onChange: (value: RecurringFundingMode) => void;
+}>) {
+  return (
+    <View style={styles.fieldSection}>
+      <Text style={styles.fieldLabel}>Next month I want to</Text>
+      <ModeRow
+        selected={fundingMode === 'set_aside'}
+        title={`Set aside another ${amount}/${period}`}
+        description={`Add this amount every ${period} regardless of the category's current balance.`}
+        onPress={() => onChange('set_aside')}
+      />
+      <ModeRow
+        selected={fundingMode === 'refill_up_to'}
+        title={`Refill up to ${amount}/${period}`}
+        description="Count existing money and replace only what was spent."
+        onPress={() => onChange('refill_up_to')}
+      />
+    </View>
   );
 }
 

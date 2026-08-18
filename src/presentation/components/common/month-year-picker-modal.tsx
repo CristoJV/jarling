@@ -31,7 +31,7 @@ export function MonthYearPickerModal({
   const [year, setYear] = useState(selectedYear ?? new Date().getFullYear());
 
   return (
-    <Modal animationType="slide" onRequestClose={onDismiss} transparent visible>
+    <Modal animationType="fade" onRequestClose={onDismiss} transparent visible>
       <Pressable onPress={onDismiss} style={styles.backdrop}>
         <Pressable style={styles.sheet}>
           <View style={styles.handle} />
@@ -90,20 +90,23 @@ export function MonthYearPickerModal({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
+    padding: 24,
     backgroundColor: 'rgba(18, 24, 20, 0.38)',
-    justifyContent: 'flex-end',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   sheet: {
+    width: '100%',
+    maxWidth: 520,
     paddingHorizontal: 22,
-    paddingBottom: 34,
+    paddingBottom: 24,
     backgroundColor: '#ffffff',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    borderRadius: 28,
   },
   handle: {
     width: 44,
     height: 5,
-    marginTop: 10,
+    marginTop: 12,
     backgroundColor: '#ccd2cd',
     borderRadius: 3,
     alignSelf: 'center',

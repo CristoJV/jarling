@@ -296,7 +296,13 @@ export function BudgetScreen() {
           onRenameGroup={(id, name) =>
             setNameEditor({ kind: 'rename-group', id, name })
           }
-          onSelectCategory={setCategoryDetails}
+          onSelectCategory={(values) => {
+            if (targetsByCategoryId.has(values.category.id)) {
+              setCategoryDetails(values);
+            } else {
+              setTargetEditor(values);
+            }
+          }}
           progressByCategoryId={progressByCategoryId}
           targetsByCategoryId={targetsByCategoryId}
           valuesByCategoryId={valuesByCategoryId}

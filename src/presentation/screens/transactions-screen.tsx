@@ -1,3 +1,4 @@
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
@@ -20,26 +21,57 @@ import { TransactionRow } from '@/presentation/components/transactions/transacti
 import { useTransactions } from '@/presentation/hooks/use-transactions';
 
 type EditorState = 'create' | TransactionSummary | null;
+type SearchField = 'search' | 'payee' | 'memo';
+type AppliedSearch = Readonly<{ field: SearchField; value: string }>;
+
+const searchLabels: Record<SearchField, string> = {
+  search: 'Anything',
+  payee: 'Payee',
+  memo: 'Memo',
+};
 
 export function TransactionsScreen() {
   const router = useRouter();
   const parameters = useLocalSearchParams<{ create?: string }>();
-  const [search, setSearch] = useState('');
+  const [searchDraft, setSearchDraft] = useState('');
+  const [searchFocused, setSearchFocused] = useState(false);
+  const [appliedSearches, setAppliedSearches] = useState<
+    readonly AppliedSearch[]
+  >([]);
   const [accountId, setAccountId] = useState<string | undefined>();
   const [categoryId, setCategoryId] = useState<string | undefined>();
   const [editor, setEditor] = useState<EditorState>(null);
   const filters = useMemo(
     () => ({
-      ...(search.trim() ? { search } : {}),
+      ...Object.fromEntries(
+        appliedSearches.map(({ field, value }) => [field, value]),
+      ),
       ...(accountId ? { accountId } : {}),
       ...(categoryId ? { categoryId } : {}),
     }),
-    [accountId, categoryId, search],
+    [accountId, appliedSearches, categoryId],
   );
   const { data, error, loading, refresh, save, deleteTransaction } =
     useTransactions(filters);
   const visibleEditor: EditorState =
     editor ?? (parameters.create === '1' ? 'create' : null);
+
+  function applySearch(field: SearchField) {
+    const value = searchDraft.trim();
+    if (!value) return;
+    setAppliedSearches((current) => [
+      ...current.filter((filter) => filter.field !== field),
+      { field, value },
+    ]);
+    setSearchDraft('');
+    setSearchFocused(false);
+  }
+
+  function removeSearch(field: SearchField) {
+    setAppliedSearches((current) =>
+      current.filter((filter) => filter.field !== field),
+    );
+  }
 
   function dismissEditor() {
     setEditor(null);
@@ -49,9 +81,12 @@ export function TransactionsScreen() {
   }
 
   function requestDelete(summary: TransactionSummary) {
+    const transfer = Boolean(summary.transaction.transactionGroupId);
     Alert.alert(
-      'Eliminar transacción',
-      `Se eliminará ${summary.transaction.payee ?? 'esta transacción'} definitivamente.`,
+      transfer ? 'Eliminar transferencia' : 'Eliminar transacción',
+      transfer
+        ? 'Se eliminarán los dos movimientos enlazados definitivamente.'
+        : `Se eliminará ${summary.transaction.payee ?? 'esta transacción'} definitivamente.`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -84,14 +119,78 @@ export function TransactionsScreen() {
           <Text style={styles.title}>Transactions</Text>
           <OverflowMenu />
         </View>
-        <TextInput
-          accessibilityLabel="Buscar transacciones"
-          onChangeText={setSearch}
-          placeholder="Buscar payee o notas"
-          placeholderTextColor="#89918b"
-          style={styles.search}
-          value={search}
-        />
+        <View style={styles.searchArea}>
+          <View style={styles.searchBox}>
+            <MaterialCommunityIcons color="#667169" name="magnify" size={21} />
+            <TextInput
+              accessibilityLabel="Buscar transacciones"
+              onBlur={() => setTimeout(() => setSearchFocused(false), 120)}
+              onChangeText={setSearchDraft}
+              onFocus={() => setSearchFocused(true)}
+              onSubmitEditing={() => applySearch('search')}
+              placeholder="Search transactions"
+              placeholderTextColor="#89918b"
+              returnKeyType="search"
+              style={styles.search}
+              value={searchDraft}
+            />
+          </View>
+          {searchFocused ? (
+            <View style={styles.suggestions}>
+              {searchDraft.trim() ? (
+                (['search', 'payee', 'memo'] as const).map((field) => (
+                  <Pressable
+                    key={field}
+                    onPress={() => applySearch(field)}
+                    style={styles.suggestion}
+                  >
+                    <MaterialCommunityIcons
+                      color="#315a3e"
+                      name={
+                        field === 'payee'
+                          ? 'currency-eur'
+                          : field === 'memo'
+                            ? 'note-text-outline'
+                            : 'magnify'
+                      }
+                      size={20}
+                    />
+                    <Text style={styles.suggestionText}>
+                      {searchLabels[field]} contains: “{searchDraft.trim()}”
+                    </Text>
+                  </Pressable>
+                ))
+              ) : (
+                <View style={styles.searchHint}>
+                  <Text style={styles.searchHintTitle}>Refine your search</Text>
+                  <Text style={styles.searchHintText}>
+                    Type a value to search anything, payees or memos.
+                  </Text>
+                </View>
+              )}
+            </View>
+          ) : null}
+        </View>
+        {appliedSearches.length > 0 ? (
+          <View style={styles.appliedSearches}>
+            {appliedSearches.map(({ field, value }) => (
+              <Pressable
+                key={field}
+                onPress={() => removeSearch(field)}
+                style={styles.appliedSearch}
+              >
+                <Text style={styles.appliedSearchText}>
+                  {searchLabels[field]}: {value}
+                </Text>
+                <MaterialCommunityIcons
+                  color="#315a3e"
+                  name="close"
+                  size={16}
+                />
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
       </View>
 
       <View style={styles.filters}>
@@ -146,7 +245,7 @@ export function TransactionsScreen() {
           <View style={styles.emptyState}>
             <Text style={styles.emptyTitle}>No hay transacciones</Text>
             <Text style={styles.emptyDescription}>
-              {search || accountId || categoryId
+              {appliedSearches.length > 0 || accountId || categoryId
                 ? 'No hay resultados para estos filtros.'
                 : 'Registra tu primer ingreso o gasto.'}
             </Text>
@@ -175,6 +274,7 @@ export function TransactionsScreen() {
         <TransactionEditorModal
           accounts={data.accounts}
           categoryGroups={data.categoryGroups}
+          payees={data.payees}
           onDismiss={dismissEditor}
           onSave={(input) =>
             save(
@@ -182,7 +282,21 @@ export function TransactionsScreen() {
               visibleEditor === 'create'
                 ? undefined
                 : visibleEditor.transaction.id,
+              visibleEditor === 'create'
+                ? undefined
+                : visibleEditor.transaction.transactionGroupId,
             )
+          }
+          linkedTransaction={
+            visibleEditor === 'create' ||
+            !visibleEditor.transaction.transactionGroupId
+              ? undefined
+              : data.allTransactions.find(
+                  ({ transaction }) =>
+                    transaction.transactionGroupId ===
+                      visibleEditor.transaction.transactionGroupId &&
+                    transaction.id !== visibleEditor.transaction.id,
+                )
           }
           transaction={visibleEditor === 'create' ? undefined : visibleEditor}
         />
@@ -231,14 +345,67 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: -0.6,
   },
-  search: {
+  searchArea: { position: 'relative', zIndex: 20 },
+  searchBox: {
     minHeight: 44,
     paddingHorizontal: 14,
-    color: '#18201a',
     backgroundColor: '#ecefeb',
     borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  search: {
+    flex: 1,
+    minHeight: 44,
+    color: '#18201a',
     fontSize: 15,
   },
+  suggestions: {
+    position: 'absolute',
+    top: 50,
+    left: 0,
+    right: 0,
+    padding: 8,
+    backgroundColor: '#ffffff',
+    borderColor: '#dce1dc',
+    borderRadius: 16,
+    borderWidth: 1,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.16,
+    shadowRadius: 14,
+    elevation: 10,
+  },
+  suggestion: {
+    minHeight: 52,
+    paddingHorizontal: 12,
+    borderBottomColor: '#edf0ed',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  suggestionText: {
+    flex: 1,
+    color: '#253028',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  searchHint: { padding: 14, gap: 4 },
+  searchHintTitle: { color: '#253028', fontSize: 14, fontWeight: '800' },
+  searchHintText: { color: '#737d76', fontSize: 12, lineHeight: 17 },
+  appliedSearches: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+  appliedSearch: {
+    minHeight: 32,
+    paddingHorizontal: 10,
+    backgroundColor: '#e2ece4',
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  appliedSearchText: { color: '#315a3e', fontSize: 11, fontWeight: '700' },
   filters: {
     paddingVertical: 9,
     borderBottomColor: '#e4e7e2',

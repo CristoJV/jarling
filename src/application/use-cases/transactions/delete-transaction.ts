@@ -16,12 +16,18 @@ export class DeleteTransaction {
       throw new TransactionNotFoundError(transactionId);
     }
 
-    if (transaction.status === 'reconciled') {
+    const linked = transaction.transactionGroupId
+      ? await this.transactions.findByGroup(transaction.transactionGroupId)
+      : [transaction];
+
+    if (linked.some(({ status }) => status === 'reconciled')) {
       throw new CannotModifyReconciledTransactionError();
     }
 
     await this.unitOfWork.run(() =>
-      this.transactions.deleteById(transactionId),
+      transaction.transactionGroupId
+        ? this.transactions.deleteByGroup(transaction.transactionGroupId)
+        : this.transactions.deleteById(transactionId),
     );
   }
 }

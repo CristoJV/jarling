@@ -19,11 +19,14 @@ import { MoveBudgetBetweenCategories } from '@/application/use-cases/budget/move
 import { CreateTransaction } from '@/application/use-cases/transactions/create-transaction';
 import { DeleteTransaction } from '@/application/use-cases/transactions/delete-transaction';
 import { GetTransactions } from '@/application/use-cases/transactions/get-transactions';
+import { GetPayees } from '@/application/use-cases/transactions/get-payees';
 import { UpdateTransaction } from '@/application/use-cases/transactions/update-transaction';
 import { PopulateSampleData } from '@/application/use-cases/samples/populate-sample-data';
 import { DeleteCategoryTarget } from '@/application/use-cases/targets/delete-category-target';
 import { GetCategoryTargets } from '@/application/use-cases/targets/get-category-targets';
 import { SetCategoryTarget } from '@/application/use-cases/targets/set-category-target';
+import { CreateTransfer } from '@/application/use-cases/transfers/create-transfer';
+import { UpdateTransfer } from '@/application/use-cases/transfers/update-transfer';
 import { SQLiteUnitOfWork } from '@/infrastructure/persistence/sqlite/database/sqlite-unit-of-work';
 import { SQLiteAccountRepository } from '@/infrastructure/persistence/sqlite/repositories/sqlite-account-repository';
 import { SQLiteBudgetAllocationRepository } from '@/infrastructure/persistence/sqlite/repositories/sqlite-budget-allocation-repository';
@@ -109,6 +112,7 @@ export function createApplication(
       ),
       delete: new DeleteTransaction(transactions, unitOfWork),
       getAll: new GetTransactions(transactions, accounts, categories),
+      getPayees: new GetPayees(transactions),
     },
     budget: {
       getMonth: getBudgetMonth,
@@ -133,6 +137,16 @@ export function createApplication(
       getAll: new GetCategoryTargets(targets),
       set: new SetCategoryTarget(categories, targets, unitOfWork, ids, clock),
       delete: new DeleteCategoryTarget(categories, targets, unitOfWork),
+    },
+    transfers: {
+      create: new CreateTransfer(
+        accounts,
+        transactions,
+        unitOfWork,
+        ids,
+        clock,
+      ),
+      update: new UpdateTransfer(accounts, transactions, unitOfWork, clock),
     },
     samples: {
       populate: new PopulateSampleData(

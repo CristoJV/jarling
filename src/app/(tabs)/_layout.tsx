@@ -1,14 +1,16 @@
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
-import { StyleSheet, Text, type ColorValue } from 'react-native';
+import { StyleSheet, type ColorValue } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import type { ComponentProps } from 'react';
 
 type TabIconProps = Readonly<{
   color: ColorValue;
-  symbol: string;
+  name: ComponentProps<typeof MaterialCommunityIcons>['name'];
 }>;
 
-function TabIcon({ color, symbol }: TabIconProps) {
-  return <Text style={[styles.icon, { color }]}>{symbol}</Text>;
+function TabIcon({ color, name }: TabIconProps) {
+  return <MaterialCommunityIcons color={color} name={name} size={25} />;
 }
 
 export default function TabsLayout() {
@@ -34,28 +36,32 @@ export default function TabsLayout() {
         name="budget"
         options={{
           title: 'Budget',
-          tabBarIcon: ({ color }) => <TabIcon color={color} symbol="◎" />,
+          tabBarIcon: ({ color }) => (
+            <TabIcon color={color} name="piggy-bank-outline" />
+          ),
         }}
       />
       <Tabs.Screen
         name="accounts"
         options={{
           title: 'Accounts',
-          tabBarIcon: ({ color }) => <TabIcon color={color} symbol="▣" />,
+          tabBarIcon: ({ color }) => (
+            <TabIcon color={color} name="bank-outline" />
+          ),
         }}
       />
       <Tabs.Screen
         name="transactions"
         options={{
           title: 'Transactions',
-          tabBarIcon: ({ color }) => <TabIcon color={color} symbol="⇄" />,
+          tabBarIcon: ({ color }) => <TabIcon color={color} name="cash" />,
         }}
       />
       <Tabs.Screen
         name="reports"
         options={{
           title: 'Reports',
-          tabBarIcon: ({ color }) => <TabIcon color={color} symbol="▥" />,
+          tabBarIcon: ({ color }) => <TabIcon color={color} name="chart-bar" />,
         }}
       />
     </Tabs>
@@ -72,9 +78,5 @@ const styles = StyleSheet.create({
     paddingBottom: 5,
     fontSize: 11,
     fontWeight: '600',
-  },
-  icon: {
-    fontSize: 19,
-    fontWeight: '700',
   },
 });

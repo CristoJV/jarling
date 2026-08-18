@@ -8,14 +8,19 @@ import type {
   TransactionSummary,
 } from '@/application/use-cases/transactions/get-transactions';
 import type { TransactionInput } from '@/application/use-cases/transactions/transaction-input';
+import type { TransferInput } from '@/application/use-cases/transfers/transfer-input';
 import { useApplication } from '@/presentation/contexts/application-context';
 import { domainErrorMessage } from '@/presentation/utils/domain-error-message';
 
 export type TransactionScreenData = Readonly<{
   transactions: readonly TransactionSummary[];
+  allTransactions: readonly TransactionSummary[];
   accounts: AccountsOverview;
   categoryGroups: readonly CategoryGroupSummary[];
+  payees: readonly string[];
 }>;
+
+export type TransactionEditorInput = TransactionInput | TransferInput;
 
 export function useTransactions(filters: GetTransactionsInput) {
   const application = useApplication();
@@ -24,12 +29,15 @@ export function useTransactions(filters: GetTransactionsInput) {
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    const [transactions, accounts, categoryGroups] = await Promise.all([
-      application.transactions.getAll.execute(filters),
-      application.accounts.getAll.execute(),
-      application.categories.getGroups.execute(),
-    ]);
-    return { transactions, accounts, categoryGroups };
+    const [transactions, allTransactions, accounts, categoryGroups, payees] =
+      await Promise.all([
+        application.transactions.getAll.execute(filters),
+        application.transactions.getAll.execute(),
+        application.accounts.getAll.execute(),
+        application.categories.getGroups.execute(),
+        application.transactions.getPayees.execute(),
+      ]);
+    return { transactions, allTransactions, accounts, categoryGroups, payees };
   }, [application, filters]);
 
   const refresh = useCallback(async () => {
@@ -70,10 +78,23 @@ export function useTransactions(filters: GetTransactionsInput) {
   );
 
   const save = useCallback(
-    async (input: TransactionInput, transactionId?: string) => {
+    async (
+      input: TransactionEditorInput,
+      transactionId?: string,
+      transactionGroupId?: string,
+    ) => {
       setError(null);
       try {
-        if (transactionId) {
+        if (input.kind === 'transfer') {
+          if (transactionGroupId) {
+            await application.transfers.update.execute({
+              ...input,
+              transactionGroupId,
+            });
+          } else {
+            await application.transfers.create.execute(input);
+          }
+        } else if (transactionId) {
           await application.transactions.update.execute({
             ...input,
             id: transactionId,

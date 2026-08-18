@@ -190,6 +190,7 @@ describe('transaction use cases', () => {
       categoryId: category.id,
       amountCents: 6_000,
       payee: 'Mercadona',
+      notes: 'Weekly shop',
       date: '2026-08-18',
       status: 'cleared',
     });
@@ -199,7 +200,8 @@ describe('transaction use cases', () => {
       accounts,
       categories,
     ).execute({
-      search: 'merc',
+      payee: 'merc',
+      memo: 'week',
       categoryId: category.id,
     });
 

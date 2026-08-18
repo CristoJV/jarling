@@ -32,6 +32,7 @@ describe('calculateTargetProgress', () => {
       ...base,
       kind: 'monthly',
       dayOfMonth: 0,
+      fundingMode: 'refill_up_to',
     };
 
     expect(calculate(target, 10_000)).toEqual({
@@ -43,6 +44,19 @@ describe('calculateTargetProgress', () => {
     });
   });
 
+  it('sets aside a monthly target from Assigned', () => {
+    const target: CategoryTarget = {
+      ...base,
+      kind: 'monthly',
+      dayOfMonth: 0,
+      fundingMode: 'set_aside',
+    };
+
+    expect(calculate(target, 25_000, 5_000).recommended).toEqual(
+      Money.fromCents(25_000),
+    );
+  });
+
   it('distinguishes weekly set-aside from refill-up-to', () => {
     const common = {
       ...base,
@@ -52,11 +66,11 @@ describe('calculateTargetProgress', () => {
     };
     const setAside: CategoryTarget = {
       ...common,
-      weeklyFundingMode: 'set_aside',
+      fundingMode: 'set_aside',
     };
     const refill: CategoryTarget = {
       ...common,
-      weeklyFundingMode: 'refill_up_to',
+      fundingMode: 'refill_up_to',
     };
 
     expect(calculate(setAside, 30_000, 10_000).recommended).toEqual(
@@ -73,7 +87,7 @@ describe('calculateTargetProgress', () => {
       kind: 'weekly',
       amount: Money.fromCents(10_000),
       dayOfWeek: 1,
-      weeklyFundingMode: 'refill_up_to',
+      fundingMode: 'refill_up_to',
     };
     expect(calculate(target, 0).goal).toEqual(Money.fromCents(50_000));
   });
@@ -84,6 +98,7 @@ describe('calculateTargetProgress', () => {
       kind: 'yearly',
       amount: Money.fromCents(50_000),
       targetDate: '2026-10-31',
+      fundingMode: 'set_aside',
     };
 
     expect(calculate(target, 10_000).recommended).toEqual(
@@ -119,6 +134,7 @@ describe('calculateTargetProgress', () => {
       ...base,
       kind: 'monthly',
       dayOfMonth: 1,
+      fundingMode: 'refill_up_to',
     };
     expect(calculate(target, -2_000)).toEqual(
       expect.objectContaining({ status: 'overdue', progress: 0 }),

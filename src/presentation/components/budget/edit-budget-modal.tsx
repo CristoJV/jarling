@@ -1,12 +1,6 @@
-import {
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { FullScreenModal } from '@/presentation/components/common/full-screen-modal';
 
 import type { CategoryGroupSummary } from '@/application/use-cases/categories/get-category-groups';
 import type { CategoryTarget } from '@/domain/entities/category-target';
@@ -49,7 +43,7 @@ export function EditBudgetModal({
   );
 
   return (
-    <Modal animationType="slide" onRequestClose={onDismiss} visible>
+    <FullScreenModal onRequestClose={onDismiss}>
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
           <Pressable onPress={onDismiss} style={styles.back}>
@@ -131,7 +125,7 @@ export function EditBudgetModal({
           </Pressable>
         </ScrollView>
       </SafeAreaView>
-    </Modal>
+    </FullScreenModal>
   );
 }
 

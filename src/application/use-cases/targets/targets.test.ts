@@ -64,13 +64,14 @@ describe('target use cases', () => {
       kind: 'weekly',
       amountCents: 10_000,
       dayOfWeek: 6,
-      weeklyFundingMode: 'set_aside',
+      fundingMode: 'set_aside',
     });
     const updated = await set.execute({
       categoryId: 'category-1',
       kind: 'yearly',
       amountCents: 50_000,
       targetDate: '2026-12-31',
+      fundingMode: 'set_aside',
     });
 
     expect(updated).toEqual(
@@ -94,6 +95,7 @@ describe('target use cases', () => {
       kind: 'monthly',
       amountCents: 30_000,
       dayOfMonth: 0,
+      fundingMode: 'refill_up_to',
     });
 
     await remove.execute('category-1');
@@ -112,6 +114,7 @@ describe('target use cases', () => {
         kind: 'monthly',
         amountCents: 10_000,
         dayOfMonth: 0,
+        fundingMode: 'refill_up_to',
       }),
     ).rejects.toThrow(CategoryNotFoundError);
     await expect(remove.execute('missing')).rejects.toThrow(

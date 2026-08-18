@@ -6,7 +6,7 @@ import {
   type CategoryTarget,
   type CustomFundingMode,
   type IsoDayOfWeek,
-  type WeeklyFundingMode,
+  type RecurringFundingMode,
   updateCategoryTarget,
 } from '@/domain/entities/category-target';
 import { CategoryNotFoundError } from '@/domain/errors/category-not-found-error';
@@ -24,10 +24,20 @@ export type SetCategoryTargetInput =
       Readonly<{
         kind: 'weekly';
         dayOfWeek: IsoDayOfWeek;
-        weeklyFundingMode: WeeklyFundingMode;
+        fundingMode: RecurringFundingMode;
       }>)
-  | (SetCategoryTargetBase & Readonly<{ kind: 'monthly'; dayOfMonth: number }>)
-  | (SetCategoryTargetBase & Readonly<{ kind: 'yearly'; targetDate: string }>)
+  | (SetCategoryTargetBase &
+      Readonly<{
+        kind: 'monthly';
+        dayOfMonth: number;
+        fundingMode: RecurringFundingMode;
+      }>)
+  | (SetCategoryTargetBase &
+      Readonly<{
+        kind: 'yearly';
+        targetDate: string;
+        fundingMode: RecurringFundingMode;
+      }>)
   | (SetCategoryTargetBase &
       Readonly<{ kind: 'custom'; customFundingMode: CustomFundingMode }>);
 
@@ -36,7 +46,7 @@ type TargetDefinition = Pick<
   | 'kind'
   | 'amount'
   | 'dayOfWeek'
-  | 'weeklyFundingMode'
+  | 'fundingMode'
   | 'dayOfMonth'
   | 'targetDate'
   | 'customFundingMode'
@@ -44,7 +54,7 @@ type TargetDefinition = Pick<
 
 const emptyDefinition = {
   dayOfWeek: undefined,
-  weeklyFundingMode: undefined,
+  fundingMode: undefined,
   dayOfMonth: undefined,
   targetDate: undefined,
   customFundingMode: undefined,
@@ -59,7 +69,7 @@ function definition(input: SetCategoryTargetInput): TargetDefinition {
         kind: input.kind,
         amount,
         dayOfWeek: input.dayOfWeek,
-        weeklyFundingMode: input.weeklyFundingMode,
+        fundingMode: input.fundingMode,
       };
     case 'monthly':
       return {
@@ -67,6 +77,7 @@ function definition(input: SetCategoryTargetInput): TargetDefinition {
         kind: input.kind,
         amount,
         dayOfMonth: input.dayOfMonth,
+        fundingMode: input.fundingMode,
       };
     case 'yearly':
       return {
@@ -74,6 +85,7 @@ function definition(input: SetCategoryTargetInput): TargetDefinition {
         kind: input.kind,
         amount,
         targetDate: input.targetDate,
+        fundingMode: input.fundingMode,
       };
     case 'custom':
       return {

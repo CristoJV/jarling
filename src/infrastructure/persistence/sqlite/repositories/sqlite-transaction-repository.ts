@@ -79,6 +79,18 @@ export class SQLiteTransactionRepository implements TransactionRepository {
       values.push(`%${search}%`, `%${search}%`);
     }
 
+    const payee = filters.payee?.trim().toLocaleLowerCase();
+    if (payee) {
+      conditions.push("lower(coalesce(payee, '')) LIKE ?");
+      values.push(`%${payee}%`);
+    }
+
+    const memo = filters.memo?.trim().toLocaleLowerCase();
+    if (memo) {
+      conditions.push("lower(coalesce(notes, '')) LIKE ?");
+      values.push(`%${memo}%`);
+    }
+
     const where =
       conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
     const rows = await this.database.getAllAsync<TransactionRow>(
@@ -109,6 +121,19 @@ export class SQLiteTransactionRepository implements TransactionRepository {
     );
 
     return row ? transactionFromRow(row) : null;
+  }
+
+  async findByGroup(groupId: string): Promise<readonly Transaction[]> {
+    const rows = await this.database.getAllAsync<TransactionRow>(
+      `SELECT
+         id, account_id, category_id, payee, amount, date, notes, status,
+         transaction_group_id, created_at, updated_at
+       FROM transactions
+       WHERE transaction_group_id = ?
+       ORDER BY amount ASC`,
+      groupId,
+    );
+    return rows.map(transactionFromRow);
   }
 
   async save(transaction: Transaction): Promise<void> {
@@ -143,5 +168,12 @@ export class SQLiteTransactionRepository implements TransactionRepository {
 
   async deleteById(id: string): Promise<void> {
     await this.database.runAsync('DELETE FROM transactions WHERE id = ?', id);
+  }
+
+  async deleteByGroup(groupId: string): Promise<void> {
+    await this.database.runAsync(
+      'DELETE FROM transactions WHERE transaction_group_id = ?',
+      groupId,
+    );
   }
 }

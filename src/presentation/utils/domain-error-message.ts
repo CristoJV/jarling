@@ -13,6 +13,7 @@ import { InvalidCategoryTargetError } from '@/domain/errors/invalid-category-tar
 import { InvalidMoneyError } from '@/domain/errors/invalid-money-error';
 import { InvalidTransactionAmountError } from '@/domain/errors/invalid-transaction-amount-error';
 import { InvalidTransactionDateError } from '@/domain/errors/invalid-transaction-date-error';
+import { InvalidTransferError } from '@/domain/errors/invalid-transfer-error';
 import { TransactionNotFoundError } from '@/domain/errors/transaction-not-found-error';
 
 export function domainErrorMessage(error: unknown): string {
@@ -50,6 +51,10 @@ export function domainErrorMessage(error: unknown): string {
 
   if (error instanceof InvalidTransactionDateError) {
     return 'Introduce una fecha válida con formato YYYY-MM-DD.';
+  }
+
+  if (error instanceof InvalidTransferError) {
+    return 'Elige dos cuentas distintas y un importe positivo.';
   }
 
   if (error instanceof CategoryRequiredForExpenseError) {

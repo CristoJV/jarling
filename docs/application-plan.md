@@ -11,13 +11,13 @@
 | ----- | ------------------------------------------------------------------- | ----------- |
 | 0–5   | Foundation, Accounts, Categories, Transactions, Budget y Move Money | Completadas |
 | 9     | Targets                                                             | Completada  |
-| 6     | Transfers                                                           | Aplazada    |
+| 6     | Transfers                                                           | Completada  |
 | 7     | Reconciliation                                                      | Aplazada    |
 | 8     | Reports                                                             | Aplazada    |
 
-No implementar las fases 6, 7 u 8 sin una nueva aprobación explícita. Scheduled
-Transactions, Payees como entidad, sincronización y cloud quedan fuera de
-alcance. La siguiente fase está deliberadamente sin seleccionar.
+No implementar las fases 7 u 8 sin una nueva aprobación explícita. Scheduled
+Transactions, Payees como entidad persistida, sincronización y cloud quedan
+fuera de alcance. La siguiente fase está deliberadamente sin seleccionar.
 
 ## 2. Reglas que no pueden romperse
 
@@ -48,7 +48,7 @@ Presentation → Application → Domain ← Infrastructure
 
 - `ApplicationServices` y `createApplication` son los puntos de composición.
 - Repositorios in-memory para tests de casos de uso y SQLite para runtime.
-- 127 tests después de completar Targets y sus variantes de financiación.
+- 132 tests después de completar Targets, Payees, búsqueda y Transfers.
 - Web y Android exportan correctamente. iOS nativo continúa pendiente de un
   entorno macOS.
 
@@ -63,8 +63,9 @@ src/presentation/           hooks, componentes, pantallas y utilidades UI
 src/app/                    rutas Expo Router sin lógica de negocio
 ```
 
-No crear capas nuevas, estados globales ni dependencias salvo que una necesidad
-de Targets no pueda resolverse con estos patrones.
+No crear capas nuevas ni estados globales salvo una necesidad demostrable. Las
+dependencias visuales nativas se mantienen limitadas a DateTimePicker e iconos
+Expo.
 
 ## 4. Comportamiento financiero existente
 
@@ -109,12 +110,13 @@ dinero ni altera los cálculos presupuestarios existentes.
 
 ```ts
 type TargetKind = 'weekly' | 'monthly' | 'yearly' | 'custom';
-type WeeklyFundingMode = 'set_aside' | 'refill_up_to';
+type RecurringFundingMode = 'set_aside' | 'refill_up_to';
 type CustomFundingMode = 'set_aside' | 'fill_up_to' | 'balance';
 ```
 
 - Todo importe es positivo y solo existe un target por categoría.
-- Weekly guarda día ISO y estrategia de aportar o reponer.
+- Weekly, Monthly y Yearly guardan una estrategia recurrente de aportar o
+  reponer.
 - Monthly guarda último día (`0`) o día 1–31; en meses cortos se ajusta al
   último día real.
 - Yearly guarda una fecha válida y repite el objetivo cada año.
@@ -142,10 +144,10 @@ repone solo lo gastado. Custom aplica la misma distinción entre `set_aside`,
 
 ### 5.4 Persistencia y casos de uso
 
-`category_targets` contiene `day_of_week`, `weekly_funding_mode`,
+`category_targets` contiene `day_of_week`, `funding_mode`,
 `day_of_month`, `target_date` y `custom_funding_mode`, con una restricción SQL
 que impide combinar campos de tipos distintos. La base activa es
-`jarling-development-v4.db`; el runner de migraciones se conserva para el
+`jarling-development-v5.db`; el runner de migraciones se conserva para el
 futuro, pero no se migra información de desarrollo anterior.
 
 Los casos de uso son `GetCategoryTargets`, `SetCategoryTarget` y
@@ -154,16 +156,24 @@ repositorio ofrece `findAll`, `findByCategory`, `save` y `deleteByCategory`.
 
 ### 5.5 UI entregada
 
-- Edit Budget separado, `+` por grupo, orden manual oculto y acceso a Details.
+- Edit Budget separado, `+` por grupo y orden manual oculto. `Add Target` abre
+  directamente el editor; los targets existentes conservan el paso Details.
 - Editor light Weekly / Monthly / Yearly / Custom con teclado TPV.
-- Weekly: día y `Set aside another` / `Refill up to` por semana.
-- Monthly: selector inferior `Last Day` o 1st–31st.
-- Yearly: calendario inferior con año, mes y día.
+- Weekly: día y opciones explicadas `Set aside another` / `Refill up to`.
+- Monthly: `Last Day` o 1st–31st y estrategia para el mes siguiente.
+- Yearly: calendario nativo Android y estrategia para el mes siguiente.
 - Custom: tres opciones seleccionables con explicación y casos de uso.
 - Budget muestra barras Funded, Spent u Overspent solo cuando aportan contexto.
 - Los grupos colapsan usando el mismo chevron rotado 90 grados.
-- El selector año/mes está anclado al fondo.
+- El selector año/mes y el tipo de transacción aparecen centrados.
 - El tab bar incorpora el safe-area inferior real de Android.
+- Footer con iconos vectoriales: cerdito, banco, billete y gráfica.
+- Transaction reserva una barra inferior dentro del safe-area para que Save no
+  pueda quedar bajo la navegación del sistema.
+- Las pantallas completas entran lateralmente; los paneles parciales entran
+  desde abajo y comparten un contenedor con safe-area inferior.
+- Transactions permite Memo, búsqueda combinable por Anything/Payee/Memo,
+  filtros removibles y borrado mediante swipe hacia la izquierda.
 - Las categorías iniciales contienen emoji y Demo utiliza sus IDs estables, sin
   crear un grupo `Everyday`.
 
@@ -174,36 +184,67 @@ repositorio ofrece `findAll`, `findByCategory`, `save` y `deleteByCategory`.
   redondeo en céntimos, estrategias y progress `0..1`.
 - Tests de integración garantizan que los targets no modifican RTA ni Budget.
 - Demo es idempotente y solo referencia categorías predeterminadas.
-- Typecheck, lint, 127 tests y exports web/Android deben pasar.
+- Typecheck, lint, 132 tests y exports web/Android deben pasar.
 - Queda únicamente el smoke test visual en un dispositivo Android real.
 
-## 6. Fases aplazadas
+### 5.7 Payees
 
-Estas fases conservan su número, pero no bloquean Targets.
+- `GetPayees` deriva nombres únicos de las transacciones y los ordena sin crear
+  una segunda fuente de verdad.
+- La pantalla de selección permite búsqueda, elección y alta inline al estilo
+  YNAB. Un nombre nuevo se persiste al guardar la transacción.
+- La lista completa no depende de los filtros activos de Transactions.
 
-### Fase 6 — Transfers
+## 6. Fase 6 — Transfers
 
-Transferencias atómicas mediante un identificador de vínculo genérico entre dos
-transacciones. Antes de implementarla hay que decidir el comportamiento de los
-cruces on-budget ↔ tracking.
+Estado: completada y validada automáticamente. Pendiente únicamente del smoke
+test de interacción en un dispositivo Android real.
+
+- Una transferencia se representa con dos transacciones sin categoría, de
+  signos opuestos y unidas por el mismo `transactionGroupId` genérico.
+- Crear, actualizar y eliminar opera sobre ambas partes dentro de un único
+  `UnitOfWork`; nunca puede persistirse media transferencia.
+- La cuenta de origen y la de destino deben existir, estar abiertas y ser
+  distintas. El importe es siempre positivo en la entrada del caso de uso.
+- Entre dos cuentas on-budget el efecto neto sobre Ready to Assign es cero.
+- Al mover desde on-budget a tracking, el dinero sale de Ready to Assign; el
+  movimiento inverso lo incorpora.
+- El editor permite seleccionar origen y destino y reutiliza el mismo teclado,
+  fecha, memo y estado de una transacción normal.
+- Las filas enlazadas se identifican como Transfer; los payees técnicos
+  generados para cada parte no aparecen en la lista de Payees.
+- Una parte reconciliada protege la pareja completa frente a edición o borrado.
+
+La columna SQLite `transaction_group_id` ya formaba parte del baseline, por lo
+que la fase no requiere migración ni una tabla adicional.
+
+## 7. Fases aplazadas
+
+Estas fases conservan su número y no bloquean Transfers ni Targets.
 
 ### Fase 7 — Reconciliation
 
-Comparación con saldo real, transición explícita a `reconciled` y protección de
-operaciones conciliadas.
+Conciliar significa comparar el saldo que Jarling calcula para una cuenta con el
+saldo confirmado por el banco en una fecha de corte. Si coinciden, las
+transacciones incluidas pasan a `reconciled` y quedan protegidas frente a
+cambios accidentales. Sirve para detectar movimientos ausentes, duplicados o
+con importes incorrectos; no mueve dinero ni cambia por sí sola el presupuesto.
+
+El modelo ya reconoce el estado `reconciled` y bloquea su edición/borrado, pero
+el flujo de comparación y cierre de saldo queda aplazado.
 
 ### Fase 8 — Reports
 
 Informes derivados de transacciones y presupuesto, sin persistir agregados como
 fuente alternativa de verdad.
 
-## 7. Protocolo de ejecución rápida
+## 8. Protocolo de ejecución rápida
 
 Este protocolo sustituye la planificación extensa por turno.
 
 ### Antes de editar
 
-1. Leer solo las secciones 1–5 de este documento.
+1. Leer solo las secciones 1–6 de este documento.
 2. Ejecutar `rg` sobre las interfaces y patrones directamente relacionados.
 3. Confirmar que el árbol de trabajo no contiene cambios solapados.
 4. Usar la especificación cerrada de la fase; no rediseñarla salvo
@@ -242,7 +283,7 @@ Entregar únicamente:
 4. Tests y validación.
 5. Pendiente de la siguiente fase.
 
-## 8. Límites de implementación
+## 9. Límites de implementación
 
 - No usar `any`, `eslint-disable` ni `@ts-ignore` para ocultar problemas.
 - No ejecutar SQL desde Presentation.

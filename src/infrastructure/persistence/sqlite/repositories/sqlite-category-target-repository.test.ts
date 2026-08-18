@@ -15,7 +15,7 @@ const row: CategoryTargetRow = {
   kind: 'weekly',
   amount: 10_000,
   day_of_week: 6,
-  weekly_funding_mode: 'set_aside',
+  funding_mode: 'set_aside',
   day_of_month: null,
   target_date: null,
   custom_funding_mode: null,
@@ -28,7 +28,7 @@ const target: CategoryTarget = {
   kind: 'weekly',
   amount: Money.fromCents(10_000),
   dayOfWeek: 6,
-  weeklyFundingMode: 'set_aside',
+  fundingMode: 'set_aside',
   createdAt: '2026-08-18T10:00:00.000Z',
   updatedAt: '2026-08-18T10:00:00.000Z',
 };

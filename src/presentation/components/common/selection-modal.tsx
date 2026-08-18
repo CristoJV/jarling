@@ -6,6 +6,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { SafeBottomSheet } from '@/presentation/components/common/safe-bottom-sheet';
 
 export type SelectionOption<Value extends string> = Readonly<{
   value: Value;
@@ -19,6 +20,7 @@ type SelectionModalProps<Value extends string> = Readonly<{
   selectedValue?: Value;
   onSelect: (value: Value) => void;
   onDismiss: () => void;
+  placement?: 'bottom' | 'center';
 }>;
 
 export function SelectionModal<Value extends string>({
@@ -27,45 +29,57 @@ export function SelectionModal<Value extends string>({
   selectedValue,
   onSelect,
   onDismiss,
+  placement = 'bottom',
 }: SelectionModalProps<Value>) {
+  const centered = placement === 'center';
   return (
-    <Modal animationType="slide" onRequestClose={onDismiss} transparent visible>
-      <Pressable onPress={onDismiss} style={styles.backdrop}>
-        <Pressable style={styles.sheet}>
-          <View style={styles.handle} />
-          <View style={styles.header}>
-            <Text style={styles.title}>{title}</Text>
-            <Pressable hitSlop={10} onPress={onDismiss}>
-              <Text style={styles.dismiss}>Cerrar</Text>
-            </Pressable>
-          </View>
-          <ScrollView contentContainerStyle={styles.options}>
-            {options.map((option) => {
-              const selected = option.value === selectedValue;
-              return (
-                <Pressable
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected }}
-                  key={option.value}
-                  onPress={() => {
-                    onSelect(option.value);
-                    onDismiss();
-                  }}
-                  style={[styles.option, selected && styles.optionSelected]}
-                >
-                  <View style={styles.optionCopy}>
-                    <Text style={styles.optionLabel}>{option.label}</Text>
-                    {option.description ? (
-                      <Text style={styles.optionDescription}>
-                        {option.description}
-                      </Text>
-                    ) : null}
-                  </View>
-                  <Text style={styles.check}>{selected ? '✓' : ''}</Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
+    <Modal
+      animationType={centered ? 'fade' : 'slide'}
+      onRequestClose={onDismiss}
+      transparent
+      visible
+    >
+      <Pressable
+        onPress={onDismiss}
+        style={[styles.backdrop, centered && styles.backdropCentered]}
+      >
+        <Pressable style={[styles.sheet, centered && styles.sheetCentered]}>
+          <SafeBottomSheet>
+            {centered ? null : <View style={styles.handle} />}
+            <View style={styles.header}>
+              <Text style={styles.title}>{title}</Text>
+              <Pressable hitSlop={10} onPress={onDismiss}>
+                <Text style={styles.dismiss}>Cerrar</Text>
+              </Pressable>
+            </View>
+            <ScrollView contentContainerStyle={styles.options}>
+              {options.map((option) => {
+                const selected = option.value === selectedValue;
+                return (
+                  <Pressable
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected }}
+                    key={option.value}
+                    onPress={() => {
+                      onSelect(option.value);
+                      onDismiss();
+                    }}
+                    style={[styles.option, selected && styles.optionSelected]}
+                  >
+                    <View style={styles.optionCopy}>
+                      <Text style={styles.optionLabel}>{option.label}</Text>
+                      {option.description ? (
+                        <Text style={styles.optionDescription}>
+                          {option.description}
+                        </Text>
+                      ) : null}
+                    </View>
+                    <Text style={styles.check}>{selected ? '✓' : ''}</Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </SafeBottomSheet>
         </Pressable>
       </Pressable>
     </Modal>
@@ -79,12 +93,22 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(18, 24, 20, 0.35)',
     justifyContent: 'flex-end',
   },
+  backdropCentered: {
+    padding: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   sheet: {
     maxHeight: '82%',
     backgroundColor: '#ffffff',
     borderTopLeftRadius: 26,
     borderTopRightRadius: 26,
     overflow: 'hidden',
+  },
+  sheetCentered: {
+    width: '100%',
+    maxWidth: 460,
+    borderRadius: 24,
   },
   handle: {
     width: 42,

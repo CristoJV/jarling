@@ -4,6 +4,7 @@ import type { CategoryTarget } from '@/domain/entities/category-target';
 import type { BudgetCategoryValues } from '@/domain/services/calculate-budget-month';
 import { formatMoney } from '@/presentation/utils/money';
 import { targetDescription } from '@/presentation/utils/target';
+import { SafeBottomSheet } from '@/presentation/components/common/safe-bottom-sheet';
 
 type CategoryDetailsModalProps = Readonly<{
   values: BudgetCategoryValues;
@@ -25,7 +26,7 @@ export function CategoryDetailsModal({
   return (
     <Modal animationType="slide" onRequestClose={onDismiss} transparent visible>
       <Pressable onPress={onDismiss} style={styles.backdrop}>
-        <Pressable style={styles.sheet}>
+        <SafeBottomSheet style={styles.sheet}>
           <View style={styles.handle} />
           <Text style={styles.title}>Details</Text>
 
@@ -58,7 +59,7 @@ export function CategoryDetailsModal({
               {values.category.hidden ? 'Show Category' : 'Hide Category'}
             </Text>
           </Pressable>
-        </Pressable>
+        </SafeBottomSheet>
       </Pressable>
     </Modal>
   );

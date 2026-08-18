@@ -16,11 +16,14 @@ import type { MoveBudgetBetweenCategories } from '@/application/use-cases/budget
 import type { CreateTransaction } from '@/application/use-cases/transactions/create-transaction';
 import type { DeleteTransaction } from '@/application/use-cases/transactions/delete-transaction';
 import type { GetTransactions } from '@/application/use-cases/transactions/get-transactions';
+import type { GetPayees } from '@/application/use-cases/transactions/get-payees';
 import type { UpdateTransaction } from '@/application/use-cases/transactions/update-transaction';
 import type { PopulateSampleData } from '@/application/use-cases/samples/populate-sample-data';
 import type { DeleteCategoryTarget } from '@/application/use-cases/targets/delete-category-target';
 import type { GetCategoryTargets } from '@/application/use-cases/targets/get-category-targets';
 import type { SetCategoryTarget } from '@/application/use-cases/targets/set-category-target';
+import type { CreateTransfer } from '@/application/use-cases/transfers/create-transfer';
+import type { UpdateTransfer } from '@/application/use-cases/transfers/update-transfer';
 
 export type ApplicationServices = Readonly<{
   accounts: Readonly<{
@@ -44,6 +47,7 @@ export type ApplicationServices = Readonly<{
     update: Pick<UpdateTransaction, 'execute'>;
     delete: Pick<DeleteTransaction, 'execute'>;
     getAll: Pick<GetTransactions, 'execute'>;
+    getPayees: Pick<GetPayees, 'execute'>;
   }>;
   budget: Readonly<{
     getMonth: Pick<GetBudgetMonth, 'execute'>;
@@ -54,6 +58,10 @@ export type ApplicationServices = Readonly<{
     getAll: Pick<GetCategoryTargets, 'execute'>;
     set: Pick<SetCategoryTarget, 'execute'>;
     delete: Pick<DeleteCategoryTarget, 'execute'>;
+  }>;
+  transfers: Readonly<{
+    create: Pick<CreateTransfer, 'execute'>;
+    update: Pick<UpdateTransfer, 'execute'>;
   }>;
   samples: Readonly<{
     populate: Pick<PopulateSampleData, 'execute'>;
