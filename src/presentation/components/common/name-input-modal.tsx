@@ -1,14 +1,6 @@
 import { useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { AnimatedBottomSheetModal } from '@/presentation/components/common/animated-bottom-sheet-modal';
 import { SafeBottomSheet } from '@/presentation/components/common/safe-bottom-sheet';
 
 type NameInputModalProps = Readonly<{
@@ -56,76 +48,66 @@ export function NameInputModal({
   }
 
   return (
-    <Modal animationType="slide" onRequestClose={onDismiss} transparent visible>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.backdrop}
-      >
-        <SafeBottomSheet style={styles.dialog}>
-          <Text style={styles.title}>{title}</Text>
-          <View style={styles.field}>
-            <Text style={styles.label}>{label}</Text>
-            <TextInput
-              accessibilityLabel={label}
-              autoCapitalize="sentences"
-              autoFocus
-              multiline={multiline}
-              onChangeText={setName}
-              onSubmitEditing={() => void submit()}
-              placeholderTextColor="#929a93"
-              returnKeyType={multiline ? 'default' : 'done'}
-              selectTextOnFocus={initialValue.length > 0}
-              style={[styles.input, multiline && styles.inputMultiline]}
-              value={name}
-            />
-          </View>
+    <AnimatedBottomSheetModal keyboardAvoiding onDismiss={onDismiss}>
+      <SafeBottomSheet style={styles.dialog}>
+        <Text style={styles.title}>{title}</Text>
+        <View style={styles.field}>
+          <Text style={styles.label}>{label}</Text>
+          <TextInput
+            accessibilityLabel={label}
+            autoCapitalize="sentences"
+            autoFocus
+            multiline={multiline}
+            onChangeText={setName}
+            onSubmitEditing={() => void submit()}
+            placeholderTextColor="#929a93"
+            returnKeyType={multiline ? 'default' : 'done'}
+            selectTextOnFocus={initialValue.length > 0}
+            style={[styles.input, multiline && styles.inputMultiline]}
+            value={name}
+          />
+        </View>
 
-          {error ? (
-            <Text accessibilityLiveRegion="polite" style={styles.error}>
-              {error}
+        {error ? (
+          <Text accessibilityLiveRegion="polite" style={styles.error}>
+            {error}
+          </Text>
+        ) : null}
+
+        <View style={styles.actions}>
+          <Pressable
+            disabled={submitting}
+            onPress={onDismiss}
+            style={styles.cancel}
+          >
+            <Text style={styles.cancelText}>Cancelar</Text>
+          </Pressable>
+          <Pressable
+            disabled={submitting}
+            onPress={() => void submit()}
+            style={[styles.submit, submitting && styles.disabled]}
+          >
+            <Text style={styles.submitText}>
+              {submitting ? 'Guardando…' : submitLabel}
             </Text>
-          ) : null}
-
-          <View style={styles.actions}>
-            <Pressable
-              disabled={submitting}
-              onPress={onDismiss}
-              style={styles.cancel}
-            >
-              <Text style={styles.cancelText}>Cancelar</Text>
-            </Pressable>
-            <Pressable
-              disabled={submitting}
-              onPress={() => void submit()}
-              style={[styles.submit, submitting && styles.disabled]}
-            >
-              <Text style={styles.submitText}>
-                {submitting ? 'Guardando…' : submitLabel}
-              </Text>
-            </Pressable>
-          </View>
-        </SafeBottomSheet>
-      </KeyboardAvoidingView>
-    </Modal>
+          </Pressable>
+        </View>
+      </SafeBottomSheet>
+    </AnimatedBottomSheetModal>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    padding: 24,
-    backgroundColor: 'rgba(18, 24, 20, 0.42)',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-  },
   dialog: {
-    width: '100%',
+    width: '92%',
     maxWidth: 440,
+    maxHeight: '90%',
     padding: 24,
     backgroundColor: '#ffffff',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     gap: 20,
+    alignSelf: 'center',
   },
   inputMultiline: { minHeight: 110, paddingTop: 14, textAlignVertical: 'top' },
   title: {

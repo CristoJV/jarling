@@ -137,6 +137,11 @@ export function TransactionEditorModal({
     availableAccounts.find(({ account }) => account.id === destinationAccountId)
       ?.account.name ?? 'Choose Destination';
 
+  function openEditor(value: Exclude<Editor, null>) {
+    setKeypadVisible(false);
+    setEditor(value);
+  }
+
   async function submit() {
     if (amountCents <= 0) {
       setError('Introduce un importe mayor que cero.');
@@ -227,7 +232,7 @@ export function TransactionEditorModal({
             </Text>
           </Pressable>
 
-          <Pressable onPress={() => setEditor('kind')} style={styles.kindPill}>
+          <Pressable onPress={() => openEditor('kind')} style={styles.kindPill}>
             <MaterialCommunityIcons
               color="#315a3e"
               name={
@@ -255,7 +260,7 @@ export function TransactionEditorModal({
                 icon="currency-eur"
                 label={payee || 'Choose Payee'}
                 muted={!payee}
-                onPress={() => setEditor('payee')}
+                onPress={() => openEditor('payee')}
               />
             ) : null}
             {kind === 'expense' ? (
@@ -263,14 +268,14 @@ export function TransactionEditorModal({
                 icon="shape-outline"
                 label={categoryName ?? 'Choose Category'}
                 muted={!categoryName}
-                onPress={() => setEditor('category')}
+                onPress={() => openEditor('category')}
               />
             ) : null}
             <FieldRow
               icon="cash"
               label={accountName}
               muted={!accountId}
-              onPress={() => setEditor('account')}
+              onPress={() => openEditor('account')}
               overline={kind === 'transfer' ? 'From Account' : 'Account'}
             />
             {kind === 'transfer' ? (
@@ -278,14 +283,14 @@ export function TransactionEditorModal({
                 icon="bank-transfer-in"
                 label={destinationAccountName}
                 muted={!destinationAccountId}
-                onPress={() => setEditor('destination-account')}
+                onPress={() => openEditor('destination-account')}
                 overline="To Account"
               />
             ) : null}
             <FieldRow
               icon="calendar-outline"
               label={formatDate(date)}
-              onPress={() => setEditor('date')}
+              onPress={() => openEditor('date')}
               overline="Date"
             />
             {showMore ? (
@@ -294,7 +299,7 @@ export function TransactionEditorModal({
                   icon="note-text-outline"
                   label={memo || 'Add Memo'}
                   muted={!memo}
-                  onPress={() => setEditor('memo')}
+                  onPress={() => openEditor('memo')}
                   overline={memo ? 'Memo' : undefined}
                 />
                 <FieldRow
@@ -309,7 +314,10 @@ export function TransactionEditorModal({
 
           <Pressable
             accessibilityState={{ expanded: showMore }}
-            onPress={() => setShowMore((current) => !current)}
+            onPress={() => {
+              setKeypadVisible(false);
+              setShowMore((current) => !current);
+            }}
             style={styles.showMore}
           >
             <Text style={styles.showMoreText}>

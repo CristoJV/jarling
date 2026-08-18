@@ -6,6 +6,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { AnimatedBottomSheetModal } from '@/presentation/components/common/animated-bottom-sheet-modal';
 import { SafeBottomSheet } from '@/presentation/components/common/safe-bottom-sheet';
 
 export type SelectionOption<Value extends string> = Readonly<{
@@ -32,73 +33,74 @@ export function SelectionModal<Value extends string>({
   placement = 'bottom',
 }: SelectionModalProps<Value>) {
   const centered = placement === 'center';
-  return (
-    <Modal
-      animationType={centered ? 'fade' : 'slide'}
-      onRequestClose={onDismiss}
-      transparent
-      visible
-    >
-      <Pressable
-        onPress={onDismiss}
-        style={[styles.backdrop, centered && styles.backdropCentered]}
-      >
-        <Pressable style={[styles.sheet, centered && styles.sheetCentered]}>
-          <SafeBottomSheet>
-            {centered ? null : <View style={styles.handle} />}
-            <View style={styles.header}>
-              <Text style={styles.title}>{title}</Text>
-              <Pressable hitSlop={10} onPress={onDismiss}>
-                <Text style={styles.dismiss}>Cerrar</Text>
+  const sheet = (
+    <Pressable style={[styles.sheet, centered && styles.sheetCentered]}>
+      <SafeBottomSheet>
+        {centered ? null : <View style={styles.handle} />}
+        <View style={styles.header}>
+          <Text style={styles.title}>{title}</Text>
+          <Pressable hitSlop={10} onPress={onDismiss}>
+            <Text style={styles.dismiss}>Cerrar</Text>
+          </Pressable>
+        </View>
+        <ScrollView contentContainerStyle={styles.options}>
+          {options.map((option) => {
+            const selected = option.value === selectedValue;
+            return (
+              <Pressable
+                accessibilityRole="radio"
+                accessibilityState={{ selected }}
+                key={option.value}
+                onPress={() => {
+                  onSelect(option.value);
+                  onDismiss();
+                }}
+                style={[styles.option, selected && styles.optionSelected]}
+              >
+                <View style={styles.optionCopy}>
+                  <Text style={styles.optionLabel}>{option.label}</Text>
+                  {option.description ? (
+                    <Text style={styles.optionDescription}>
+                      {option.description}
+                    </Text>
+                  ) : null}
+                </View>
+                <Text style={styles.check}>{selected ? '✓' : ''}</Text>
               </Pressable>
-            </View>
-            <ScrollView contentContainerStyle={styles.options}>
-              {options.map((option) => {
-                const selected = option.value === selectedValue;
-                return (
-                  <Pressable
-                    accessibilityRole="radio"
-                    accessibilityState={{ selected }}
-                    key={option.value}
-                    onPress={() => {
-                      onSelect(option.value);
-                      onDismiss();
-                    }}
-                    style={[styles.option, selected && styles.optionSelected]}
-                  >
-                    <View style={styles.optionCopy}>
-                      <Text style={styles.optionLabel}>{option.label}</Text>
-                      {option.description ? (
-                        <Text style={styles.optionDescription}>
-                          {option.description}
-                        </Text>
-                      ) : null}
-                    </View>
-                    <Text style={styles.check}>{selected ? '✓' : ''}</Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-          </SafeBottomSheet>
-        </Pressable>
+            );
+          })}
+        </ScrollView>
+      </SafeBottomSheet>
+    </Pressable>
+  );
+
+  if (!centered) {
+    return (
+      <AnimatedBottomSheetModal onDismiss={onDismiss}>
+        {sheet}
+      </AnimatedBottomSheetModal>
+    );
+  }
+
+  return (
+    <Modal animationType="fade" onRequestClose={onDismiss} transparent visible>
+      <Pressable onPress={onDismiss} style={styles.backdropCentered}>
+        {sheet}
       </Pressable>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    paddingTop: 80,
-    backgroundColor: 'rgba(18, 24, 20, 0.35)',
-    justifyContent: 'flex-end',
-  },
   backdropCentered: {
+    flex: 1,
     padding: 24,
+    backgroundColor: 'rgba(18, 24, 20, 0.35)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   sheet: {
+    width: '100%',
     maxHeight: '82%',
     backgroundColor: '#ffffff',
     borderTopLeftRadius: 26,

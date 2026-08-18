@@ -19,12 +19,6 @@ type TransactionRowProps = Readonly<{
   onEdit: () => void;
 }>;
 
-const statusLabels = {
-  uncleared: 'Pendiente',
-  cleared: 'Confirmada',
-  reconciled: 'Conciliada',
-} as const;
-
 export function TransactionRow({
   summary,
   onDelete,
@@ -104,7 +98,7 @@ export function TransactionRow({
       ) : null}
       <Animated.View
         {...panResponder.panHandlers}
-        style={{ transform: [{ translateX }] }}
+        style={[styles.movingRow, { transform: [{ translateX }] }]}
       >
         <Pressable
           accessibilityRole="button"
@@ -127,11 +121,34 @@ export function TransactionRow({
                   ? 'Transfer'
                   : 'Ready to Assign')}
             </Text>
-            <Text style={styles.status}>
-              {statusLabels[transaction.status]}
-            </Text>
           </View>
-          <View style={styles.amountArea}>
+          <View
+            accessibilityLabel={
+              transaction.status === 'reconciled'
+                ? 'Conciliada'
+                : transaction.status === 'cleared'
+                  ? 'Confirmada'
+                  : 'Pendiente'
+            }
+            style={styles.amountArea}
+          >
+            <MaterialCommunityIcons
+              color={
+                transaction.status === 'reconciled'
+                  ? '#56615a'
+                  : transaction.status === 'cleared'
+                    ? '#2d6b40'
+                    : '#8a938d'
+              }
+              name={
+                transaction.status === 'reconciled'
+                  ? 'lock-outline'
+                  : transaction.status === 'cleared'
+                    ? 'check-circle-outline'
+                    : 'clock-outline'
+              }
+              size={18}
+            />
             <Text
               style={[
                 styles.amount,
@@ -148,7 +165,8 @@ export function TransactionRow({
 }
 
 const styles = StyleSheet.create({
-  swipeContainer: { overflow: 'hidden', backgroundColor: '#c62828' },
+  swipeContainer: { width: '100%', overflow: 'hidden' },
+  movingRow: { width: '100%', backgroundColor: '#f7f7f5' },
   deleteBackground: {
     position: 'absolute',
     top: 0,
@@ -205,15 +223,10 @@ const styles = StyleSheet.create({
     color: '#687268',
     fontSize: 12,
   },
-  status: {
-    color: '#7b837d',
-    fontSize: 10,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-  },
   amountArea: {
-    alignItems: 'flex-end',
-    gap: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   amount: {
     fontSize: 16,

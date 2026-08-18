@@ -175,12 +175,14 @@ repositorio ofrece `findAll`, `findByCategory`, `save` y `deleteByCategory`.
 - Transaction reserva una barra inferior dentro del safe-area para que Save no
   pueda quedar bajo la navegación del sistema.
 - Las pantallas completas entran lateralmente; los paneles parciales entran
-  desde abajo y comparten un contenedor con safe-area inferior.
+  desde abajo mientras el backdrop aparece con un fade independiente, y
+  comparten un contenedor con safe-area inferior y ajuste de teclado.
 - Transactions permite Memo, búsqueda combinable por Anything/Payee/Memo,
   cuentas/categorías dentro de las sugerencias, filtros removibles y borrado
   automático al superar el umbral de swipe en cualquier dirección.
 - El editor de transacciones ofrece Show more/less, estado Cleared y un teclado
-  TPV con suma, resta, multiplicación, división, igual y Done.
+  TPV compacto con suma, resta, multiplicación, división, igual y Done. El
+  teclado solo permanece visible mientras se edita el importe.
 - Las categorías iniciales contienen emoji y Demo utiliza sus IDs estables, sin
   crear un grupo `Everyday`.
 

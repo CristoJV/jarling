@@ -1,8 +1,5 @@
 import { useState } from 'react';
 import {
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,6 +12,7 @@ import {
 import type { CreateAccountInput } from '@/application/use-cases/accounts/create-account';
 import { ACCOUNT_TYPES, type AccountType } from '@/domain/entities/account';
 import { MoneyKeypad } from '@/presentation/components/common/money-keypad';
+import { AnimatedBottomSheetModal } from '@/presentation/components/common/animated-bottom-sheet-modal';
 import { SelectionModal } from '@/presentation/components/common/selection-modal';
 import { SafeBottomSheet } from '@/presentation/components/common/safe-bottom-sheet';
 import { Money } from '@/domain/value-objects/money';
@@ -77,108 +75,102 @@ export function CreateAccountModal({
   }
 
   return (
-    <Modal
-      animationType="slide"
-      onRequestClose={resetAndDismiss}
-      transparent
+    <AnimatedBottomSheetModal
+      keyboardAvoiding
+      onDismiss={resetAndDismiss}
       visible={visible}
     >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.backdrop}
-      >
-        <SafeBottomSheet style={styles.sheet}>
-          <View style={styles.header}>
-            <Text style={styles.title}>Nueva cuenta</Text>
+      <SafeBottomSheet style={styles.sheet}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Nueva cuenta</Text>
+          <Pressable
+            accessibilityLabel="Cerrar formulario"
+            accessibilityRole="button"
+            hitSlop={10}
+            onPress={resetAndDismiss}
+          >
+            <Text style={styles.dismiss}>Cancelar</Text>
+          </Pressable>
+        </View>
+
+        <ScrollView
+          contentContainerStyle={styles.form}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.field}>
+            <Text style={styles.label}>Nombre</Text>
+            <TextInput
+              accessibilityLabel="Nombre de la cuenta"
+              autoCapitalize="sentences"
+              autoFocus
+              onChangeText={setName}
+              placeholder="Ej. imagin"
+              placeholderTextColor="#929a93"
+              style={styles.input}
+              value={name}
+            />
+          </View>
+
+          <View style={styles.field}>
+            <Text style={styles.label}>Tipo</Text>
             <Pressable
-              accessibilityLabel="Cerrar formulario"
-              accessibilityRole="button"
-              hitSlop={10}
-              onPress={resetAndDismiss}
+              accessibilityLabel="Seleccionar tipo de cuenta"
+              onPress={() => setSelectingType(true)}
+              style={styles.selector}
             >
-              <Text style={styles.dismiss}>Cancelar</Text>
+              <Text style={styles.selectorValue}>{typeLabels[type]}</Text>
+              <Text style={styles.selectorArrow}>⌄</Text>
             </Pressable>
           </View>
 
-          <ScrollView
-            contentContainerStyle={styles.form}
-            keyboardShouldPersistTaps="handled"
-          >
-            <View style={styles.field}>
-              <Text style={styles.label}>Nombre</Text>
-              <TextInput
-                accessibilityLabel="Nombre de la cuenta"
-                autoCapitalize="sentences"
-                autoFocus
-                onChangeText={setName}
-                placeholder="Ej. imagin"
-                placeholderTextColor="#929a93"
-                style={styles.input}
-                value={name}
-              />
-            </View>
+          <View style={styles.field}>
+            <Text style={styles.label}>Saldo inicial</Text>
+            <Text style={styles.help}>
+              Introduce el importe desde los céntimos. Usa ± para saldos
+              negativos.
+            </Text>
+            <Text accessibilityLabel="Saldo inicial" style={styles.amount}>
+              {formatMoney(Money.fromCents(openingBalanceCents))}
+            </Text>
+            <MoneyKeypad
+              allowNegative
+              onChange={setOpeningBalanceCents}
+              valueCents={openingBalanceCents}
+            />
+          </View>
 
-            <View style={styles.field}>
-              <Text style={styles.label}>Tipo</Text>
-              <Pressable
-                accessibilityLabel="Seleccionar tipo de cuenta"
-                onPress={() => setSelectingType(true)}
-                style={styles.selector}
-              >
-                <Text style={styles.selectorValue}>{typeLabels[type]}</Text>
-                <Text style={styles.selectorArrow}>⌄</Text>
-              </Pressable>
-            </View>
-
-            <View style={styles.field}>
-              <Text style={styles.label}>Saldo inicial</Text>
+          <View style={styles.switchRow}>
+            <View style={styles.switchCopy}>
+              <Text style={styles.label}>Incluir en el presupuesto</Text>
               <Text style={styles.help}>
-                Introduce el importe desde los céntimos. Usa ± para saldos
-                negativos.
+                Las cuentas tracking no participan en Ready to Assign.
               </Text>
-              <Text accessibilityLabel="Saldo inicial" style={styles.amount}>
-                {formatMoney(Money.fromCents(openingBalanceCents))}
-              </Text>
-              <MoneyKeypad
-                allowNegative
-                onChange={setOpeningBalanceCents}
-                valueCents={openingBalanceCents}
-              />
             </View>
+            <Switch
+              disabled={type === 'tracking'}
+              onValueChange={setOnBudget}
+              value={onBudget}
+            />
+          </View>
 
-            <View style={styles.switchRow}>
-              <View style={styles.switchCopy}>
-                <Text style={styles.label}>Incluir en el presupuesto</Text>
-                <Text style={styles.help}>
-                  Las cuentas tracking no participan en Ready to Assign.
-                </Text>
-              </View>
-              <Switch
-                disabled={type === 'tracking'}
-                onValueChange={setOnBudget}
-                value={onBudget}
-              />
-            </View>
+          {error ? (
+            <Text accessibilityLiveRegion="polite" style={styles.error}>
+              {error}
+            </Text>
+          ) : null}
 
-            {error ? (
-              <Text accessibilityLiveRegion="polite" style={styles.error}>
-                {error}
-              </Text>
-            ) : null}
-
-            <Pressable
-              accessibilityRole="button"
-              disabled={submitting}
-              onPress={() => void submit()}
-              style={[styles.submit, submitting && styles.submitDisabled]}
-            >
-              <Text style={styles.submitText}>
-                {submitting ? 'Creando…' : 'Crear cuenta'}
-              </Text>
-            </Pressable>
-          </ScrollView>
-        </SafeBottomSheet>
-      </KeyboardAvoidingView>
+          <Pressable
+            accessibilityRole="button"
+            disabled={submitting}
+            onPress={() => void submit()}
+            style={[styles.submit, submitting && styles.submitDisabled]}
+          >
+            <Text style={styles.submitText}>
+              {submitting ? 'Creando…' : 'Crear cuenta'}
+            </Text>
+          </Pressable>
+        </ScrollView>
+      </SafeBottomSheet>
       {selectingType ? (
         <SelectionModal
           onDismiss={() => setSelectingType(false)}
@@ -198,16 +190,11 @@ export function CreateAccountModal({
           title="Tipo de cuenta"
         />
       ) : null}
-    </Modal>
+    </AnimatedBottomSheetModal>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(18, 24, 20, 0.42)',
-  },
   sheet: {
     maxHeight: '92%',
     backgroundColor: '#ffffff',

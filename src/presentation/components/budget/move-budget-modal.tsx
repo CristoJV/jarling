@@ -1,18 +1,10 @@
 import { useMemo, useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import type { BudgetCategoryValues } from '@/domain/services/calculate-budget-month';
 import { Money } from '@/domain/value-objects/money';
 import { MoneyKeypad } from '@/presentation/components/common/money-keypad';
+import { AnimatedBottomSheetModal } from '@/presentation/components/common/animated-bottom-sheet-modal';
 import { SafeBottomSheet } from '@/presentation/components/common/safe-bottom-sheet';
 import { formatMoney } from '@/presentation/utils/money';
 
@@ -82,56 +74,51 @@ export function MoveBudgetModal({
   }
 
   return (
-    <Modal animationType="slide" onRequestClose={onDismiss} transparent visible>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.backdrop}
-      >
-        <SafeBottomSheet style={styles.sheet}>
-          <View style={styles.header}>
-            <View>
-              <Text style={styles.title}>Mover presupuesto</Text>
-              <Text style={styles.subtitle}>{monthLabel}</Text>
-            </View>
-            <Pressable onPress={onDismiss}>
-              <Text style={styles.dismiss}>Cancelar</Text>
-            </Pressable>
+    <AnimatedBottomSheetModal onDismiss={onDismiss}>
+      <SafeBottomSheet style={styles.sheet}>
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.title}>Mover presupuesto</Text>
+            <Text style={styles.subtitle}>{monthLabel}</Text>
           </View>
-          <ScrollView contentContainerStyle={styles.form}>
-            <CategoryChoices
-              categories={visibleCategories}
-              label="Desde"
-              onSelect={setSourceId}
-              selectedId={sourceId}
-              showAvailable
-            />
-            <CategoryChoices
-              categories={visibleCategories}
-              label="Hacia"
-              onSelect={setTargetId}
-              selectedId={targetId}
-            />
-            <View style={styles.field}>
-              <Text style={styles.label}>Importe</Text>
-              <Text accessibilityLabel="Importe a mover" style={styles.input}>
-                {formatMoney(Money.fromCents(amountCents))}
-              </Text>
-              <MoneyKeypad onChange={setAmountCents} valueCents={amountCents} />
-            </View>
-            {error ? <Text style={styles.error}>{error}</Text> : null}
-            <Pressable
-              disabled={submitting}
-              onPress={() => void submit()}
-              style={[styles.submit, submitting && styles.disabled]}
-            >
-              <Text style={styles.submitText}>
-                {submitting ? 'Moviendo…' : 'Mover dinero'}
-              </Text>
-            </Pressable>
-          </ScrollView>
-        </SafeBottomSheet>
-      </KeyboardAvoidingView>
-    </Modal>
+          <Pressable onPress={onDismiss}>
+            <Text style={styles.dismiss}>Cancelar</Text>
+          </Pressable>
+        </View>
+        <ScrollView contentContainerStyle={styles.form}>
+          <CategoryChoices
+            categories={visibleCategories}
+            label="Desde"
+            onSelect={setSourceId}
+            selectedId={sourceId}
+            showAvailable
+          />
+          <CategoryChoices
+            categories={visibleCategories}
+            label="Hacia"
+            onSelect={setTargetId}
+            selectedId={targetId}
+          />
+          <View style={styles.field}>
+            <Text style={styles.label}>Importe</Text>
+            <Text accessibilityLabel="Importe a mover" style={styles.input}>
+              {formatMoney(Money.fromCents(amountCents))}
+            </Text>
+            <MoneyKeypad onChange={setAmountCents} valueCents={amountCents} />
+          </View>
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+          <Pressable
+            disabled={submitting}
+            onPress={() => void submit()}
+            style={[styles.submit, submitting && styles.disabled]}
+          >
+            <Text style={styles.submitText}>
+              {submitting ? 'Moviendo…' : 'Mover dinero'}
+            </Text>
+          </Pressable>
+        </ScrollView>
+      </SafeBottomSheet>
+    </AnimatedBottomSheetModal>
   );
 }
 
@@ -182,11 +169,6 @@ function CategoryChoices({
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(18, 24, 20, 0.42)',
-  },
   sheet: {
     maxHeight: '90%',
     backgroundColor: '#ffffff',

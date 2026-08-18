@@ -1,16 +1,10 @@
 import { useState } from 'react';
-import {
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import type { BudgetCategoryValues } from '@/domain/services/calculate-budget-month';
 import { Money } from '@/domain/value-objects/money';
 import { MoneyKeypad } from '@/presentation/components/common/money-keypad';
+import { AnimatedBottomSheetModal } from '@/presentation/components/common/animated-bottom-sheet-modal';
 import { SafeBottomSheet } from '@/presentation/components/common/safe-bottom-sheet';
 import { formatMoney } from '@/presentation/utils/money';
 
@@ -48,66 +42,61 @@ export function CategoryBudgetModal({
   }
 
   return (
-    <Modal animationType="slide" onRequestClose={onDismiss} transparent visible>
-      <View style={styles.backdrop}>
-        <SafeBottomSheet style={styles.sheet}>
-          <View style={styles.header}>
-            <View>
-              <Text numberOfLines={1} style={styles.title}>
-                {values.category.name}
-              </Text>
-              <Text style={styles.subtitle}>{monthLabel}</Text>
-            </View>
-            <Pressable hitSlop={10} onPress={onDismiss}>
-              <Text style={styles.dismiss}>Close</Text>
+    <AnimatedBottomSheetModal onDismiss={onDismiss}>
+      <SafeBottomSheet style={styles.sheet}>
+        <View style={styles.header}>
+          <View>
+            <Text numberOfLines={1} style={styles.title}>
+              {values.category.name}
+            </Text>
+            <Text style={styles.subtitle}>{monthLabel}</Text>
+          </View>
+          <Pressable hitSlop={10} onPress={onDismiss}>
+            <Text style={styles.dismiss}>Close</Text>
+          </Pressable>
+        </View>
+        <ScrollView contentContainerStyle={styles.content}>
+          <Text style={styles.amountLabel}>ASSIGNED</Text>
+          <Text style={styles.amount}>
+            {formatMoney(Money.fromCents(amountCents))}
+          </Text>
+
+          <View style={styles.actions}>
+            <Pressable onPress={onMoveMoney} style={styles.action}>
+              <Text style={styles.actionIcon}>→</Text>
+              <Text style={styles.actionText}>Move Money</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setShowDetails((current) => !current)}
+              style={styles.action}
+            >
+              <Text style={styles.actionIcon}>•••</Text>
+              <Text style={styles.actionText}>Details</Text>
             </Pressable>
           </View>
-          <ScrollView contentContainerStyle={styles.content}>
-            <Text style={styles.amountLabel}>ASSIGNED</Text>
-            <Text style={styles.amount}>
-              {formatMoney(Money.fromCents(amountCents))}
-            </Text>
 
-            <View style={styles.actions}>
-              <Pressable onPress={onMoveMoney} style={styles.action}>
-                <Text style={styles.actionIcon}>→</Text>
-                <Text style={styles.actionText}>Move Money</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => setShowDetails((current) => !current)}
-                style={styles.action}
-              >
-                <Text style={styles.actionIcon}>•••</Text>
-                <Text style={styles.actionText}>Details</Text>
-              </Pressable>
+          {showDetails ? (
+            <View style={styles.details}>
+              <Detail label="Assigned" value={formatMoney(values.assigned)} />
+              <Detail label="Activity" value={formatMoney(values.activity)} />
+              <Detail label="Available" value={formatMoney(values.available)} />
             </View>
+          ) : null}
 
-            {showDetails ? (
-              <View style={styles.details}>
-                <Detail label="Assigned" value={formatMoney(values.assigned)} />
-                <Detail label="Activity" value={formatMoney(values.activity)} />
-                <Detail
-                  label="Available"
-                  value={formatMoney(values.available)}
-                />
-              </View>
-            ) : null}
-
-            <MoneyKeypad onChange={setAmountCents} valueCents={amountCents} />
-            {error ? <Text style={styles.error}>{error}</Text> : null}
-            <Pressable
-              disabled={submitting}
-              onPress={() => void submit()}
-              style={[styles.save, submitting && styles.disabled]}
-            >
-              <Text style={styles.saveText}>
-                {submitting ? 'Saving…' : 'Done'}
-              </Text>
-            </Pressable>
-          </ScrollView>
-        </SafeBottomSheet>
-      </View>
-    </Modal>
+          <MoneyKeypad onChange={setAmountCents} valueCents={amountCents} />
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+          <Pressable
+            disabled={submitting}
+            onPress={() => void submit()}
+            style={[styles.save, submitting && styles.disabled]}
+          >
+            <Text style={styles.saveText}>
+              {submitting ? 'Saving…' : 'Done'}
+            </Text>
+          </Pressable>
+        </ScrollView>
+      </SafeBottomSheet>
+    </AnimatedBottomSheetModal>
   );
 }
 
@@ -121,11 +110,6 @@ function Detail({ label, value }: Readonly<{ label: string; value: string }>) {
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(18, 24, 20, 0.38)',
-    justifyContent: 'flex-end',
-  },
   sheet: {
     maxHeight: '94%',
     backgroundColor: '#f7f8f6',

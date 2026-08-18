@@ -1,10 +1,11 @@
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { CategoryTarget } from '@/domain/entities/category-target';
 import type { BudgetCategoryValues } from '@/domain/services/calculate-budget-month';
 import { formatMoney } from '@/presentation/utils/money';
 import { targetDescription } from '@/presentation/utils/target';
 import { SafeBottomSheet } from '@/presentation/components/common/safe-bottom-sheet';
+import { AnimatedBottomSheetModal } from '@/presentation/components/common/animated-bottom-sheet-modal';
 
 type CategoryDetailsModalProps = Readonly<{
   values: BudgetCategoryValues;
@@ -24,44 +25,42 @@ export function CategoryDetailsModal({
   onToggleHidden,
 }: CategoryDetailsModalProps) {
   return (
-    <Modal animationType="slide" onRequestClose={onDismiss} transparent visible>
-      <Pressable onPress={onDismiss} style={styles.backdrop}>
-        <SafeBottomSheet style={styles.sheet}>
-          <View style={styles.handle} />
-          <Text style={styles.title}>Details</Text>
+    <AnimatedBottomSheetModal onDismiss={onDismiss}>
+      <SafeBottomSheet style={styles.sheet}>
+        <View style={styles.handle} />
+        <Text style={styles.title}>Details</Text>
 
-          <Pressable onPress={onRename} style={styles.nameCard}>
-            <Text style={styles.label}>Category Name</Text>
-            <Text style={styles.name}>{values.category.name}</Text>
-            <Text style={styles.editHint}>Tap to rename</Text>
-          </Pressable>
+        <Pressable onPress={onRename} style={styles.nameCard}>
+          <Text style={styles.label}>Category Name</Text>
+          <Text style={styles.name}>{values.category.name}</Text>
+          <Text style={styles.editHint}>Tap to rename</Text>
+        </Pressable>
 
-          <View style={styles.valuesCard}>
-            <Value label="Assigned" value={formatMoney(values.assigned)} />
-            <Value label="Activity" value={formatMoney(values.activity)} />
-            <Value label="Available" value={formatMoney(values.available)} />
-          </View>
+        <View style={styles.valuesCard}>
+          <Value label="Assigned" value={formatMoney(values.assigned)} />
+          <Value label="Activity" value={formatMoney(values.activity)} />
+          <Value label="Available" value={formatMoney(values.available)} />
+        </View>
 
-          <View style={styles.targetCard}>
-            <Text style={styles.label}>Target</Text>
-            <Text style={styles.targetDescription}>
-              {target ? targetDescription(target) : 'No target yet'}
-            </Text>
-            <Pressable onPress={onEditTarget} style={styles.targetButton}>
-              <Text style={styles.targetButtonText}>
-                {target ? 'Edit Target' : 'Set Target'}
-              </Text>
-            </Pressable>
-          </View>
-
-          <Pressable onPress={onToggleHidden} style={styles.hideButton}>
-            <Text style={styles.hideText}>
-              {values.category.hidden ? 'Show Category' : 'Hide Category'}
+        <View style={styles.targetCard}>
+          <Text style={styles.label}>Target</Text>
+          <Text style={styles.targetDescription}>
+            {target ? targetDescription(target) : 'No target yet'}
+          </Text>
+          <Pressable onPress={onEditTarget} style={styles.targetButton}>
+            <Text style={styles.targetButtonText}>
+              {target ? 'Edit Target' : 'Set Target'}
             </Text>
           </Pressable>
-        </SafeBottomSheet>
-      </Pressable>
-    </Modal>
+        </View>
+
+        <Pressable onPress={onToggleHidden} style={styles.hideButton}>
+          <Text style={styles.hideText}>
+            {values.category.hidden ? 'Show Category' : 'Hide Category'}
+          </Text>
+        </Pressable>
+      </SafeBottomSheet>
+    </AnimatedBottomSheetModal>
   );
 }
 
@@ -75,12 +74,6 @@ function Value({ label, value }: Readonly<{ label: string; value: string }>) {
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    paddingTop: 80,
-    backgroundColor: 'rgba(18, 24, 20, 0.38)',
-    justifyContent: 'flex-end',
-  },
   sheet: {
     padding: 24,
     paddingBottom: 38,

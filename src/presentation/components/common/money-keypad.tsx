@@ -61,46 +61,59 @@ export function MoneyKeypad({
               : ' '}
           </Text>
         </View>
-        <View style={styles.calculatorGrid}>
-          {[7, 8, 9].map((digit) => (
+        <View style={styles.calculatorBody}>
+          <View style={styles.digitGrid}>
+            {[7, 8, 9, 4, 5, 6, 1, 2, 3].map((digit) => (
+              <Key
+                third
+                key={digit}
+                label={String(digit)}
+                onPress={() => appendDigit(digit)}
+              />
+            ))}
             <Key
-              key={digit}
-              label={String(digit)}
-              onPress={() => appendDigit(digit)}
+              third
+              label="C"
+              onPress={() => {
+                setPending(undefined);
+                onChange(0);
+              }}
             />
-          ))}
-          <Key emphasized label="÷" onPress={() => chooseOperator('÷')} />
-          {[4, 5, 6].map((digit) => (
+            <Key third label="0" onPress={() => appendDigit(0)} />
             <Key
-              key={digit}
-              label={String(digit)}
-              onPress={() => appendDigit(digit)}
+              third
+              label="⌫"
+              onPress={() => onChange(removeMoneyDigit(valueCents))}
             />
-          ))}
-          <Key emphasized label="×" onPress={() => chooseOperator('×')} />
-          {[1, 2, 3].map((digit) => (
+          </View>
+          <View style={styles.operationGrid}>
             <Key
-              key={digit}
-              label={String(digit)}
-              onPress={() => appendDigit(digit)}
+              emphasized
+              half
+              label="×"
+              onPress={() => chooseOperator('×')}
             />
-          ))}
-          <Key emphasized label="−" onPress={() => chooseOperator('-')} />
-          <Key
-            label="C"
-            onPress={() => {
-              setPending(undefined);
-              onChange(0);
-            }}
-          />
-          <Key label="0" onPress={() => appendDigit(0)} />
-          <Key
-            label="⌫"
-            onPress={() => onChange(removeMoneyDigit(valueCents))}
-          />
-          <Key emphasized label="+" onPress={() => chooseOperator('+')} />
-          <Key label="=" onPress={evaluate} wide />
-          <Key label="Done" onPress={finish} primary wide />
+            <Key
+              emphasized
+              half
+              label="÷"
+              onPress={() => chooseOperator('÷')}
+            />
+            <Key
+              emphasized
+              half
+              label="+"
+              onPress={() => chooseOperator('+')}
+            />
+            <Key
+              emphasized
+              half
+              label="−"
+              onPress={() => chooseOperator('-')}
+            />
+            <Key full label="=" onPress={evaluate} />
+            <Key full label="Done" onPress={finish} primary />
+          </View>
         </View>
       </View>
     );
@@ -151,16 +164,18 @@ function Key({
   label,
   onPress,
   emphasized = false,
+  full = false,
+  half = false,
   primary = false,
   third = false,
-  wide = false,
 }: Readonly<{
   label: string;
   onPress: () => void;
   emphasized?: boolean;
+  full?: boolean;
+  half?: boolean;
   primary?: boolean;
   third?: boolean;
-  wide?: boolean;
 }>) {
   return (
     <Pressable
@@ -170,7 +185,8 @@ function Key({
       style={({ pressed }) => [
         styles.key,
         third && styles.keyThird,
-        wide && styles.keyWide,
+        half && styles.keyHalf,
+        full && styles.keyFull,
         emphasized && styles.keyEmphasized,
         primary && styles.keyPrimary,
         pressed && styles.keyPressed,
@@ -202,15 +218,18 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   calculatorStatusText: { color: '#687268', fontSize: 12, fontWeight: '700' },
-  calculatorGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+  calculatorBody: { flexDirection: 'row' },
+  digitGrid: { width: '72%', flexDirection: 'row', flexWrap: 'wrap' },
+  operationGrid: { width: '28%', flexDirection: 'row', flexWrap: 'wrap' },
   key: {
-    width: '25%',
+    width: '100%',
     minHeight: 48,
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  keyWide: { width: '50%' },
+  keyHalf: { width: '50%' },
+  keyFull: { width: '100%' },
   keyThird: { width: '33.3333%' },
   keyEmphasized: { backgroundColor: '#dde2e9' },
   keyPrimary: { backgroundColor: '#315a3e' },
