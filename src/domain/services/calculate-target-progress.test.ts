@@ -21,6 +21,7 @@ function calculate(
     target,
     assigned: Money.fromCents(assignedCents),
     available: Money.fromCents(availableCents),
+    spent: Money.zero(),
     month,
     today: '2026-08-18',
   });
@@ -42,6 +43,32 @@ describe('calculateTargetProgress', () => {
       progress: 1 / 3,
       status: 'underfunded',
     });
+  });
+
+  it('keeps a refill target funded after spending from it', () => {
+    const target: CategoryTarget = {
+      ...base,
+      kind: 'monthly',
+      dayOfMonth: 0,
+      fundingMode: 'refill_up_to',
+    };
+
+    const result = calculateTargetProgress({
+      target,
+      assigned: Money.fromCents(30_000),
+      available: Money.fromCents(10_000),
+      spent: Money.fromCents(20_000),
+      month: '2026-08',
+      today: '2026-08-18',
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        funded: Money.fromCents(30_000),
+        recommended: Money.zero(),
+        status: 'complete',
+      }),
+    );
   });
 
   it('sets aside a monthly target from Assigned', () => {

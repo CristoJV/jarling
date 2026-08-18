@@ -230,7 +230,6 @@ const createStyles = (theme: AppTheme) =>
     },
     form: {
       padding: 24,
-      paddingBottom: 40,
       gap: 24,
     },
     field: {

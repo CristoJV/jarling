@@ -61,6 +61,8 @@ export function NameInputModal({
 
   const content = (
     <SafeBottomSheet
+      bottomPadding={24}
+      respectBottomInset={placement === 'bottom'}
       style={[styles.dialog, placement === 'center' && styles.dialogCentered]}
     >
       <Text style={styles.title}>{title}</Text>

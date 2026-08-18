@@ -75,16 +75,19 @@ export function AnimatedBottomSheetModal({
         style={styles.positioner}
       >
         <Animated.View
-          style={{
-            transform: [
-              {
-                translateY: progress.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [72, 0],
-                }),
-              },
-            ],
-          }}
+          style={[
+            styles.sheetContainer,
+            {
+              transform: [
+                {
+                  translateY: progress.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [72, 0],
+                  }),
+                },
+              ],
+            },
+          ]}
         >
           {children}
         </Animated.View>
@@ -96,4 +99,5 @@ export function AnimatedBottomSheetModal({
 const styles = StyleSheet.create({
   scrim: {},
   positioner: { flex: 1, justifyContent: 'flex-end' },
+  sheetContainer: { width: '100%', alignSelf: 'stretch' },
 });

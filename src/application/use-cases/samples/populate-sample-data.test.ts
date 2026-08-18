@@ -3,6 +3,7 @@ import { GetAccounts } from '@/application/use-cases/accounts/get-accounts';
 import { GetBudgetMonth } from '@/application/use-cases/budget/get-budget-month';
 import { EnsureDefaultCategories } from '@/application/use-cases/categories/ensure-default-categories';
 import { Money } from '@/domain/value-objects/money';
+import { calculateTargetProgress } from '@/domain/services/calculate-target-progress';
 import { ImmediateUnitOfWork } from '@/infrastructure/persistence/in-memory/immediate-unit-of-work';
 import { InMemoryAccountRepository } from '@/infrastructure/persistence/in-memory/in-memory-account-repository';
 import { InMemoryBudgetAllocationRepository } from '@/infrastructure/persistence/in-memory/in-memory-budget-allocation-repository';
@@ -104,13 +105,40 @@ describe('PopulateSampleData', () => {
       Money.fromCents(-2_000),
     );
     expect(values.get('⚡ Utilities')?.available).toEqual(
-      Money.fromCents(50_000),
+      Money.fromCents(49_000),
     );
-    expect(await targets.findAll()).toEqual([
+    expect(values.get('📱 Phone & Internet')?.available).toEqual(
+      Money.fromCents(1_000),
+    );
+    const allTargets = await targets.findAll();
+    expect(allTargets).toEqual([
       expect.objectContaining({ categoryId: 'default-category-groceries' }),
+      expect.objectContaining({
+        categoryId: 'default-category-phone-internet',
+      }),
       expect.objectContaining({ categoryId: 'default-category-rent-mortgage' }),
       expect.objectContaining({ categoryId: 'default-category-utilities' }),
     ]);
+    const phoneValues = values.get('📱 Phone & Internet');
+    const phoneTarget = allTargets.find(
+      ({ categoryId }) => categoryId === 'default-category-phone-internet',
+    );
+    if (!phoneValues || !phoneTarget) throw new Error('Expected phone target.');
+    expect(
+      calculateTargetProgress({
+        target: phoneTarget,
+        assigned: phoneValues.assigned,
+        available: phoneValues.available,
+        spent: Money.zero(),
+        month: '2026-08',
+        today: '2026-08-18',
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        recommended: Money.fromCents(2_500),
+        status: 'underfunded',
+      }),
+    );
   });
 
   it('is idempotent and does not duplicate the sample dataset', async () => {
@@ -134,6 +162,6 @@ describe('PopulateSampleData', () => {
     expect(await groups.findAll()).toHaveLength(4);
     expect(await categories.findAll()).toHaveLength(5);
     expect(await transactions.findAll()).toHaveLength(3);
-    expect(await targets.findAll()).toHaveLength(3);
+    expect(await targets.findAll()).toHaveLength(4);
   });
 });

@@ -48,7 +48,12 @@ Presentation → Application → Domain ← Infrastructure
 
 - `ApplicationServices` y `createApplication` son los puntos de composición.
 - Repositorios in-memory para tests de casos de uso y SQLite para runtime.
-- 141 tests después de completar Targets, Transfers y Reconciliation.
+- Preferencias de presupuesto/aplicación persistidas mediante el KV store de
+  Expo SQLite, separadas de los datos financieros.
+- Temas light/dark/system, formatos configurables y bloqueo mediante las
+  credenciales del dispositivo con Expo Local Authentication.
+- 160 tests después de completar Targets, Transfers, Reconciliation, Reports y
+  Settings.
 - Web y Android exportan correctamente. iOS nativo continúa pendiente de un
   entorno macOS.
 
@@ -64,8 +69,8 @@ src/app/                    rutas Expo Router sin lógica de negocio
 ```
 
 No crear capas nuevas ni estados globales salvo una necesidad demostrable. Las
-dependencias visuales nativas se mantienen limitadas a DateTimePicker e iconos
-Expo.
+dependencias nativas se mantienen limitadas a DateTimePicker, Local
+Authentication e iconos Expo.
 
 ## 4. Comportamiento financiero existente
 
@@ -128,7 +133,10 @@ type CustomFundingMode = 'set_aside' | 'fill_up_to' | 'balance';
 ### 5.3 Semántica de cálculo
 
 `calculateTargetProgress` es un servicio puro. Las estrategias `set_aside`
-miden lo aportado usando Assigned; las de reposición y saldo usan Available.
+miden lo aportado usando Assigned. `refill_up_to` y `fill_up_to` cuentan tanto
+lo disponible como lo gastado durante el periodo actual, de modo que gastar
+desde una categoría ya financiada no la marca falsamente como underfunded. Los
+targets de saldo usan Available.
 
 ```text
 Weekly goal = amount × occurrences(dayOfWeek, selectedMonth)
@@ -193,7 +201,7 @@ repositorio ofrece `findAll`, `findByCategory`, `save` y `deleteByCategory`.
   redondeo en céntimos, estrategias y progress `0..1`.
 - Tests de integración garantizan que los targets no modifican RTA ni Budget.
 - Demo es idempotente y solo referencia categorías predeterminadas.
-- Typecheck, lint, 141 tests y exports web/Android deben pasar.
+- Typecheck, lint, 160 tests y exports web/Android deben pasar.
 - Queda únicamente el smoke test visual en un dispositivo Android real.
 
 ### 5.7 Payees
@@ -265,7 +273,23 @@ fuente alternativa de verdad.
 - Los cálculos viven en Domain, la carga en Application y las gráficas se
   dibujan con componentes nativos, sin una dependencia de charts.
 
-## 9. Protocolo de ejecución rápida
+## 9. Settings y seguridad local
+
+- Budget Settings permite editar nombre, moneda, separadores numéricos,
+  posición del símbolo y formato de fecha. Save persiste las preferencias y
+  Budget usa el nombre configurado.
+- Theme ofrece Light, Dark y Match System con aplicación inmediata.
+- App Lock solo puede activarse después de una autenticación válida y vuelve a
+  bloquear la interfaz al abandonar la aplicación. Se admite el fallback a las
+  credenciales del dispositivo ofrecido por el sistema.
+- Delete Plan exige confirmación, borra los datos financieros dentro de una
+  transacción SQLite y recrea únicamente las categorías predeterminadas. Las
+  preferencias de aplicación se mantienen; las de presupuesto vuelven a sus
+  valores iniciales.
+- Los bottom sheets calculan `max(paddingSolicitado, safeAreaBottom)` en lugar
+  de sumar ambos valores.
+
+## 10. Protocolo de ejecución rápida
 
 Este protocolo sustituye la planificación extensa por turno.
 
@@ -310,7 +334,7 @@ Entregar únicamente:
 4. Tests y validación.
 5. Pendiente de la siguiente fase.
 
-## 10. Límites de implementación
+## 11. Límites de implementación
 
 - No usar `any`, `eslint-disable` ni `@ts-ignore` para ocultar problemas.
 - No ejecutar SQL desde Presentation.

@@ -2,7 +2,9 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 
 import { DatabaseProvider } from '@/bootstrap/providers/database-provider';
+import { AppLockGate } from '@/presentation/components/security/app-lock-gate';
 import { LocalizationProvider } from '@/presentation/localization/localization-provider';
+import { PreferencesProvider } from '@/presentation/preferences/preferences-provider';
 import {
   ThemeProvider,
   useAppTheme,
@@ -10,13 +12,17 @@ import {
 
 export default function RootLayout() {
   return (
-    <ThemeProvider>
-      <LocalizationProvider>
-        <DatabaseProvider>
-          <ThemedRoot />
-        </DatabaseProvider>
-      </LocalizationProvider>
-    </ThemeProvider>
+    <PreferencesProvider>
+      <ThemeProvider>
+        <LocalizationProvider>
+          <AppLockGate>
+            <DatabaseProvider>
+              <ThemedRoot />
+            </DatabaseProvider>
+          </AppLockGate>
+        </LocalizationProvider>
+      </ThemeProvider>
+    </PreferencesProvider>
   );
 }
 

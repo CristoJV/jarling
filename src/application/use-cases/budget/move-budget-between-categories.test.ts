@@ -105,8 +105,8 @@ describe('MoveBudgetBetweenCategories', () => {
     expect(after.readyToAssign).toEqual(before.readyToAssign);
     expect(values.get('⚡ Utilities')).toEqual(
       expect.objectContaining({
-        assigned: Money.fromCents(48_000),
-        available: Money.fromCents(48_000),
+        assigned: Money.fromCents(47_000),
+        available: Money.fromCents(47_000),
       }),
     );
     expect(values.get('🚗 Transportation')).toEqual(

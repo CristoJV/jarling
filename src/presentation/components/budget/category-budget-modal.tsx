@@ -152,7 +152,7 @@ const createStyles = (theme: AppTheme) =>
     },
     subtitle: { marginTop: 2, color: theme.colors.textMuted, fontSize: 12 },
     dismiss: { color: theme.colors.primary, fontSize: 14, fontWeight: '700' },
-    content: { padding: 22, paddingBottom: 38, alignItems: 'center' },
+    content: { padding: 22, alignItems: 'center' },
     amountLabel: {
       color: theme.colors.textMuted,
       fontSize: 10,

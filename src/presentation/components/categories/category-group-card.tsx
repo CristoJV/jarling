@@ -189,18 +189,18 @@ export function CategoryGroupCard({
   );
 }
 
-type Status = Readonly<{
+export type CategoryStatus = Readonly<{
   label: string;
   bar: BudgetProgressBar;
   tone: 'positive' | 'warning' | 'negative';
 }>;
 
-function categoryStatus(
+export function categoryStatus(
   values: BudgetCategoryValues,
   target?: CategoryTarget,
   progress?: TargetProgress,
   t: (key: TranslationKey, params?: TranslationParams) => string = (key) => key,
-): Status | null {
+): CategoryStatus | null {
   const spent = values.spendingTransactions.reduce(
     (sum, amount) => sum + amount.cents,
     0,
@@ -239,7 +239,7 @@ function categoryStatus(
     return {
       label: t('budget.funded', {
         funded: formatMoney(
-          Money.fromCents(Math.max(0, values.available.cents)),
+          Money.fromCents(Math.max(0, progress.funded.cents)),
         ),
         goal: formatMoney(progress.goal),
       }),
@@ -277,7 +277,7 @@ function segmentColor(tone: BudgetProgressTone, theme: AppTheme): string {
   }
 }
 
-function ProgressStatus({ label, bar, tone }: Status) {
+function ProgressStatus({ label, bar, tone }: CategoryStatus) {
   const theme = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const usedCents = bar.segments.reduce(

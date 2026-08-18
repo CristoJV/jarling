@@ -22,7 +22,7 @@ import { MoneyKeypad } from '@/presentation/components/common/money-keypad';
 import { FullScreenModal } from '@/presentation/components/common/full-screen-modal';
 import { NativeDatePicker } from '@/presentation/components/common/native-date-picker';
 import { SelectionModal } from '@/presentation/components/common/selection-modal';
-import { formatMoney } from '@/presentation/utils/money';
+import { formatDate, formatMoney } from '@/presentation/utils/money';
 import { useTranslation } from '@/presentation/localization/localization-provider';
 import type { AppTheme } from '@/presentation/theme/theme';
 import { useThemedStyles } from '@/presentation/theme/theme-provider';
@@ -52,14 +52,6 @@ type TargetEditorModalProps = Readonly<{
 function today(): string {
   const date = new Date();
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-}
-
-function dateLabel(value: string, language: string): string {
-  return new Intl.DateTimeFormat(language, {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  }).format(new Date(`${value}T12:00:00`));
 }
 
 export function TargetEditorModal({
@@ -297,7 +289,7 @@ export function TargetEditorModal({
                     style={styles.selector}
                   >
                     <Text style={styles.selectorText}>
-                      {dateLabel(targetDate, language)}
+                      {formatDate(targetDate, language)}
                     </Text>
                     <Text style={styles.selectorArrow}>›</Text>
                   </Pressable>

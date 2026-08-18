@@ -17,6 +17,7 @@ const SAMPLE_IDS = {
   rent: 'default-category-rent-mortgage',
   groceries: 'default-category-groceries',
   transportation: 'default-category-transportation',
+  phone: 'default-category-phone-internet',
   utilities: 'default-category-utilities',
   opening: 'sample-transaction-opening',
   groceriesExpense: 'sample-transaction-groceries',
@@ -24,6 +25,7 @@ const SAMPLE_IDS = {
   rentTarget: 'sample-target-rent',
   groceriesTarget: 'sample-target-groceries',
   utilitiesTarget: 'sample-target-utilities',
+  phoneTarget: 'sample-target-phone',
 } as const;
 
 export type PopulateSampleDataResult = Readonly<{
@@ -61,6 +63,7 @@ export class PopulateSampleData {
         SAMPLE_IDS.groceries,
         SAMPLE_IDS.transportation,
         SAMPLE_IDS.utilities,
+        SAMPLE_IDS.phone,
       ];
       const existingCategories = new Set(
         (await this.categories.findAll()).map(({ id }) => id),
@@ -117,7 +120,8 @@ export class PopulateSampleData {
         [SAMPLE_IDS.rent, 95_000],
         [SAMPLE_IDS.groceries, 40_000],
         [SAMPLE_IDS.transportation, 15_000],
-        [SAMPLE_IDS.utilities, 50_000],
+        [SAMPLE_IDS.utilities, 49_000],
+        [SAMPLE_IDS.phone, 1_000],
       ] as const;
       const targets = [
         createCategoryTarget({
@@ -136,6 +140,16 @@ export class PopulateSampleData {
           kind: 'weekly',
           amount: Money.fromCents(10_000),
           dayOfWeek: 6,
+          fundingMode: 'set_aside',
+          createdAt: instant,
+          updatedAt: instant,
+        }),
+        createCategoryTarget({
+          id: SAMPLE_IDS.phoneTarget,
+          categoryId: SAMPLE_IDS.phone,
+          kind: 'monthly',
+          amount: Money.fromCents(3_500),
+          dayOfMonth: 0,
           fundingMode: 'set_aside',
           createdAt: instant,
           updatedAt: instant,

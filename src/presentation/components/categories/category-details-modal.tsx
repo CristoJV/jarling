@@ -31,7 +31,7 @@ export function CategoryDetailsModal({
   const styles = useThemedStyles(createStyles);
   return (
     <AnimatedBottomSheetModal onDismiss={onDismiss}>
-      <SafeBottomSheet style={styles.sheet}>
+      <SafeBottomSheet bottomPadding={24} style={styles.sheet}>
         <View style={styles.handle} />
         <Text style={styles.title}>{t('budget.details')}</Text>
 

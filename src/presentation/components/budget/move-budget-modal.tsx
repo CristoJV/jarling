@@ -201,7 +201,7 @@ const createStyles = (theme: AppTheme) =>
       textTransform: 'capitalize',
     },
     dismiss: { color: theme.colors.primary, fontSize: 15, fontWeight: '600' },
-    form: { padding: 24, paddingBottom: 44, gap: 24 },
+    form: { padding: 24, gap: 24 },
     field: { gap: 9 },
     label: { color: theme.colors.text, fontSize: 14, fontWeight: '700' },
     choices: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },

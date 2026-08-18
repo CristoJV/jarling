@@ -4,12 +4,20 @@ import { useColorScheme } from 'react-native';
 import type { ImageStyle, TextStyle, ViewStyle } from 'react-native';
 
 import { darkTheme, lightTheme, type AppTheme } from './theme';
+import { usePreferences } from '@/presentation/preferences/preferences-provider';
 
 const ThemeContext = createContext<AppTheme>(lightTheme);
 
 export function ThemeProvider({ children }: PropsWithChildren) {
   const systemScheme = useColorScheme();
-  const theme = systemScheme === 'dark' ? darkTheme : lightTheme;
+  const { preferences } = usePreferences();
+  const mode =
+    preferences.theme === 'system'
+      ? systemScheme === 'dark'
+        ? 'dark'
+        : 'light'
+      : preferences.theme;
+  const theme = mode === 'dark' ? darkTheme : lightTheme;
   return (
     <ThemeContext.Provider value={theme}>{children}</ThemeContext.Provider>
   );

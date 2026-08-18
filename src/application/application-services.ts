@@ -27,6 +27,7 @@ import type { SetCategoryTarget } from '@/application/use-cases/targets/set-cate
 import type { CreateTransfer } from '@/application/use-cases/transfers/create-transfer';
 import type { UpdateTransfer } from '@/application/use-cases/transfers/update-transfer';
 import type { GetReports } from '@/application/use-cases/reports/get-reports';
+import type { DeletePlan } from '@/application/use-cases/plan/delete-plan';
 
 export type ApplicationServices = Readonly<{
   accounts: Readonly<{
@@ -73,5 +74,8 @@ export type ApplicationServices = Readonly<{
   }>;
   samples: Readonly<{
     populate: Pick<PopulateSampleData, 'execute'>;
+  }>;
+  plan: Readonly<{
+    delete: Pick<DeletePlan, 'execute'>;
   }>;
 }>;

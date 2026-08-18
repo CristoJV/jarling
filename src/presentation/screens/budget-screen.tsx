@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { BudgetCategoryValues } from '@/domain/services/calculate-budget-month';
 import { calculateTargetProgress } from '@/domain/services/calculate-target-progress';
+import { Money } from '@/domain/value-objects/money';
 import { CategoryBudgetModal } from '@/presentation/components/budget/category-budget-modal';
 import { EditBudgetModal } from '@/presentation/components/budget/edit-budget-modal';
 import { MoveBudgetModal } from '@/presentation/components/budget/move-budget-modal';
@@ -27,6 +28,7 @@ import { useCategories } from '@/presentation/hooks/use-categories';
 import { useTargets } from '@/presentation/hooks/use-targets';
 import { useTranslation } from '@/presentation/localization/localization-provider';
 import type { TranslationKey } from '@/presentation/localization/translations';
+import { usePreferences } from '@/presentation/preferences/preferences-provider';
 import type { AppTheme } from '@/presentation/theme/theme';
 import {
   useAppTheme,
@@ -60,6 +62,7 @@ function todayKey(): string {
 export function BudgetScreen() {
   const router = useRouter();
   const { language, t } = useTranslation();
+  const { preferences } = usePreferences();
   const theme = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const [month, setMonth] = useState(monthKey);
@@ -137,6 +140,12 @@ export function BudgetScreen() {
                     target,
                     assigned: values.assigned,
                     available: values.available,
+                    spent: Money.fromCents(
+                      values.spendingTransactions.reduce(
+                        (sum, amount) => sum + amount.cents,
+                        0,
+                      ),
+                    ),
                     month,
                     today: todayKey(),
                   }),
@@ -176,7 +185,9 @@ export function BudgetScreen() {
     <SafeAreaView edges={['top']} style={styles.safeArea}>
       <View style={styles.header}>
         <View style={styles.headerCopy}>
-          <Text style={styles.title}>{t('budget.title')}</Text>
+          <Text numberOfLines={1} style={styles.title}>
+            {preferences.budgetName}
+          </Text>
           <Pressable
             accessibilityLabel={t('budget.chooseMonth')}
             onPress={() => setSelectingMonth(true)}

@@ -38,6 +38,12 @@
       "expo-splash-screen",
       "expo-sqlite",
       [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow Jarling to use Face ID to protect your financial data."
+        }
+      ],
+      [
         "expo-localization",
         {
           "supportedLocales": {

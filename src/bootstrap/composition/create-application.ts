@@ -30,7 +30,9 @@ import { SetCategoryTarget } from '@/application/use-cases/targets/set-category-
 import { CreateTransfer } from '@/application/use-cases/transfers/create-transfer';
 import { UpdateTransfer } from '@/application/use-cases/transfers/update-transfer';
 import { GetReports } from '@/application/use-cases/reports/get-reports';
+import { DeletePlan } from '@/application/use-cases/plan/delete-plan';
 import { SQLiteUnitOfWork } from '@/infrastructure/persistence/sqlite/database/sqlite-unit-of-work';
+import { SQLitePlanDataStore } from '@/infrastructure/persistence/sqlite/database/sqlite-plan-data-store';
 import { SQLiteAccountRepository } from '@/infrastructure/persistence/sqlite/repositories/sqlite-account-repository';
 import { SQLiteBudgetAllocationRepository } from '@/infrastructure/persistence/sqlite/repositories/sqlite-budget-allocation-repository';
 import { SQLiteCategoryGroupRepository } from '@/infrastructure/persistence/sqlite/repositories/sqlite-category-group-repository';
@@ -52,6 +54,12 @@ export function createApplication(
   const unitOfWork = new SQLiteUnitOfWork(database);
   const clock = new SystemClock();
   const ids = new ExpoIdGenerator();
+  const ensureDefaults = new EnsureDefaultCategories(
+    categoryGroups,
+    categories,
+    unitOfWork,
+    clock,
+  );
   const getBudgetMonth = new GetBudgetMonth(
     accounts,
     categoryGroups,
@@ -75,12 +83,7 @@ export function createApplication(
       ),
     },
     categories: {
-      ensureDefaults: new EnsureDefaultCategories(
-        categoryGroups,
-        categories,
-        unitOfWork,
-        clock,
-      ),
+      ensureDefaults,
       createGroup: new CreateCategoryGroup(
         categoryGroups,
         unitOfWork,
@@ -173,6 +176,9 @@ export function createApplication(
         unitOfWork,
         clock,
       ),
+    },
+    plan: {
+      delete: new DeletePlan(new SQLitePlanDataStore(database), ensureDefaults),
     },
   };
 }

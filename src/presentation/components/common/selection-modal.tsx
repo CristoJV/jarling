@@ -137,7 +137,7 @@ const createStyles = (theme: AppTheme) =>
     },
     title: { color: theme.colors.text, fontSize: 20, fontWeight: '700' },
     dismiss: { color: theme.colors.primary, fontSize: 14, fontWeight: '700' },
-    options: { paddingHorizontal: 16, paddingBottom: 34 },
+    options: { paddingHorizontal: 16, paddingBottom: 12 },
     option: {
       minHeight: 64,
       paddingHorizontal: 10,

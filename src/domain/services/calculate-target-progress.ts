@@ -17,6 +17,7 @@ type CalculateTargetProgressInput = Readonly<{
   target: CategoryTarget;
   assigned: Money;
   available: Money;
+  spent: Money;
   month: string;
   today: string;
 }>;
@@ -69,18 +70,29 @@ function targetFunding(
   target: CategoryTarget,
   assigned: Money,
   available: Money,
+  spent: Money,
 ): Money {
   const usesAssigned =
     ((target.kind === 'weekly' || target.kind === 'monthly') &&
       target.fundingMode === 'set_aside') ||
     (target.kind === 'custom' && target.customFundingMode === 'set_aside');
-  return usesAssigned ? assigned : available;
+  if (usesAssigned) return assigned;
+
+  const spendingCountsTowardFunding =
+    ((target.kind === 'weekly' || target.kind === 'monthly') &&
+      target.fundingMode === 'refill_up_to') ||
+    (target.kind === 'custom' && target.customFundingMode === 'fill_up_to');
+
+  return spendingCountsTowardFunding
+    ? Money.fromCents(available.cents + spent.cents)
+    : available;
 }
 
 export function calculateTargetProgress({
   target,
   assigned,
   available,
+  spent,
   month,
   today,
 }: CalculateTargetProgressInput): TargetProgress {
@@ -89,7 +101,7 @@ export function calculateTargetProgress({
     throw new InvalidCategoryTargetError('today must use YYYY-MM-DD');
   }
 
-  const funded = targetFunding(target, assigned, available);
+  const funded = targetFunding(target, assigned, available, spent);
   let goalCents = target.amount.cents;
   let remainingMonths = 1;
   let overdue = false;
