@@ -1,6 +1,8 @@
 import type { CloseAccount } from '@/application/use-cases/accounts/close-account';
 import type { CreateAccount } from '@/application/use-cases/accounts/create-account';
 import type { GetAccounts } from '@/application/use-cases/accounts/get-accounts';
+import type { GetReconciliation } from '@/application/use-cases/accounts/get-reconciliation';
+import type { ReconcileAccount } from '@/application/use-cases/accounts/reconcile-account';
 import type { CreateCategoryGroup } from '@/application/use-cases/categories/create-category-group';
 import type { CreateCategory } from '@/application/use-cases/categories/create-category';
 import type { EnsureDefaultCategories } from '@/application/use-cases/categories/ensure-default-categories';
@@ -30,6 +32,8 @@ export type ApplicationServices = Readonly<{
     create: Pick<CreateAccount, 'execute'>;
     getAll: Pick<GetAccounts, 'execute'>;
     close: Pick<CloseAccount, 'execute'>;
+    getReconciliation: Pick<GetReconciliation, 'execute'>;
+    reconcile: Pick<ReconcileAccount, 'execute'>;
   }>;
   categories: Readonly<{
     ensureDefaults: Pick<EnsureDefaultCategories, 'execute'>;

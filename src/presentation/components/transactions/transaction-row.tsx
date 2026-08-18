@@ -6,6 +6,7 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 
@@ -30,13 +31,12 @@ export function TransactionRow({
   onEdit,
 }: TransactionRowProps) {
   const { transaction } = summary;
+  const { width } = useWindowDimensions();
   const [translateX] = useState(() => new Animated.Value(0));
-  const [open, setOpen] = useState(false);
   const swipeable = transaction.status !== 'reconciled';
 
   const animateTo = useCallback(
     (value: number) => {
-      setOpen(value < 0);
       Animated.spring(translateX, {
         toValue: value,
         useNativeDriver: true,
@@ -47,6 +47,20 @@ export function TransactionRow({
     [translateX],
   );
 
+  const triggerDelete = useCallback(
+    (direction: number) => {
+      Animated.timing(translateX, {
+        toValue: direction * width,
+        duration: 180,
+        useNativeDriver: true,
+      }).start(() => {
+        onDelete();
+        translateX.setValue(0);
+      });
+    },
+    [onDelete, translateX, width],
+  );
+
   const panResponder = useMemo(
     () =>
       PanResponder.create({
@@ -55,33 +69,38 @@ export function TransactionRow({
           Math.abs(gesture.dx) > 6 &&
           Math.abs(gesture.dx) > Math.abs(gesture.dy),
         onPanResponderMove: (_, gesture) => {
-          const origin = open ? -88 : 0;
-          translateX.setValue(Math.max(-88, Math.min(0, origin + gesture.dx)));
+          translateX.setValue(Math.max(-160, Math.min(160, gesture.dx)));
         },
         onPanResponderRelease: (_, gesture) => {
-          if (open) animateTo(gesture.dx > 30 ? 0 : -88);
-          else animateTo(gesture.dx < -36 ? -88 : 0);
+          if (Math.abs(gesture.dx) >= 96 || Math.abs(gesture.vx) >= 0.75) {
+            triggerDelete(gesture.dx < 0 ? -1 : 1);
+          } else {
+            animateTo(0);
+          }
         },
-        onPanResponderTerminate: () => animateTo(open ? -88 : 0),
+        onPanResponderTerminate: () => animateTo(0),
       }),
-    [animateTo, open, swipeable, translateX],
+    [animateTo, swipeable, translateX, triggerDelete],
   );
 
   return (
     <View style={styles.swipeContainer}>
       {swipeable ? (
-        <Pressable
-          accessibilityLabel={`Eliminar ${transaction.payee ?? 'transacción'}`}
-          onPress={onDelete}
-          style={styles.deleteAction}
-        >
+        <View pointerEvents="none" style={styles.deleteBackground}>
           <MaterialCommunityIcons
             color="#ffffff"
             name="trash-can-outline"
             size={27}
           />
           <Text style={styles.deleteText}>Delete</Text>
-        </Pressable>
+          <View style={styles.deleteSpacer} />
+          <Text style={styles.deleteText}>Delete</Text>
+          <MaterialCommunityIcons
+            color="#ffffff"
+            name="trash-can-outline"
+            size={27}
+          />
+        </View>
       ) : null}
       <Animated.View
         {...panResponder.panHandlers}
@@ -89,7 +108,7 @@ export function TransactionRow({
       >
         <Pressable
           accessibilityRole="button"
-          onPress={() => (open ? animateTo(0) : onEdit())}
+          onPress={onEdit}
           style={styles.row}
         >
           <View style={styles.dateBox}>
@@ -130,17 +149,20 @@ export function TransactionRow({
 
 const styles = StyleSheet.create({
   swipeContainer: { overflow: 'hidden', backgroundColor: '#c62828' },
-  deleteAction: {
+  deleteBackground: {
     position: 'absolute',
     top: 0,
+    left: 0,
     right: 0,
     bottom: 0,
-    width: 88,
+    paddingHorizontal: 22,
     backgroundColor: '#c62828',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 3,
+    gap: 5,
   },
+  deleteSpacer: { flex: 1 },
   deleteText: { color: '#ffffff', fontSize: 11, fontWeight: '800' },
   row: {
     minHeight: 88,

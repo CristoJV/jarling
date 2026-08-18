@@ -13,14 +13,23 @@ const typeLabels: Record<AccountType, string> = {
 
 type AccountRowProps = Readonly<{
   summary: AccountSummary;
-  onClose: (accountId: string) => void;
+  onPress: () => void;
 }>;
 
-export function AccountRow({ summary, onClose }: AccountRowProps) {
+export function AccountRow({ summary, onPress }: AccountRowProps) {
   const { account, balance } = summary;
 
   return (
-    <View style={[styles.row, account.closed && styles.closed]}>
+    <Pressable
+      accessibilityRole="button"
+      disabled={account.closed}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.row,
+        account.closed && styles.closed,
+        pressed && styles.pressed,
+      ]}
+    >
       <View style={styles.details}>
         <View style={styles.titleLine}>
           <Text style={styles.name}>{account.name}</Text>
@@ -39,17 +48,10 @@ export function AccountRow({ summary, onClose }: AccountRowProps) {
           {formatMoney(balance)}
         </Text>
         {!account.closed ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Cerrar cuenta ${account.name}`}
-            hitSlop={8}
-            onPress={() => onClose(account.id)}
-          >
-            <Text style={styles.closeAction}>Cerrar</Text>
-          </Pressable>
+          <Text style={styles.openAction}>Opciones ›</Text>
         ) : null}
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -66,6 +68,7 @@ const styles = StyleSheet.create({
   closed: {
     opacity: 0.55,
   },
+  pressed: { backgroundColor: '#edf2ed' },
   details: {
     flex: 1,
     gap: 5,
@@ -103,7 +106,7 @@ const styles = StyleSheet.create({
   negative: {
     color: '#b42318',
   },
-  closeAction: {
+  openAction: {
     color: '#687268',
     fontSize: 12,
     fontWeight: '600',

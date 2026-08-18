@@ -101,11 +101,25 @@ describe('calculateTargetProgress', () => {
       fundingMode: 'set_aside',
     };
 
-    expect(calculate(target, 10_000).recommended).toEqual(
-      Money.fromCents(13_334),
+    expect(calculate(target, 10_000, 10_000).recommended).toEqual(
+      Money.fromCents(6_667),
     );
     expect(calculate(target, 10_000, 0, '2026-11').recommended).toEqual(
       Money.fromCents(3_334),
+    );
+  });
+
+  it('reports only the missing contribution for the current month', () => {
+    const target: CategoryTarget = {
+      ...base,
+      kind: 'yearly',
+      amount: Money.fromCents(100_000),
+      targetDate: '2026-09-30',
+      fundingMode: 'set_aside',
+    };
+
+    expect(calculate(target, 40_000, 40_000).recommended).toEqual(
+      Money.fromCents(10_000),
     );
   });
 

@@ -120,6 +120,9 @@ export function TransactionEditorModal({
   const [payee, setPayee] = useState(existing?.payee ?? '');
   const [date, setDate] = useState(existing?.date ?? today());
   const [memo, setMemo] = useState(existing?.notes ?? '');
+  const [cleared, setCleared] = useState(existing?.status !== 'uncleared');
+  const [showMore, setShowMore] = useState(false);
+  const [keypadVisible, setKeypadVisible] = useState(true);
   const [editor, setEditor] = useState<Editor>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -163,7 +166,7 @@ export function TransactionEditorModal({
         amountCents,
         date,
         notes: memo.trim() || undefined,
-        status: existing?.status === 'uncleared' ? 'uncleared' : 'cleared',
+        status: cleared ? 'cleared' : 'uncleared',
       } as const;
       await onSave(
         kind === 'transfer'
@@ -218,9 +221,11 @@ export function TransactionEditorModal({
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
         >
-          <Text accessibilityLabel="Importe" style={styles.amount}>
-            {formatMoney(Money.fromCents(amountCents))}
-          </Text>
+          <Pressable onPress={() => setKeypadVisible(true)}>
+            <Text accessibilityLabel="Importe" style={styles.amount}>
+              {formatMoney(Money.fromCents(amountCents))}
+            </Text>
+          </Pressable>
 
           <Pressable onPress={() => setEditor('kind')} style={styles.kindPill}>
             <MaterialCommunityIcons
@@ -283,39 +288,67 @@ export function TransactionEditorModal({
               onPress={() => setEditor('date')}
               overline="Date"
             />
-            <FieldRow
-              icon="note-text-outline"
-              label={memo || 'Add Memo'}
-              muted={!memo}
-              onPress={() => setEditor('memo')}
-              overline={memo ? 'Memo' : undefined}
-            />
+            {showMore ? (
+              <>
+                <FieldRow
+                  icon="note-text-outline"
+                  label={memo || 'Add Memo'}
+                  muted={!memo}
+                  onPress={() => setEditor('memo')}
+                  overline={memo ? 'Memo' : undefined}
+                />
+                <FieldRow
+                  icon={cleared ? 'check-circle' : 'circle-outline'}
+                  label={cleared ? 'Cleared' : 'Uncleared'}
+                  onPress={() => setCleared((current) => !current)}
+                  overline="Status"
+                />
+              </>
+            ) : null}
           </View>
+
+          <Pressable
+            accessibilityState={{ expanded: showMore }}
+            onPress={() => setShowMore((current) => !current)}
+            style={styles.showMore}
+          >
+            <Text style={styles.showMoreText}>
+              {showMore ? 'Show less' : 'Show more'}
+            </Text>
+            <MaterialCommunityIcons
+              color="#315a3e"
+              name={showMore ? 'chevron-up' : 'chevron-down'}
+              size={20}
+            />
+          </Pressable>
 
           {error ? (
             <Text accessibilityLiveRegion="polite" style={styles.error}>
               {error}
             </Text>
           ) : null}
-
-          <MoneyKeypad onChange={setAmountCents} valueCents={amountCents} />
         </ScrollView>
 
-        <View
-          style={[
-            styles.actionBar,
-            { paddingBottom: Math.max(insets.bottom + 12, 26) },
-          ]}
-        >
-          <Pressable
-            disabled={submitting || availableAccounts.length === 0}
-            onPress={() => void submit()}
-            style={[styles.save, submitting && styles.disabled]}
-          >
-            <Text style={styles.saveText}>
-              {submitting ? 'Saving…' : '✓  Save'}
-            </Text>
-          </Pressable>
+        <View style={[styles.bottomPanel, { paddingBottom: insets.bottom }]}>
+          <View style={styles.actionBar}>
+            <Pressable
+              disabled={submitting || availableAccounts.length === 0}
+              onPress={() => void submit()}
+              style={[styles.save, submitting && styles.disabled]}
+            >
+              <Text style={styles.saveText}>
+                {submitting ? 'Saving…' : '✓  Save'}
+              </Text>
+            </Pressable>
+          </View>
+          {keypadVisible ? (
+            <MoneyKeypad
+              calculator
+              onChange={setAmountCents}
+              onDone={() => setKeypadVisible(false)}
+              valueCents={amountCents}
+            />
+          ) : null}
         </View>
 
         {editor === 'kind' ? (
@@ -493,23 +526,23 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 620,
     paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingBottom: 12,
     alignSelf: 'center',
     alignItems: 'center',
   },
   amount: {
-    marginTop: 18,
+    marginTop: 4,
     color: '#18201a',
-    fontSize: 48,
+    fontSize: 42,
     fontVariant: ['tabular-nums'],
     fontWeight: '700',
     letterSpacing: -1.5,
   },
   kindPill: {
-    minHeight: 54,
+    minHeight: 46,
     paddingHorizontal: 20,
-    marginTop: 20,
-    marginBottom: 22,
+    marginTop: 10,
+    marginBottom: 12,
     backgroundColor: '#e2ebe4',
     borderRadius: 27,
     flexDirection: 'row',
@@ -532,7 +565,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   fieldRow: {
-    minHeight: 72,
+    minHeight: 58,
     paddingHorizontal: 20,
     borderBottomColor: '#e8ebe7',
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -559,6 +592,15 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     fontSize: 13,
   },
+  showMore: {
+    minHeight: 42,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  showMoreText: { color: '#315a3e', fontSize: 13, fontWeight: '800' },
   save: {
     minHeight: 54,
     paddingHorizontal: 23,
@@ -574,12 +616,13 @@ const styles = StyleSheet.create({
   },
   saveText: { color: '#ffffff', fontSize: 17, fontWeight: '800' },
   actionBar: {
-    minHeight: 92,
-    paddingTop: 16,
+    minHeight: 68,
+    paddingVertical: 7,
     paddingHorizontal: 22,
     backgroundColor: '#f4f6f3',
     alignItems: 'flex-end',
     justifyContent: 'center',
   },
+  bottomPanel: { backgroundColor: '#f4f6f3' },
   disabled: { opacity: 0.55 },
 });

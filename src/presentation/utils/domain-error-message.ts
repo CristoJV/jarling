@@ -11,6 +11,7 @@ import { InvalidAccountNameError } from '@/domain/errors/invalid-account-name-er
 import { InvalidCategoryNameError } from '@/domain/errors/invalid-category-name-error';
 import { InvalidCategoryTargetError } from '@/domain/errors/invalid-category-target-error';
 import { InvalidMoneyError } from '@/domain/errors/invalid-money-error';
+import { InvalidReconciliationError } from '@/domain/errors/invalid-reconciliation-error';
 import { InvalidTransactionAmountError } from '@/domain/errors/invalid-transaction-amount-error';
 import { InvalidTransactionDateError } from '@/domain/errors/invalid-transaction-date-error';
 import { InvalidTransferError } from '@/domain/errors/invalid-transfer-error';
@@ -55,6 +56,10 @@ export function domainErrorMessage(error: unknown): string {
 
   if (error instanceof InvalidTransferError) {
     return 'Elige dos cuentas distintas y un importe positivo.';
+  }
+
+  if (error instanceof InvalidReconciliationError) {
+    return 'El saldo confirmado no coincide. Revisa el importe o autoriza el ajuste.';
   }
 
   if (error instanceof CategoryRequiredForExpenseError) {

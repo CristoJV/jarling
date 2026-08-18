@@ -161,17 +161,42 @@ export function TransactionsScreen() {
                   </Pressable>
                 ))
               ) : (
-                <View style={styles.searchHint}>
-                  <Text style={styles.searchHintTitle}>Refine your search</Text>
-                  <Text style={styles.searchHintText}>
-                    Type a value to search anything, payees or memos.
-                  </Text>
-                </View>
+                <ScrollView
+                  keyboardShouldPersistTaps="handled"
+                  style={styles.suggestionList}
+                >
+                  <SuggestionSection title="Accounts" />
+                  {data?.accounts.accounts.map(({ account }) => (
+                    <SuggestionOption
+                      icon="bank-outline"
+                      key={account.id}
+                      label={account.name}
+                      onPress={() => {
+                        setAccountId(account.id);
+                        setSearchFocused(false);
+                      }}
+                      selected={account.id === accountId}
+                    />
+                  ))}
+                  <SuggestionSection title="Categories" />
+                  {categories.map((category) => (
+                    <SuggestionOption
+                      icon="shape-outline"
+                      key={category.id}
+                      label={category.name}
+                      onPress={() => {
+                        setCategoryId(category.id);
+                        setSearchFocused(false);
+                      }}
+                      selected={category.id === categoryId}
+                    />
+                  ))}
+                </ScrollView>
               )}
             </View>
           ) : null}
         </View>
-        {appliedSearches.length > 0 ? (
+        {appliedSearches.length > 0 || accountId || categoryId ? (
           <View style={styles.appliedSearches}>
             {appliedSearches.map(({ field, value }) => (
               <Pressable
@@ -189,45 +214,20 @@ export function TransactionsScreen() {
                 />
               </Pressable>
             ))}
+            {accountId ? (
+              <AppliedFilter
+                label={`Account: ${data?.accounts.accounts.find(({ account }) => account.id === accountId)?.account.name ?? accountId}`}
+                onRemove={() => setAccountId(undefined)}
+              />
+            ) : null}
+            {categoryId ? (
+              <AppliedFilter
+                label={`Category: ${categories.find(({ id }) => id === categoryId)?.name ?? categoryId}`}
+                onRemove={() => setCategoryId(undefined)}
+              />
+            ) : null}
           </View>
         ) : null}
-      </View>
-
-      <View style={styles.filters}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <View style={styles.filterContent}>
-            <FilterChip
-              label="Todas las cuentas"
-              onPress={() => setAccountId(undefined)}
-              selected={!accountId}
-            />
-            {data?.accounts.accounts.map(({ account }) => (
-              <FilterChip
-                key={account.id}
-                label={account.name}
-                onPress={() => setAccountId(account.id)}
-                selected={accountId === account.id}
-              />
-            ))}
-          </View>
-        </ScrollView>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <View style={styles.filterContent}>
-            <FilterChip
-              label="Todas las categorías"
-              onPress={() => setCategoryId(undefined)}
-              selected={!categoryId}
-            />
-            {categories.map((category) => (
-              <FilterChip
-                key={category.id}
-                label={category.name}
-                onPress={() => setCategoryId(category.id)}
-                selected={categoryId === category.id}
-              />
-            ))}
-          </View>
-        </ScrollView>
       </View>
 
       <ScrollView
@@ -305,21 +305,45 @@ export function TransactionsScreen() {
   );
 }
 
-function FilterChip({
+function SuggestionSection({ title }: Readonly<{ title: string }>) {
+  return (
+    <View style={styles.suggestionSection}>
+      <Text style={styles.suggestionSectionText}>{title}</Text>
+      <View style={styles.suggestionSeparator} />
+    </View>
+  );
+}
+
+function SuggestionOption({
+  icon,
   label,
   selected,
   onPress,
-}: Readonly<{ label: string; selected: boolean; onPress: () => void }>) {
+}: Readonly<{
+  icon: 'bank-outline' | 'shape-outline';
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+}>) {
   return (
-    <Pressable
-      accessibilityRole="radio"
-      accessibilityState={{ selected }}
-      onPress={onPress}
-      style={[styles.filterChip, selected && styles.filterChipSelected]}
-    >
-      <Text style={[styles.filterText, selected && styles.filterTextSelected]}>
-        {label}
-      </Text>
+    <Pressable onPress={onPress} style={styles.suggestion}>
+      <MaterialCommunityIcons color="#315a3e" name={icon} size={20} />
+      <Text style={styles.suggestionText}>{label}</Text>
+      {selected ? (
+        <MaterialCommunityIcons color="#315a3e" name="check" size={19} />
+      ) : null}
+    </Pressable>
+  );
+}
+
+function AppliedFilter({
+  label,
+  onRemove,
+}: Readonly<{ label: string; onRemove: () => void }>) {
+  return (
+    <Pressable onPress={onRemove} style={styles.appliedSearch}>
+      <Text style={styles.appliedSearchText}>{label}</Text>
+      <MaterialCommunityIcons color="#315a3e" name="close" size={16} />
     </Pressable>
   );
 }
@@ -377,6 +401,7 @@ const styles = StyleSheet.create({
     shadowRadius: 14,
     elevation: 10,
   },
+  suggestionList: { maxHeight: 380 },
   suggestion: {
     minHeight: 52,
     paddingHorizontal: 12,
@@ -392,9 +417,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  searchHint: { padding: 14, gap: 4 },
-  searchHintTitle: { color: '#253028', fontSize: 14, fontWeight: '800' },
-  searchHintText: { color: '#737d76', fontSize: 12, lineHeight: 17 },
+  suggestionSection: {
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingBottom: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+  },
+  suggestionSectionText: {
+    color: '#737d76',
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  suggestionSeparator: { height: 1, backgroundColor: '#e4e8e4', flex: 1 },
   appliedSearches: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   appliedSearch: {
     minHeight: 32,
@@ -406,25 +443,6 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   appliedSearchText: { color: '#315a3e', fontSize: 11, fontWeight: '700' },
-  filters: {
-    paddingVertical: 9,
-    borderBottomColor: '#e4e7e2',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    gap: 7,
-  },
-  filterContent: { paddingHorizontal: 16, flexDirection: 'row', gap: 7 },
-  filterChip: {
-    minHeight: 34,
-    paddingHorizontal: 11,
-    borderColor: '#d8ddd7',
-    borderRadius: 17,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  filterChipSelected: { backgroundColor: '#294d36', borderColor: '#294d36' },
-  filterText: { color: '#657068', fontSize: 12, fontWeight: '600' },
-  filterTextSelected: { color: '#ffffff' },
   content: {
     width: '100%',
     maxWidth: 760,

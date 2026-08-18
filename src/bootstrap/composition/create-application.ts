@@ -4,6 +4,8 @@ import type { ApplicationServices } from '@/application/application-services';
 import { CloseAccount } from '@/application/use-cases/accounts/close-account';
 import { CreateAccount } from '@/application/use-cases/accounts/create-account';
 import { GetAccounts } from '@/application/use-cases/accounts/get-accounts';
+import { GetReconciliation } from '@/application/use-cases/accounts/get-reconciliation';
+import { ReconcileAccount } from '@/application/use-cases/accounts/reconcile-account';
 import { CreateCategoryGroup } from '@/application/use-cases/categories/create-category-group';
 import { CreateCategory } from '@/application/use-cases/categories/create-category';
 import { EnsureDefaultCategories } from '@/application/use-cases/categories/ensure-default-categories';
@@ -62,6 +64,14 @@ export function createApplication(
       create: new CreateAccount(accounts, transactions, unitOfWork, ids, clock),
       getAll: new GetAccounts(accounts, transactions),
       close: new CloseAccount(accounts, unitOfWork, clock),
+      getReconciliation: new GetReconciliation(accounts, transactions, clock),
+      reconcile: new ReconcileAccount(
+        accounts,
+        transactions,
+        unitOfWork,
+        ids,
+        clock,
+      ),
     },
     categories: {
       ensureDefaults: new EnsureDefaultCategories(

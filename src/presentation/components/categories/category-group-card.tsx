@@ -76,6 +76,9 @@ export function CategoryGroupCard({
             const target = targetsByCategoryId.get(category.id);
             const progress = progressByCategoryId.get(category.id);
             const status = categoryStatus(values, target, progress);
+            const needsFunding =
+              values.activity.cents >= 0 &&
+              (progress?.recommended.cents ?? 0) > 0;
 
             return (
               <Pressable
@@ -97,6 +100,7 @@ export function CategoryGroupCard({
                     <View
                       style={[
                         styles.availablePill,
+                        needsFunding && styles.availablePillWarning,
                         values.available.cents < 0 &&
                           styles.availablePillNegative,
                       ]}
@@ -104,6 +108,7 @@ export function CategoryGroupCard({
                       <Text
                         style={[
                           styles.available,
+                          needsFunding && styles.availableWarning,
                           values.available.cents < 0 &&
                             styles.availableNegative,
                         ]}
@@ -126,7 +131,7 @@ export function CategoryGroupCard({
 type Status = Readonly<{
   label: string;
   ratio: number;
-  negative: boolean;
+  tone: 'positive' | 'warning' | 'negative';
 }>;
 
 function categoryStatus(
@@ -141,41 +146,53 @@ function categoryStatus(
       return {
         label: `Overspent ${formatMoney(Money.fromCents(Math.abs(values.available.cents)))} of ${formatMoney(Money.fromCents(funded))}`,
         ratio: 1,
-        negative: true,
+        tone: 'negative',
       };
     }
     return {
       label: `Spent ${formatMoney(Money.fromCents(spent))} of ${formatMoney(Money.fromCents(funded))}`,
       ratio: funded === 0 ? 1 : Math.min(1, spent / funded),
-      negative: false,
+      tone: 'positive',
     };
   }
 
   if (target && progress) {
+    if (progress.recommended.cents > 0) {
+      return {
+        label: `${formatMoney(progress.recommended)} more needed this month`,
+        ratio: progress.progress,
+        tone: progress.status === 'overdue' ? 'negative' : 'warning',
+      };
+    }
     return {
       label: `Funded ${formatMoney(Money.fromCents(Math.max(0, values.available.cents)))} of ${formatMoney(progress.goal)}`,
       ratio: progress.progress,
-      negative: progress.status === 'overdue',
+      tone: progress.status === 'overdue' ? 'negative' : 'positive',
     };
   }
 
   return null;
 }
 
-function ProgressStatus({ label, ratio, negative }: Status) {
+function ProgressStatus({ label, ratio, tone }: Status) {
   return (
     <View style={styles.progressSection}>
       <View style={styles.track}>
         <View
           style={[
             styles.progress,
-            negative && styles.progressNegative,
+            tone === 'warning' && styles.progressWarning,
+            tone === 'negative' && styles.progressNegative,
             { width: `${Math.round(Math.min(1, Math.max(0, ratio)) * 100)}%` },
           ]}
         />
       </View>
       <Text
-        style={[styles.progressLabel, negative && styles.progressLabelNegative]}
+        style={[
+          styles.progressLabel,
+          tone === 'warning' && styles.progressLabelWarning,
+          tone === 'negative' && styles.progressLabelNegative,
+        ]}
       >
         {label}
       </Text>
@@ -257,6 +274,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#d8ebd9',
     borderRadius: 16,
   },
+  availablePillWarning: { backgroundColor: '#fff0b8' },
   availablePillNegative: { backgroundColor: '#fde4df' },
   available: {
     color: '#256238',
@@ -265,6 +283,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     textAlign: 'right',
   },
+  availableWarning: { color: '#755600' },
   availableNegative: { color: '#b42318' },
   progressSection: { marginTop: 10, gap: 5 },
   track: {
@@ -274,7 +293,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   progress: { height: '100%', backgroundColor: '#69a746', borderRadius: 3 },
+  progressWarning: { backgroundColor: '#e5b900' },
   progressNegative: { backgroundColor: '#c43a43' },
   progressLabel: { color: '#68736b', fontSize: 11, fontWeight: '600' },
+  progressLabelWarning: { color: '#806200' },
   progressLabelNegative: { color: '#a42b35' },
 });

@@ -112,7 +112,15 @@ export function calculateTargetProgress({
   }
 
   const remaining = Math.max(0, goalCents - funded.cents);
-  const recommendedCents = Math.ceil(remaining / remainingMonths);
+  const recommendedCents =
+    target.kind === 'yearly'
+      ? yearlyContributionNeeded({
+          goalCents,
+          fundedCents: funded.cents,
+          assignedCents: assigned.cents,
+          remainingMonths,
+        })
+      : remaining;
   const complete = funded.cents >= goalCents;
   const rawProgress = goalCents === 0 ? 1 : funded.cents / goalCents;
 
@@ -123,4 +131,23 @@ export function calculateTargetProgress({
     progress: Math.min(1, Math.max(0, rawProgress)),
     status: complete ? 'complete' : overdue ? 'overdue' : 'underfunded',
   };
+}
+
+function yearlyContributionNeeded(
+  values: Readonly<{
+    goalCents: number;
+    fundedCents: number;
+    assignedCents: number;
+    remainingMonths: number;
+  }>,
+): number {
+  const currentContribution = Math.max(0, values.assignedCents);
+  const fundedBeforeMonth = Math.max(
+    0,
+    values.fundedCents - currentContribution,
+  );
+  const plannedContribution = Math.ceil(
+    Math.max(0, values.goalCents - fundedBeforeMonth) / values.remainingMonths,
+  );
+  return Math.max(0, plannedContribution - currentContribution);
 }

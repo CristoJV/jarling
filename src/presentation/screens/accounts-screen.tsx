@@ -13,14 +13,31 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AccountRow } from '@/presentation/components/accounts/account-row';
 import { CreateAccountModal } from '@/presentation/components/accounts/create-account-modal';
+import { ReconciliationScreen } from '@/presentation/components/accounts/reconciliation-screen';
 import { OverflowMenu } from '@/presentation/components/common/overflow-menu';
+import { SelectionModal } from '@/presentation/components/common/selection-modal';
 import { useAccounts } from '@/presentation/hooks/use-accounts';
 import { formatMoney } from '@/presentation/utils/money';
+import type { AccountSummary } from '@/application/use-cases/accounts/get-accounts';
+import type { ReconciliationPreview } from '@/application/use-cases/accounts/get-reconciliation';
 
 export function AccountsScreen() {
-  const { overview, error, loading, refresh, createAccount, closeAccount } =
-    useAccounts();
+  const {
+    overview,
+    error,
+    loading,
+    refresh,
+    createAccount,
+    closeAccount,
+    getReconciliation,
+    reconcile,
+  } = useAccounts();
   const [createModalVisible, setCreateModalVisible] = useState(false);
+  const [selectedAccount, setSelectedAccount] = useState<AccountSummary | null>(
+    null,
+  );
+  const [reconciliation, setReconciliation] =
+    useState<ReconciliationPreview | null>(null);
 
   function confirmClose(accountId: string, accountName: string) {
     Alert.alert(
@@ -35,6 +52,15 @@ export function AccountsScreen() {
         },
       ],
     );
+  }
+
+  async function openReconciliation(accountId: string) {
+    setSelectedAccount(null);
+    try {
+      setReconciliation(await getReconciliation(accountId));
+    } catch {
+      // The hook exposes the translated error in the screen.
+    }
   }
 
   return (
@@ -104,9 +130,7 @@ export function AccountsScreen() {
         {overview?.accounts.map((summary) => (
           <AccountRow
             key={summary.account.id}
-            onClose={(accountId) =>
-              confirmClose(accountId, summary.account.name)
-            }
+            onPress={() => setSelectedAccount(summary)}
             summary={summary}
           />
         ))}
@@ -117,6 +141,41 @@ export function AccountsScreen() {
         onDismiss={() => setCreateModalVisible(false)}
         visible={createModalVisible}
       />
+      {selectedAccount ? (
+        <SelectionModal
+          onDismiss={() => setSelectedAccount(null)}
+          onSelect={(action) => {
+            if (action === 'reconcile') {
+              void openReconciliation(selectedAccount.account.id);
+            } else {
+              confirmClose(
+                selectedAccount.account.id,
+                selectedAccount.account.name,
+              );
+            }
+          }}
+          options={[
+            {
+              value: 'reconcile',
+              label: 'Reconcile account',
+              description: 'Compare Jarling with the confirmed bank balance.',
+            },
+            {
+              value: 'close',
+              label: 'Close account',
+              description: 'Keep its complete transaction history.',
+            },
+          ]}
+          title={selectedAccount.account.name}
+        />
+      ) : null}
+      {reconciliation ? (
+        <ReconciliationScreen
+          onDismiss={() => setReconciliation(null)}
+          onReconcile={reconcile}
+          preview={reconciliation}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }

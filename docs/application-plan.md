@@ -12,10 +12,10 @@
 | 0–5   | Foundation, Accounts, Categories, Transactions, Budget y Move Money | Completadas |
 | 9     | Targets                                                             | Completada  |
 | 6     | Transfers                                                           | Completada  |
-| 7     | Reconciliation                                                      | Aplazada    |
+| 7     | Reconciliation                                                      | Completada  |
 | 8     | Reports                                                             | Aplazada    |
 
-No implementar las fases 7 u 8 sin una nueva aprobación explícita. Scheduled
+No implementar la fase 8 sin una nueva aprobación explícita. Scheduled
 Transactions, Payees como entidad persistida, sincronización y cloud quedan
 fuera de alcance. La siguiente fase está deliberadamente sin seleccionar.
 
@@ -48,7 +48,7 @@ Presentation → Application → Domain ← Infrastructure
 
 - `ApplicationServices` y `createApplication` son los puntos de composición.
 - Repositorios in-memory para tests de casos de uso y SQLite para runtime.
-- 132 tests después de completar Targets, Payees, búsqueda y Transfers.
+- 141 tests después de completar Targets, Transfers y Reconciliation.
 - Web y Android exportan correctamente. iOS nativo continúa pendiente de un
   entorno macOS.
 
@@ -133,7 +133,8 @@ miden lo aportado usando Assigned; las de reposición y saldo usan Available.
 ```text
 Weekly goal = amount × occurrences(dayOfWeek, selectedMonth)
 Monthly goal = amount con vencimiento en dayOfMonth
-Yearly recommended = ceil((goal - Available) / inclusiveMonthsToDueDate)
+Yearly monthly plan = ceil((goal - fundedBeforeMonth) / monthsToDueDate)
+Yearly recommended = max(0, monthlyPlan - assignedThisMonth)
 Custom goal = amount
 ```
 
@@ -164,6 +165,9 @@ repositorio ofrece `findAll`, `findByCategory`, `save` y `deleteByCategory`.
 - Yearly: calendario nativo Android y estrategia para el mes siguiente.
 - Custom: tres opciones seleccionables con explicación y casos de uso.
 - Budget muestra barras Funded, Spent u Overspent solo cuando aportan contexto.
+- Los targets con fecha muestran en amarillo cuánto falta aportar en el mes
+  actual para llegar al objetivo, sin redistribuir otra vez lo ya asignado ese
+  mismo mes.
 - Los grupos colapsan usando el mismo chevron rotado 90 grados.
 - El selector año/mes y el tipo de transacción aparecen centrados.
 - El tab bar incorpora el safe-area inferior real de Android.
@@ -173,7 +177,10 @@ repositorio ofrece `findAll`, `findByCategory`, `save` y `deleteByCategory`.
 - Las pantallas completas entran lateralmente; los paneles parciales entran
   desde abajo y comparten un contenedor con safe-area inferior.
 - Transactions permite Memo, búsqueda combinable por Anything/Payee/Memo,
-  filtros removibles y borrado mediante swipe hacia la izquierda.
+  cuentas/categorías dentro de las sugerencias, filtros removibles y borrado
+  automático al superar el umbral de swipe en cualquier dirección.
+- El editor de transacciones ofrece Show more/less, estado Cleared y un teclado
+  TPV con suma, resta, multiplicación, división, igual y Done.
 - Las categorías iniciales contienen emoji y Demo utiliza sus IDs estables, sin
   crear un grupo `Everyday`.
 
@@ -184,7 +191,7 @@ repositorio ofrece `findAll`, `findByCategory`, `save` y `deleteByCategory`.
   redondeo en céntimos, estrategias y progress `0..1`.
 - Tests de integración garantizan que los targets no modifican RTA ni Budget.
 - Demo es idempotente y solo referencia categorías predeterminadas.
-- Typecheck, lint, 132 tests y exports web/Android deben pasar.
+- Typecheck, lint, 141 tests y exports web/Android deben pasar.
 - Queda únicamente el smoke test visual en un dispositivo Android real.
 
 ### 5.7 Payees
@@ -218,11 +225,10 @@ test de interacción en un dispositivo Android real.
 La columna SQLite `transaction_group_id` ya formaba parte del baseline, por lo
 que la fase no requiere migración ni una tabla adicional.
 
-## 7. Fases aplazadas
+## 7. Fase 7 — Reconciliation
 
-Estas fases conservan su número y no bloquean Transfers ni Targets.
-
-### Fase 7 — Reconciliation
+Estado: completada y validada automáticamente. Pendiente únicamente del smoke
+test de interacción en un dispositivo Android real.
 
 Conciliar significa comparar el saldo que Jarling calcula para una cuenta con el
 saldo confirmado por el banco en una fecha de corte. Si coinciden, las
@@ -230,21 +236,33 @@ transacciones incluidas pasan a `reconciled` y quedan protegidas frente a
 cambios accidentales. Sirve para detectar movimientos ausentes, duplicados o
 con importes incorrectos; no mueve dinero ni cambia por sí sola el presupuesto.
 
-El modelo ya reconoce el estado `reconciled` y bloquea su edición/borrado, pero
-el flujo de comparación y cierre de saldo queda aplazado.
+- Accounts abre un menú por cuenta con la acción Reconcile.
+- La vista separa cleared balance y working balance; las operaciones uncleared
+  no forman parte del saldo que se confirma.
+- Si el saldo coincide, todas las transacciones `cleared` hasta hoy pasan a
+  `reconciled` dentro de un único `UnitOfWork`.
+- Si existe una diferencia, el usuario debe confirmar explícitamente un
+  `Reconciliation Balance Adjustment`. El ajuste queda reconciliado y modifica
+  el saldo/RTA de forma visible; nunca se corrige dinero silenciosamente.
+- Las operaciones ya reconciliadas permanecen inmutables. No se necesita una
+  migración porque el estado ya existía en el baseline SQLite.
+
+## 8. Fases aplazadas
+
+La fase restante no bloquea Transfers, Targets ni Reconciliation.
 
 ### Fase 8 — Reports
 
 Informes derivados de transacciones y presupuesto, sin persistir agregados como
 fuente alternativa de verdad.
 
-## 8. Protocolo de ejecución rápida
+## 9. Protocolo de ejecución rápida
 
 Este protocolo sustituye la planificación extensa por turno.
 
 ### Antes de editar
 
-1. Leer solo las secciones 1–6 de este documento.
+1. Leer solo las secciones 1–7 de este documento.
 2. Ejecutar `rg` sobre las interfaces y patrones directamente relacionados.
 3. Confirmar que el árbol de trabajo no contiene cambios solapados.
 4. Usar la especificación cerrada de la fase; no rediseñarla salvo
@@ -283,7 +301,7 @@ Entregar únicamente:
 4. Tests y validación.
 5. Pendiente de la siguiente fase.
 
-## 9. Límites de implementación
+## 10. Límites de implementación
 
 - No usar `any`, `eslint-disable` ni `@ts-ignore` para ocultar problemas.
 - No ejecutar SQL desde Presentation.

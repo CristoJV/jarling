@@ -221,7 +221,7 @@ export function BudgetScreen() {
             >
               {formatMoney(budget.readyToAssign)}
             </Text>
-            <Text style={styles.rtaLabel}>Ready to Assign ›</Text>
+            <Text style={styles.rtaLabel}>Ready to Assign</Text>
           </View>
         ) : null}
 
