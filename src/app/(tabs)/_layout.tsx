@@ -27,11 +27,17 @@ export default function TabsLayout() {
         tabBarActiveTintColor: theme.colors.primary,
         tabBarInactiveTintColor: theme.colors.textMuted,
         tabBarLabelStyle: { paddingBottom: 5, fontSize: 11, fontWeight: '600' },
+        tabBarItemStyle: {
+          marginVertical: 3,
+          borderRadius: 12,
+          overflow: 'hidden',
+        },
         tabBarStyle: [
           {
             paddingTop: 6,
             backgroundColor: theme.colors.navigation,
             borderTopColor: theme.colors.border,
+            overflow: 'hidden',
           },
           {
             height: 62 + insets.bottom,

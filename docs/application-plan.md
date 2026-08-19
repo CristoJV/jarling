@@ -52,7 +52,7 @@ Presentation → Application → Domain ← Infrastructure
   Expo SQLite, separadas de los datos financieros.
 - Temas light/dark/system, formatos configurables y bloqueo mediante las
   credenciales del dispositivo con Expo Local Authentication.
-- 160 tests después de completar Targets, Transfers, Reconciliation, Reports y
+- 162 tests después de completar Targets, Transfers, Reconciliation, Reports y
   Settings.
 - Web y Android exportan correctamente. iOS nativo continúa pendiente de un
   entorno macOS.
@@ -201,7 +201,7 @@ repositorio ofrece `findAll`, `findByCategory`, `save` y `deleteByCategory`.
   redondeo en céntimos, estrategias y progress `0..1`.
 - Tests de integración garantizan que los targets no modifican RTA ni Budget.
 - Demo es idempotente y solo referencia categorías predeterminadas.
-- Typecheck, lint, 160 tests y exports web/Android deben pasar.
+- Typecheck, lint, 162 tests y exports web/Android deben pasar.
 - Queda únicamente el smoke test visual en un dispositivo Android real.
 
 ### 5.7 Payees

@@ -1,5 +1,12 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { AnimatedBottomSheetModal } from '@/presentation/components/common/animated-bottom-sheet-modal';
 import { AnimatedCenteredModal } from '@/presentation/components/common/animated-centered-modal';
 import { SafeBottomSheet } from '@/presentation/components/common/safe-bottom-sheet';
@@ -65,29 +72,36 @@ export function NameInputModal({
       respectBottomInset={placement === 'bottom'}
       style={[styles.dialog, placement === 'center' && styles.dialogCentered]}
     >
-      <Text style={styles.title}>{title}</Text>
-      <View style={styles.field}>
-        <Text style={styles.label}>{label}</Text>
-        <TextInput
-          accessibilityLabel={label}
-          autoCapitalize="sentences"
-          autoFocus
-          multiline={multiline}
-          onChangeText={setName}
-          onSubmitEditing={() => void submit()}
-          placeholderTextColor={theme.colors.textMuted}
-          returnKeyType={multiline ? 'default' : 'done'}
-          selectTextOnFocus={initialValue.length > 0}
-          style={[styles.input, multiline && styles.inputMultiline]}
-          value={name}
-        />
-      </View>
+      <ScrollView
+        bounces={false}
+        contentContainerStyle={styles.bodyContent}
+        keyboardShouldPersistTaps="handled"
+        style={styles.body}
+      >
+        <Text style={styles.title}>{title}</Text>
+        <View style={styles.field}>
+          <Text style={styles.label}>{label}</Text>
+          <TextInput
+            accessibilityLabel={label}
+            autoCapitalize="sentences"
+            autoFocus
+            multiline={multiline}
+            onChangeText={setName}
+            onSubmitEditing={() => void submit()}
+            placeholderTextColor={theme.colors.textMuted}
+            returnKeyType={multiline ? 'default' : 'done'}
+            selectTextOnFocus={initialValue.length > 0}
+            style={[styles.input, multiline && styles.inputMultiline]}
+            value={name}
+          />
+        </View>
 
-      {error ? (
-        <Text accessibilityLiveRegion="polite" style={styles.error}>
-          {error}
-        </Text>
-      ) : null}
+        {error ? (
+          <Text accessibilityLiveRegion="polite" style={styles.error}>
+            {error}
+          </Text>
+        ) : null}
+      </ScrollView>
 
       <View style={styles.actions}>
         <Pressable
@@ -131,15 +145,18 @@ const createStyles = (theme: AppTheme) =>
       backgroundColor: theme.colors.surface,
       borderTopLeftRadius: 24,
       borderTopRightRadius: 24,
-      gap: 20,
+      gap: 16,
+      overflow: 'hidden',
       alignSelf: 'center',
     },
     dialogCentered: {
       width: '100%',
       maxWidth: 640,
-      minHeight: 300,
+      maxHeight: '100%',
       borderRadius: 24,
     },
+    body: { flexShrink: 1 },
+    bodyContent: { gap: 20 },
     inputMultiline: {
       minHeight: 150,
       paddingTop: 14,
@@ -173,7 +190,9 @@ const createStyles = (theme: AppTheme) =>
       fontSize: 14,
     },
     actions: {
+      flexShrink: 0,
       flexDirection: 'row',
+      flexWrap: 'wrap',
       justifyContent: 'flex-end',
       gap: 10,
     },

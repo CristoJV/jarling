@@ -25,17 +25,20 @@ import {
   useAppTheme,
   useThemedStyles,
 } from '@/presentation/theme/theme-provider';
+import {
+  type AppliedTransactionSearch,
+  type TransactionSearchField,
+  upsertTransactionSearch,
+} from '@/presentation/utils/transaction-search';
 
 type EditorState = 'create' | TransactionSummary | null;
-type SearchField = 'search' | 'payee' | 'memo';
-type AppliedSearch = Readonly<{ field: SearchField; value: string }>;
 
 export function TransactionsScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const theme = useAppTheme();
   const styles = useThemedStyles(createStyles);
-  const searchLabels: Record<SearchField, string> = {
+  const searchLabels: Record<TransactionSearchField, string> = {
     search: t('transactions.anything'),
     payee: t('transactions.payee'),
     memo: t('transactions.memo'),
@@ -44,7 +47,7 @@ export function TransactionsScreen() {
   const [searchDraft, setSearchDraft] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
   const [appliedSearches, setAppliedSearches] = useState<
-    readonly AppliedSearch[]
+    readonly AppliedTransactionSearch[]
   >([]);
   const [accountId, setAccountId] = useState<string | undefined>();
   const [categoryId, setCategoryId] = useState<string | undefined>();
@@ -64,18 +67,21 @@ export function TransactionsScreen() {
   const visibleEditor: EditorState =
     editor ?? (parameters.create === '1' ? 'create' : null);
 
-  function applySearch(field: SearchField) {
-    const value = searchDraft.trim();
-    if (!value) return;
-    setAppliedSearches((current) => [
-      ...current.filter((filter) => filter.field !== field),
-      { field, value },
-    ]);
+  function continueRefiningSearch() {
     setSearchDraft('');
-    setSearchFocused(false);
+    setSearchFocused(true);
   }
 
-  function removeSearch(field: SearchField) {
+  function applySearch(field: TransactionSearchField) {
+    const value = searchDraft.trim();
+    if (!value) return;
+    setAppliedSearches((current) =>
+      upsertTransactionSearch(current, { field, value }),
+    );
+    continueRefiningSearch();
+  }
+
+  function removeSearch(field: TransactionSearchField) {
     setAppliedSearches((current) =>
       current.filter((filter) => filter.field !== field),
     );
@@ -138,7 +144,7 @@ export function TransactionsScreen() {
             />
             <TextInput
               accessibilityLabel={t('transactions.search')}
-              onBlur={() => setTimeout(() => setSearchFocused(false), 120)}
+              onBlur={() => setSearchFocused(false)}
               onChangeText={setSearchDraft}
               onFocus={() => setSearchFocused(true)}
               onSubmitEditing={() => applySearch('search')}
@@ -151,67 +157,71 @@ export function TransactionsScreen() {
           </View>
           {searchFocused ? (
             <View style={styles.suggestions}>
-              {searchDraft.trim() ? (
-                (['search', 'payee', 'memo'] as const).map((field) => (
-                  <Pressable
-                    key={field}
-                    onPress={() => applySearch(field)}
-                    style={styles.suggestion}
-                  >
-                    <MaterialCommunityIcons
-                      color={theme.colors.primary}
-                      name={
-                        field === 'payee'
-                          ? 'currency-eur'
-                          : field === 'memo'
-                            ? 'note-text-outline'
-                            : 'magnify'
-                      }
-                      size={20}
+              <ScrollView
+                keyboardShouldPersistTaps="always"
+                style={styles.suggestionList}
+              >
+                {searchDraft.trim() ? (
+                  (['search', 'payee', 'memo'] as const).map((field) => (
+                    <Pressable
+                      key={field}
+                      onPress={() => applySearch(field)}
+                      style={styles.suggestion}
+                    >
+                      <MaterialCommunityIcons
+                        color={theme.colors.primary}
+                        name={
+                          field === 'payee'
+                            ? 'currency-eur'
+                            : field === 'memo'
+                              ? 'note-text-outline'
+                              : 'magnify'
+                        }
+                        size={20}
+                      />
+                      <Text style={styles.suggestionText}>
+                        {t('transactions.contains', {
+                          field: searchLabels[field],
+                          value: searchDraft.trim(),
+                        })}
+                      </Text>
+                    </Pressable>
+                  ))
+                ) : (
+                  <>
+                    <SuggestionSection
+                      title={t('transactions.accountsFilter')}
                     />
-                    <Text style={styles.suggestionText}>
-                      {t('transactions.contains', {
-                        field: searchLabels[field],
-                        value: searchDraft.trim(),
-                      })}
-                    </Text>
-                  </Pressable>
-                ))
-              ) : (
-                <ScrollView
-                  keyboardShouldPersistTaps="handled"
-                  style={styles.suggestionList}
-                >
-                  <SuggestionSection title={t('transactions.accountsFilter')} />
-                  {data?.accounts.accounts.map(({ account }) => (
-                    <SuggestionOption
-                      icon="bank-outline"
-                      key={account.id}
-                      label={account.name}
-                      onPress={() => {
-                        setAccountId(account.id);
-                        setSearchFocused(false);
-                      }}
-                      selected={account.id === accountId}
+                    {data?.accounts.accounts.map(({ account }) => (
+                      <SuggestionOption
+                        icon="bank-outline"
+                        key={account.id}
+                        label={account.name}
+                        onPress={() => {
+                          setAccountId(account.id);
+                          continueRefiningSearch();
+                        }}
+                        selected={account.id === accountId}
+                      />
+                    ))}
+                    <SuggestionSection
+                      title={t('transactions.categoriesFilter')}
                     />
-                  ))}
-                  <SuggestionSection
-                    title={t('transactions.categoriesFilter')}
-                  />
-                  {categories.map((category) => (
-                    <SuggestionOption
-                      icon="shape-outline"
-                      key={category.id}
-                      label={category.name}
-                      onPress={() => {
-                        setCategoryId(category.id);
-                        setSearchFocused(false);
-                      }}
-                      selected={category.id === categoryId}
-                    />
-                  ))}
-                </ScrollView>
-              )}
+                    {categories.map((category) => (
+                      <SuggestionOption
+                        icon="shape-outline"
+                        key={category.id}
+                        label={category.name}
+                        onPress={() => {
+                          setCategoryId(category.id);
+                          continueRefiningSearch();
+                        }}
+                        selected={category.id === categoryId}
+                      />
+                    ))}
+                  </>
+                )}
+              </ScrollView>
             </View>
           ) : null}
         </View>

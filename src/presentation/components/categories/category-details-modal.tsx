@@ -172,6 +172,7 @@ const createStyles = (theme: AppTheme) =>
     },
     hideButton: {
       minHeight: 52,
+      marginBottom: 12,
       backgroundColor: theme.colors.surfaceMuted,
       borderRadius: 16,
       alignItems: 'center',
