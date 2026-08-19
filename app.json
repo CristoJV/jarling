@@ -8,7 +8,8 @@
     "scheme": "jarling",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/images/jarling-icon.png"
+      "icon": "./assets/images/jarling-icon.png",
+      "bundleIdentifier": "com.cristojv.jarling"
     },
     "android": {
       "adaptiveIcon": {
@@ -17,7 +18,8 @@
       },
       "predictiveBackGestureEnabled": false,
       "softwareKeyboardLayoutMode": "resize",
-      "package": "com.anonymous.jarling"
+      "allowBackup": false,
+      "package": "com.cristojv.jarling"
     },
     "web": {
       "output": "static",
@@ -46,7 +48,12 @@
           }
         }
       ],
-      "expo-sqlite",
+      [
+        "expo-sqlite",
+        {
+          "useSQLCipher": true
+        }
+      ],
       [
         "expo-local-authentication",
         {
@@ -61,7 +68,15 @@
             "android": ["en", "es"]
           }
         }
-      ]
+      ],
+      [
+        "expo-secure-store",
+        {
+          "configureAndroidBackup": false,
+          "faceIDPermission": "Allow Jarling to use Face ID to protect your financial data."
+        }
+      ],
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -7,7 +7,9 @@ import {
 import { CannotModifyReconciledTransactionError } from '@/domain/errors/cannot-modify-reconciled-transaction-error';
 import { InvalidTransferError } from '@/domain/errors/invalid-transfer-error';
 import type { AccountRepository } from '@/domain/repositories/account-repository';
+import type { CategoryRepository } from '@/domain/repositories/category-repository';
 import type { TransactionRepository } from '@/domain/repositories/transaction-repository';
+import { paymentCategoryForAccount } from '@/domain/services/credit-card-payment';
 import { Money } from '@/domain/value-objects/money';
 
 import { prepareTransferAccounts, type TransferInput } from './transfer-input';
@@ -19,6 +21,7 @@ export type UpdateTransferInput = TransferInput &
 export class UpdateTransfer {
   constructor(
     private readonly accounts: AccountRepository,
+    private readonly categories: CategoryRepository,
     private readonly transactions: TransactionRepository,
     private readonly unitOfWork: UnitOfWork,
     private readonly clock: Clock,
@@ -41,8 +44,19 @@ export class UpdateTransfer {
       throw new InvalidTransferError('linked pair has invalid amounts');
     }
     const updatedAt = this.clock.now().instant;
+    const paymentCategory =
+      destinationAccount.type === 'credit_card'
+        ? paymentCategoryForAccount(
+            await this.categories.findAll(),
+            destinationAccount.id,
+          )
+        : undefined;
     const source = updateLeg(currentSource, {
       accountId: sourceAccount.id,
+      categoryId:
+        sourceAccount.onBudget && paymentCategory
+          ? paymentCategory.id
+          : undefined,
       payee: `Transfer to ${destinationAccount.name}`,
       amountCents: -input.amountCents,
       input,
@@ -67,6 +81,7 @@ function updateLeg(
   current: Transaction,
   values: Readonly<{
     accountId: string;
+    categoryId?: string;
     payee: string;
     amountCents: number;
     input: UpdateTransferInput;
@@ -75,6 +90,7 @@ function updateLeg(
 ): Transaction {
   return updateTransaction(current, {
     accountId: values.accountId,
+    categoryId: values.categoryId,
     payee: values.payee,
     amount: Money.fromCents(values.amountCents),
     date: values.input.date,

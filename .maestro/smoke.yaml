@@ -1,0 +1,17 @@
+appId: com.cristojv.jarling
+---
+- launchApp:
+    clearState: true
+- tapOn:
+    id: tab-accounts
+- assertVisible:
+    id: accounts-screen
+- tapOn:
+    id: add-account
+- tapOn:
+    id: create-account-name
+- inputText: Daily account
+- hideKeyboard
+- tapOn:
+    id: create-account-submit
+- assertVisible: Daily account

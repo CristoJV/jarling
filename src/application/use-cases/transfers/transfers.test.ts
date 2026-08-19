@@ -2,11 +2,13 @@ import type { Clock } from '@/application/ports/clock';
 import type { IdGenerator } from '@/application/ports/id-generator';
 import { DeleteTransaction } from '@/application/use-cases/transactions/delete-transaction';
 import { createAccount } from '@/domain/entities/account';
+import { createCategory } from '@/domain/entities/category';
 import { InvalidTransferError } from '@/domain/errors/invalid-transfer-error';
 import { calculateBudgetMonth } from '@/domain/services/calculate-budget-month';
 import { Money } from '@/domain/value-objects/money';
 import { ImmediateUnitOfWork } from '@/infrastructure/persistence/in-memory/immediate-unit-of-work';
 import { InMemoryAccountRepository } from '@/infrastructure/persistence/in-memory/in-memory-account-repository';
+import { InMemoryCategoryRepository } from '@/infrastructure/persistence/in-memory/in-memory-category-repository';
 import { InMemoryTransactionRepository } from '@/infrastructure/persistence/in-memory/in-memory-transaction-repository';
 
 import { CreateTransfer } from './create-transfer';
@@ -26,6 +28,7 @@ class SequenceIds implements IdGenerator {
 
 async function setup() {
   const accounts = new InMemoryAccountRepository();
+  const categories = new InMemoryCategoryRepository();
   const transactions = new InMemoryTransactionRepository();
   const unitOfWork = new ImmediateUnitOfWork();
   for (const account of [
@@ -53,24 +56,66 @@ async function setup() {
       createdAt: clock.now().instant,
       updatedAt: clock.now().instant,
     }),
+    createAccount({
+      id: 'credit',
+      name: 'Visa',
+      type: 'credit_card',
+      onBudget: true,
+      createdAt: clock.now().instant,
+      updatedAt: clock.now().instant,
+    }),
   ])
     await accounts.save(account);
+  await categories.save(
+    createCategory({
+      id: 'credit-payment',
+      groupId: 'credit-payments',
+      name: '💳 Visa',
+      linkedAccountId: 'credit',
+      hidden: false,
+      sortOrder: 0,
+      createdAt: clock.now().instant,
+      updatedAt: clock.now().instant,
+    }),
+  );
   return {
     accounts,
     transactions,
     create: new CreateTransfer(
       accounts,
+      categories,
       transactions,
       unitOfWork,
       new SequenceIds(),
       clock,
     ),
-    update: new UpdateTransfer(accounts, transactions, unitOfWork, clock),
+    update: new UpdateTransfer(
+      accounts,
+      categories,
+      transactions,
+      unitOfWork,
+      clock,
+    ),
     remove: new DeleteTransaction(transactions, unitOfWork),
   };
 }
 
 describe('transfers', () => {
+  it('categorizes a credit-card payment without categorizing its destination leg', async () => {
+    const { create } = await setup();
+    const pair = await create.execute({
+      kind: 'transfer',
+      sourceAccountId: 'source',
+      destinationAccountId: 'credit',
+      amountCents: 10_000,
+      date: '2026-08-18',
+      status: 'cleared',
+    });
+
+    expect(pair.source.categoryId).toBe('credit-payment');
+    expect(pair.destination.categoryId).toBeUndefined();
+  });
+
   it('creates, updates and deletes both linked legs atomically', async () => {
     const { transactions, create, update, remove } = await setup();
     const pair = await create.execute({

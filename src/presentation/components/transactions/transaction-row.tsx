@@ -12,6 +12,7 @@ import {
 
 import type { TransactionSummary } from '@/application/use-cases/transactions/get-transactions';
 import { formatMoney } from '@/presentation/utils/money';
+import { categoryDisplayName } from '@/presentation/utils/category-name';
 import { useTranslation } from '@/presentation/localization/localization-provider';
 import type { AppTheme } from '@/presentation/theme/theme';
 import {
@@ -37,6 +38,17 @@ export function TransactionRow({
   const { width } = useWindowDimensions();
   const [translateX] = useState(() => new Animated.Value(0));
   const swipeable = transaction.status !== 'reconciled';
+  const payeeLabel =
+    transaction.kind === 'opening_balance'
+      ? t('transactions.openingBalance')
+      : transaction.kind === 'reconciliation_adjustment'
+        ? t('transactions.reconciliationAdjustment')
+        : transaction.kind === 'transfer'
+          ? t('transactions.transfer')
+          : (transaction.payee ??
+            (transaction.amount.cents >= 0
+              ? t('transactions.income')
+              : t('transactions.expense')));
 
   const animateTo = useCallback(
     (value: number) => {
@@ -124,14 +136,16 @@ export function TransactionRow({
           </View>
           <View style={styles.details}>
             <Text numberOfLines={1} style={styles.payee}>
-              {transaction.payee ??
-                (transaction.amount.cents >= 0
-                  ? t('transactions.income')
-                  : t('transactions.expense'))}
+              {payeeLabel}
             </Text>
             <Text numberOfLines={1} style={styles.meta}>
               {summary.accountName} ·{' '}
-              {summary.categoryName ??
+              {(summary.categoryName && transaction.categoryId
+                ? categoryDisplayName(
+                    { id: transaction.categoryId, name: summary.categoryName },
+                    t,
+                  )
+                : undefined) ??
                 (transaction.transactionGroupId
                   ? t('transactions.transfer')
                   : t('transactions.readyToAssign'))}

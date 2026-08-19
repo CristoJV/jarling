@@ -1,7 +1,8 @@
-import type { SQLiteDatabase } from 'expo-sqlite';
+import type { SQLiteBindValue, SQLiteDatabase } from 'expo-sqlite';
 
 import type {
   Transaction,
+  TransactionKind,
   TransactionStatus,
 } from '@/domain/entities/transaction';
 import type {
@@ -19,6 +20,7 @@ export type TransactionRow = {
   date: string;
   notes: string | null;
   status: TransactionStatus;
+  kind: TransactionKind;
   transaction_group_id: string | null;
   created_at: string;
   updated_at: string;
@@ -34,6 +36,7 @@ export function transactionFromRow(row: TransactionRow): Transaction {
     date: row.date,
     ...(row.notes ? { notes: row.notes } : {}),
     status: row.status,
+    kind: row.kind,
     ...(row.transaction_group_id
       ? { transactionGroupId: row.transaction_group_id }
       : {}),
@@ -49,7 +52,7 @@ export class SQLiteTransactionRepository implements TransactionRepository {
     filters: TransactionFilters = {},
   ): Promise<readonly Transaction[]> {
     const conditions: string[] = [];
-    const values: string[] = [];
+    const values: SQLiteBindValue[] = [];
 
     if (filters.accountId) {
       conditions.push('account_id = ?');
@@ -69,6 +72,11 @@ export class SQLiteTransactionRepository implements TransactionRepository {
     if (filters.dateTo) {
       conditions.push('date <= ?');
       values.push(filters.dateTo);
+    }
+
+    if (filters.transactionGroupId) {
+      conditions.push('transaction_group_id = ?');
+      values.push(filters.transactionGroupId);
     }
 
     const search = filters.search?.trim().toLocaleLowerCase();
@@ -93,13 +101,20 @@ export class SQLiteTransactionRepository implements TransactionRepository {
 
     const where =
       conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const limit = filters.limit
+      ? Math.min(200, Math.max(1, Math.trunc(filters.limit)))
+      : undefined;
+    const offset = Math.max(0, Math.trunc(filters.offset ?? 0));
+    const pagination = limit !== undefined ? 'LIMIT ? OFFSET ?' : '';
+    if (limit !== undefined) values.push(limit, offset);
     const rows = await this.database.getAllAsync<TransactionRow>(
       `SELECT
          id, account_id, category_id, payee, amount, date, notes, status,
-         transaction_group_id, created_at, updated_at
+         kind, transaction_group_id, created_at, updated_at
        FROM transactions
        ${where}
-       ORDER BY date DESC, created_at DESC`,
+       ORDER BY date DESC, created_at DESC
+       ${pagination}`,
       ...values,
     );
 
@@ -114,7 +129,7 @@ export class SQLiteTransactionRepository implements TransactionRepository {
     const row = await this.database.getFirstAsync<TransactionRow>(
       `SELECT
          id, account_id, category_id, payee, amount, date, notes, status,
-         transaction_group_id, created_at, updated_at
+         kind, transaction_group_id, created_at, updated_at
        FROM transactions
        WHERE id = ?`,
       id,
@@ -124,24 +139,37 @@ export class SQLiteTransactionRepository implements TransactionRepository {
   }
 
   async findByGroup(groupId: string): Promise<readonly Transaction[]> {
-    const rows = await this.database.getAllAsync<TransactionRow>(
-      `SELECT
-         id, account_id, category_id, payee, amount, date, notes, status,
-         transaction_group_id, created_at, updated_at
-       FROM transactions
-       WHERE transaction_group_id = ?
-       ORDER BY amount ASC`,
-      groupId,
+    return this.findAll({ transactionGroupId: groupId });
+  }
+
+  async findDistinctPayees(): Promise<readonly string[]> {
+    const rows = await this.database.getAllAsync<{ payee: string }>(
+      `SELECT trim(candidate.payee) AS payee
+       FROM transactions AS candidate
+       WHERE candidate.payee IS NOT NULL
+         AND length(trim(candidate.payee)) > 0
+         AND candidate.transaction_group_id IS NULL
+         AND candidate.kind = 'standard'
+         AND candidate.id = (
+           SELECT first.id
+           FROM transactions AS first
+           WHERE lower(trim(first.payee)) = lower(trim(candidate.payee))
+             AND first.transaction_group_id IS NULL
+             AND first.kind = 'standard'
+           ORDER BY first.created_at ASC, first.id ASC
+           LIMIT 1
+         )
+       ORDER BY payee COLLATE NOCASE ASC`,
     );
-    return rows.map(transactionFromRow);
+    return rows.map(({ payee }) => payee);
   }
 
   async save(transaction: Transaction): Promise<void> {
     await this.database.runAsync(
       `INSERT INTO transactions (
          id, account_id, category_id, payee, amount, date, notes, status,
-         transaction_group_id, created_at, updated_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         kind, transaction_group_id, created_at, updated_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET
          account_id = excluded.account_id,
          category_id = excluded.category_id,
@@ -150,6 +178,7 @@ export class SQLiteTransactionRepository implements TransactionRepository {
          date = excluded.date,
          notes = excluded.notes,
          status = excluded.status,
+         kind = excluded.kind,
          transaction_group_id = excluded.transaction_group_id,
          updated_at = excluded.updated_at`,
       transaction.id,
@@ -160,6 +189,7 @@ export class SQLiteTransactionRepository implements TransactionRepository {
       transaction.date,
       transaction.notes ?? null,
       transaction.status,
+      transaction.kind,
       transaction.transactionGroupId ?? null,
       transaction.createdAt,
       transaction.updatedAt,

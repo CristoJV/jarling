@@ -39,7 +39,11 @@ export type SetCategoryTargetInput =
         fundingMode: RecurringFundingMode;
       }>)
   | (SetCategoryTargetBase &
-      Readonly<{ kind: 'custom'; customFundingMode: CustomFundingMode }>);
+      Readonly<{
+        kind: 'custom';
+        customFundingMode: CustomFundingMode;
+        targetDate?: string;
+      }>);
 
 type TargetDefinition = Pick<
   CategoryTarget,
@@ -92,6 +96,7 @@ function definition(input: SetCategoryTargetInput): TargetDefinition {
         ...emptyDefinition,
         kind: input.kind,
         amount,
+        targetDate: input.targetDate,
         customFundingMode: input.customFundingMode,
       };
   }

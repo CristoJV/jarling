@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { SelectionModal } from '@/presentation/components/common/selection-modal';
+import { PasswordInputModal } from '@/presentation/components/common/password-input-modal';
 import { useApplication } from '@/presentation/contexts/application-context';
 import { useTranslation } from '@/presentation/localization/localization-provider';
 import {
@@ -27,6 +28,7 @@ import {
   type DateFormatPreference,
   type NumberFormatPreference,
   type ThemePreference,
+  parsePreferences,
 } from '@/presentation/preferences/preferences';
 import { usePreferences } from '@/presentation/preferences/preferences-provider';
 import type { AppTheme } from '@/presentation/theme/theme';
@@ -39,6 +41,7 @@ import { formatDate, formatMoney } from '@/presentation/utils/money';
 import { Money } from '@/domain/value-objects/money';
 
 type Selector = 'currency' | 'number' | 'placement' | 'date' | null;
+type DataAction = 'backup' | 'restore' | null;
 
 export function SettingsScreen() {
   const router = useRouter();
@@ -63,6 +66,61 @@ export function SettingsScreen() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [populating, setPopulating] = useState(false);
+  const [dataAction, setDataAction] = useState<DataAction>(null);
+  const [exporting, setExporting] = useState(false);
+
+  function requestExport() {
+    Alert.alert(t('settings.exportWarningTitle'), t('settings.exportWarning'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('settings.export'), onPress: () => void exportData() },
+    ]);
+  }
+
+  async function exportData() {
+    setExporting(true);
+    try {
+      await application.dataProtection.exportData(preferences);
+    } catch {
+      Alert.alert(t('settings.dataError'));
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  async function createBackup(password: string) {
+    await application.dataProtection.createBackup(password, preferences);
+    Alert.alert(t('settings.backupCreated'));
+  }
+
+  async function restoreBackup(password: string) {
+    const result = await application.dataProtection.restoreBackup(password);
+    if (!result.restored) return;
+    if (result.preferences !== undefined) {
+      await updatePreferences(
+        parsePreferences(JSON.stringify(result.preferences)),
+      );
+    }
+    Alert.alert(
+      t('settings.restoreComplete'),
+      t('settings.restoreCompleteBody'),
+      [{ text: t('common.done'), onPress: () => router.replace('/budget') }],
+    );
+  }
+
+  function requestRestore() {
+    Alert.alert(
+      t('settings.restoreWarningTitle'),
+      t('settings.restoreWarning'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('settings.restore'),
+          style: 'destructive',
+          onPress: () => setDataAction('restore'),
+        },
+      ],
+    );
+  }
 
   async function saveBudgetSettings() {
     if (!budgetDraft.budgetName.trim()) return;
@@ -300,6 +358,27 @@ export function SettingsScreen() {
           </View>
         </View>
 
+        <Text style={styles.sectionLabel}>{t('settings.dataSection')}</Text>
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>{t('settings.dataProtection')}</Text>
+          <Text style={styles.help}>{t('settings.encryptionDescription')}</Text>
+          <SettingsRow
+            label={exporting ? t('settings.exporting') : t('settings.export')}
+            onPress={requestExport}
+            value={t('settings.exportFormat')}
+          />
+          <SettingsRow
+            label={t('settings.backup')}
+            onPress={() => setDataAction('backup')}
+            value={t('settings.encrypted')}
+          />
+          <SettingsRow
+            label={t('settings.restore')}
+            onPress={requestRestore}
+            value=".jarling"
+          />
+        </View>
+
         <Text style={styles.sectionLabel}>{t('settings.development')}</Text>
         <View style={styles.card}>
           <Text style={styles.cardTitle}>{t('settings.sampleData')}</Text>
@@ -381,6 +460,23 @@ export function SettingsScreen() {
           }))}
           selectedValue={budgetDraft.dateFormat}
           title={t('settings.dateFormat')}
+        />
+      ) : null}
+      {dataAction ? (
+        <PasswordInputModal
+          confirm={dataAction === 'backup'}
+          onDismiss={() => setDataAction(null)}
+          onSubmit={dataAction === 'backup' ? createBackup : restoreBackup}
+          submitLabel={
+            dataAction === 'backup'
+              ? t('settings.createBackup')
+              : t('settings.restore')
+          }
+          title={
+            dataAction === 'backup'
+              ? t('settings.backup')
+              : t('settings.restore')
+          }
         />
       ) : null}
     </SafeAreaView>

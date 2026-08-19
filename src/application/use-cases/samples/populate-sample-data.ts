@@ -90,6 +90,7 @@ export class PopulateSampleData {
           amount: Money.fromCents(200_000),
           date: `${month}-01`,
           status: 'cleared',
+          kind: 'opening_balance',
           createdAt: instant,
           updatedAt: instant,
         }),

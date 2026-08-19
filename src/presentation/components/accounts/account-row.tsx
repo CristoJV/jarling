@@ -19,7 +19,9 @@ export function AccountRow({ summary, onPress }: AccountRowProps) {
     checking: t('accounts.checking'),
     savings: t('accounts.savings'),
     cash: t('accounts.cash'),
+    credit_card: t('accounts.creditCard'),
     tracking: t('accounts.tracking'),
+    loan: t('accounts.loan'),
   }[account.type];
 
   return (

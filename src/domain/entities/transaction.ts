@@ -9,6 +9,15 @@ export const TRANSACTION_STATUSES = [
 
 export type TransactionStatus = (typeof TRANSACTION_STATUSES)[number];
 
+export const TRANSACTION_KINDS = [
+  'standard',
+  'opening_balance',
+  'transfer',
+  'reconciliation_adjustment',
+] as const;
+
+export type TransactionKind = (typeof TRANSACTION_KINDS)[number];
+
 export type Transaction = Readonly<{
   id: string;
   accountId: string;
@@ -18,14 +27,16 @@ export type Transaction = Readonly<{
   date: string;
   notes?: string;
   status: TransactionStatus;
+  kind: TransactionKind;
   transactionGroupId?: string;
   createdAt: string;
   updatedAt: string;
 }>;
 
-type TransactionProperties = Omit<Transaction, 'payee' | 'notes'> & {
+type TransactionProperties = Omit<Transaction, 'payee' | 'notes' | 'kind'> & {
   payee?: string;
   notes?: string;
+  kind?: TransactionKind;
 };
 
 function optionalText(value: string | undefined): string | undefined {
@@ -65,6 +76,7 @@ export function createTransaction(
 
   return {
     ...required,
+    kind: properties.kind ?? 'standard',
     ...(payee ? { payee } : {}),
     ...(notes ? { notes } : {}),
   };
@@ -76,6 +88,7 @@ export function updateTransaction(
 ): Transaction {
   return createTransaction({
     ...changes,
+    kind: changes.kind ?? transaction.kind,
     id: transaction.id,
     createdAt: transaction.createdAt,
   });

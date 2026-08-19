@@ -26,6 +26,10 @@ import {
   useThemedStyles,
 } from '@/presentation/theme/theme-provider';
 import { formatMoney } from '@/presentation/utils/money';
+import {
+  categoryDisplayName,
+  groupDisplayName,
+} from '@/presentation/utils/category-name';
 
 type ReportKind = 'spending' | 'income' | 'netWorth';
 
@@ -160,9 +164,22 @@ function SpendingReport({ reports }: Readonly<{ reports: ReportsSnapshot }>) {
               <View style={styles.rowHeader}>
                 <View style={styles.rowCopy}>
                   <Text numberOfLines={1} style={styles.rowTitle}>
-                    {category.categoryName}
+                    {categoryDisplayName(
+                      {
+                        id: category.categoryId,
+                        name: category.categoryName,
+                      },
+                      t,
+                    )}
                   </Text>
-                  <Text style={styles.rowSubtitle}>{category.groupName}</Text>
+                  <Text style={styles.rowSubtitle}>
+                    {category.groupId
+                      ? groupDisplayName(
+                          { id: category.groupId, name: category.groupName },
+                          t,
+                        )
+                      : category.groupName}
+                  </Text>
                 </View>
                 <View style={styles.rowAmountCopy}>
                   <Text style={styles.rowAmount}>

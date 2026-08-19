@@ -4,6 +4,7 @@ export type Category = Readonly<{
   id: string;
   groupId: string;
   name: string;
+  linkedAccountId?: string;
   hidden: boolean;
   sortOrder: number;
   createdAt: string;

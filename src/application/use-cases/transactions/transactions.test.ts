@@ -110,6 +110,7 @@ describe('transaction use cases', () => {
       notes: 'Weekly shop',
       date: '2026-08-18',
       status: 'cleared',
+      kind: 'standard',
       createdAt: '2026-08-18T12:00:00.000Z',
       updatedAt: '2026-08-18T12:00:00.000Z',
     });
@@ -248,6 +249,7 @@ describe('transaction use cases', () => {
       payee: 'Refund',
       date: '2026-08-19',
       status: 'cleared',
+      kind: 'standard',
       createdAt: created.createdAt,
       updatedAt: '2026-08-18T12:00:00.000Z',
     });
@@ -277,6 +279,7 @@ describe('transaction use cases', () => {
       amount: Money.fromCents(100),
       date: '2026-08-18',
       status: 'reconciled',
+      kind: 'standard',
       createdAt: '2026-08-18T10:00:00.000Z',
       updatedAt: '2026-08-18T10:00:00.000Z',
     };

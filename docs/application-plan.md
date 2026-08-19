@@ -5,7 +5,7 @@
 
 ## 1. Estado y orden de ejecución
 
-Última actualización: 18 de agosto de 2026.
+Última actualización: 19 de agosto de 2026.
 
 | Orden | Fase                                                                | Estado      |
 | ----- | ------------------------------------------------------------------- | ----------- |
@@ -36,8 +36,8 @@ seleccionar.
 
 - Expo SDK 57, React Native 0.86, React 19 y TypeScript estricto.
 - Expo Router bajo `src/app/`.
-- SQLite local con un baseline consolidado y runner de migraciones conservado
-  para el futuro.
+- SQLite local cifrado con SQLCipher en Android/iOS, baseline consolidado y
+  runner de migraciones conservado para el futuro.
 - Clean Architecture pragmática:
 
 ```text
@@ -48,14 +48,14 @@ Presentation → Application → Domain ← Infrastructure
 
 - `ApplicationServices` y `createApplication` son los puntos de composición.
 - Repositorios in-memory para tests de casos de uso y SQLite para runtime.
-- Preferencias de presupuesto/aplicación persistidas mediante el KV store de
-  Expo SQLite, separadas de los datos financieros.
+- Clave SQLite aleatoria de 256 bits y preferencias persistidas en SecureStore.
+- Exportación JSON legible y backup/restauración `.jarling` cifrado con
+  contraseña mediante PBKDF2-HMAC-SHA256 y AES-256-GCM.
 - Temas light/dark/system, formatos configurables y bloqueo mediante las
   credenciales del dispositivo con Expo Local Authentication.
-- 162 tests después de completar Targets, Transfers, Reconciliation, Reports y
-  Settings.
-- Web y Android exportan correctamente. iOS nativo continúa pendiente de un
-  entorno macOS.
+- Typecheck, lint, tests unitarios/integración y smoke E2E con IDs estables.
+- El export web pasa. Android genera el proyecto nativo con SQLCipher y queda
+  sujeto al build del entorno Android; iOS nativo requiere un entorno macOS.
 
 ### Mapa rápido del código
 
@@ -69,8 +69,9 @@ src/app/                    rutas Expo Router sin lógica de negocio
 ```
 
 No crear capas nuevas ni estados globales salvo una necesidad demostrable. Las
-dependencias nativas se mantienen limitadas a DateTimePicker, Local
-Authentication e iconos Expo.
+dependencias nativas se limitan a capacidades concretas: fecha, autenticación
+local, almacenamiento seguro, SQLite/SQLCipher, selección y compartición de
+archivos e iconos Expo.
 
 ## 4. Comportamiento financiero existente
 
@@ -125,7 +126,9 @@ type CustomFundingMode = 'set_aside' | 'fill_up_to' | 'balance';
 - Monthly guarda último día (`0`) o día 1–31; en meses cortos se ajusta al
   último día real.
 - Yearly guarda una fecha válida y repite el objetivo cada año.
-- Custom guarda la estrategia de aportar, rellenar o mantener saldo.
+- Custom guarda la estrategia de aportar, rellenar o mantener saldo y puede
+  incluir una fecha objetivo para repartir la aportación entre los meses
+  restantes.
 - Al cambiar de tipo se limpian todos los campos exclusivos del tipo anterior.
 - Una categoría oculta conserva su target y ninguna operación de target mueve
   dinero por sí sola.
@@ -156,7 +159,7 @@ repone solo lo gastado. Custom aplica la misma distinción entre `set_aside`,
 `category_targets` contiene `day_of_week`, `funding_mode`,
 `day_of_month`, `target_date` y `custom_funding_mode`, con una restricción SQL
 que impide combinar campos de tipos distintos. La base activa es
-`jarling-development-v5.db`; el runner de migraciones se conserva para el
+`jarling-secure-v1.db`; el runner de migraciones se conserva para el
 futuro, pero no se migra información de desarrollo anterior.
 
 Los casos de uso son `GetCategoryTargets`, `SetCategoryTarget` y
@@ -201,7 +204,8 @@ repositorio ofrece `findAll`, `findByCategory`, `save` y `deleteByCategory`.
   redondeo en céntimos, estrategias y progress `0..1`.
 - Tests de integración garantizan que los targets no modifican RTA ni Budget.
 - Demo es idempotente y solo referencia categorías predeterminadas.
-- Typecheck, lint, 162 tests y exports web/Android deben pasar.
+- Typecheck, lint, 171 tests y export web pasan. El build Android debe
+  verificarse además en un entorno con la versión de NDK requerida completa.
 - Queda únicamente el smoke test visual en un dispositivo Android real.
 
 ### 5.7 Payees
@@ -217,8 +221,10 @@ repositorio ofrece `findAll`, `findByCategory`, `save` y `deleteByCategory`.
 Estado: completada y validada automáticamente. Pendiente únicamente del smoke
 test de interacción en un dispositivo Android real.
 
-- Una transferencia se representa con dos transacciones sin categoría, de
-  signos opuestos y unidas por el mismo `transactionGroupId` genérico.
+- Una transferencia se representa con dos transacciones de signos opuestos y
+  unidas por el mismo `transactionGroupId` genérico. Normalmente no tienen
+  categoría; al pagar una tarjeta de crédito, la parte de origen usa su
+  categoría de pago enlazada para reflejar el movimiento entre sobres.
 - Crear, actualizar y eliminar opera sobre ambas partes dentro de un único
   `UnitOfWork`; nunca puede persistirse media transferencia.
 - La cuenta de origen y la de destino deben existir, estar abiertas y ser

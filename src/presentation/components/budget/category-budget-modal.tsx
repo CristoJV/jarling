@@ -10,6 +10,7 @@ import { formatMoney } from '@/presentation/utils/money';
 import { useTranslation } from '@/presentation/localization/localization-provider';
 import type { AppTheme } from '@/presentation/theme/theme';
 import { useThemedStyles } from '@/presentation/theme/theme-provider';
+import { categoryDisplayName } from '@/presentation/utils/category-name';
 
 type CategoryBudgetModalProps = Readonly<{
   values: BudgetCategoryValues;
@@ -52,7 +53,7 @@ export function CategoryBudgetModal({
         <View style={styles.header}>
           <View>
             <Text numberOfLines={1} style={styles.title}>
-              {values.category.name}
+              {categoryDisplayName(values.category, t)}
             </Text>
             <Text style={styles.subtitle}>{monthLabel}</Text>
           </View>

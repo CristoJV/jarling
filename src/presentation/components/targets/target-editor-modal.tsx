@@ -106,6 +106,9 @@ export function TargetEditorModal({
   const [customFundingMode, setCustomFundingMode] = useState<CustomFundingMode>(
     target?.customFundingMode ?? 'set_aside',
   );
+  const [customHasDate, setCustomHasDate] = useState(
+    target?.kind === 'custom' && target.targetDate !== undefined,
+  );
   const [selectingMonthlyDay, setSelectingMonthlyDay] = useState(false);
   const [selectingDate, setSelectingDate] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -125,7 +128,12 @@ export function TargetEditorModal({
           ? { ...common, kind, dayOfMonth, fundingMode }
           : kind === 'yearly'
             ? { ...common, kind, targetDate, fundingMode }
-            : { ...common, kind, customFundingMode };
+            : {
+                ...common,
+                kind,
+                customFundingMode,
+                ...(customHasDate ? { targetDate } : {}),
+              };
     setSubmitting(true);
     setError(null);
     try {
@@ -315,6 +323,32 @@ export function TargetEditorModal({
                     onPress={() => setCustomFundingMode(mode.value)}
                   />
                 ))}
+                <Pressable
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: customHasDate }}
+                  onPress={() => setCustomHasDate((current) => !current)}
+                  style={styles.selector}
+                >
+                  <Text style={styles.selectorText}>
+                    {customHasDate
+                      ? t('targets.removeDate')
+                      : t('targets.addDate')}
+                  </Text>
+                  <Text style={styles.selectorArrow}>
+                    {customHasDate ? '−' : '+'}
+                  </Text>
+                </Pressable>
+                {customHasDate ? (
+                  <Pressable
+                    onPress={() => setSelectingDate(true)}
+                    style={styles.selector}
+                  >
+                    <Text style={styles.selectorText}>
+                      {formatDate(targetDate, language)}
+                    </Text>
+                    <Text style={styles.selectorArrow}>›</Text>
+                  </Pressable>
+                ) : null}
               </View>
             ) : null}
 
@@ -356,7 +390,11 @@ export function TargetEditorModal({
       ) : null}
       {selectingDate ? (
         <NativeDatePicker
-          title={t('targets.yearlyDate')}
+          title={
+            kind === 'custom'
+              ? t('targets.customDate')
+              : t('targets.yearlyDate')
+          }
           value={targetDate}
           onChange={setTargetDate}
           onDismiss={() => setSelectingDate(false)}

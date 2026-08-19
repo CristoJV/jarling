@@ -12,6 +12,10 @@ import { targetDescription } from '@/presentation/utils/target';
 import { useTranslation } from '@/presentation/localization/localization-provider';
 import type { AppTheme } from '@/presentation/theme/theme';
 import { useThemedStyles } from '@/presentation/theme/theme-provider';
+import {
+  categoryDisplayName,
+  groupDisplayName,
+} from '@/presentation/utils/category-name';
 
 type EditBudgetModalProps = Readonly<{
   groups: readonly CategoryGroupSummary[];
@@ -72,12 +76,18 @@ export function EditBudgetModal({
           {groups.map(({ group, categories }) => (
             <View key={group.id} style={styles.groupSection}>
               <View style={styles.groupHeader}>
-                <Pressable onPress={() => onRenameGroup(group.id, group.name)}>
-                  <Text style={styles.groupName}>{group.name}</Text>
+                <Pressable
+                  onPress={() =>
+                    onRenameGroup(group.id, groupDisplayName(group, t))
+                  }
+                >
+                  <Text style={styles.groupName}>
+                    {groupDisplayName(group, t)}
+                  </Text>
                 </Pressable>
                 <Pressable
                   accessibilityLabel={t('budget.addCategoryTo', {
-                    group: group.name,
+                    group: groupDisplayName(group, t),
                   })}
                   onPress={() => onAddCategory(group.id)}
                   style={styles.addButton}
@@ -98,7 +108,7 @@ export function EditBudgetModal({
                     >
                       <View style={styles.categoryCopy}>
                         <Text numberOfLines={1} style={styles.categoryName}>
-                          {category.name}
+                          {categoryDisplayName(category, t)}
                         </Text>
                         {category.hidden ? (
                           <Text style={styles.hidden}>

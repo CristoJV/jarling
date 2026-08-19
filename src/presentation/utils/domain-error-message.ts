@@ -1,6 +1,7 @@
 import { AccountNotFoundError } from '@/domain/errors/account-not-found-error';
 import { CategoryGroupNotFoundError } from '@/domain/errors/category-group-not-found-error';
 import { CategoryNotFoundError } from '@/domain/errors/category-not-found-error';
+import { CategoryNotAllowedForTrackingAccountError } from '@/domain/errors/category-not-allowed-for-tracking-account-error';
 import { CannotModifyReconciledTransactionError } from '@/domain/errors/cannot-modify-reconciled-transaction-error';
 import { CategoryRequiredForExpenseError } from '@/domain/errors/category-required-for-expense-error';
 import { ClosedAccountError } from '@/domain/errors/closed-account-error';
@@ -67,6 +68,10 @@ export function domainErrorMessage(error: unknown, t: Translate): string {
 
   if (error instanceof CategoryRequiredForExpenseError) {
     return t('errors.categoryRequired');
+  }
+
+  if (error instanceof CategoryNotAllowedForTrackingAccountError) {
+    return t('errors.trackingCategory');
   }
 
   if (error instanceof ClosedAccountError) {

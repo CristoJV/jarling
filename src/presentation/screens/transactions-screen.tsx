@@ -30,6 +30,7 @@ import {
   type TransactionSearchField,
   upsertTransactionSearch,
 } from '@/presentation/utils/transaction-search';
+import { categoryDisplayName } from '@/presentation/utils/category-name';
 
 type EditorState = 'create' | TransactionSummary | null;
 
@@ -52,6 +53,8 @@ export function TransactionsScreen() {
   const [accountId, setAccountId] = useState<string | undefined>();
   const [categoryId, setCategoryId] = useState<string | undefined>();
   const [editor, setEditor] = useState<EditorState>(null);
+  const [linkedTransaction, setLinkedTransaction] =
+    useState<TransactionSummary>();
   const filters = useMemo(
     () => ({
       ...Object.fromEntries(
@@ -62,8 +65,17 @@ export function TransactionsScreen() {
     }),
     [accountId, appliedSearches, categoryId],
   );
-  const { data, error, loading, refresh, save, deleteTransaction } =
-    useTransactions(filters);
+  const {
+    data,
+    error,
+    loading,
+    loadingMore,
+    refresh,
+    loadMore,
+    getLinkedTransaction,
+    save,
+    deleteTransaction,
+  } = useTransactions(filters);
   const visibleEditor: EditorState =
     editor ?? (parameters.create === '1' ? 'create' : null);
 
@@ -114,7 +126,7 @@ export function TransactionsScreen() {
     );
   }
 
-  function edit(summary: TransactionSummary) {
+  async function edit(summary: TransactionSummary) {
     if (summary.transaction.status === 'reconciled') {
       Alert.alert(
         t('transactions.reconciledTitle'),
@@ -122,11 +134,20 @@ export function TransactionsScreen() {
       );
       return;
     }
+    setLinkedTransaction(
+      summary.transaction.transactionGroupId
+        ? await getLinkedTransaction(
+            summary.transaction.transactionGroupId,
+            summary.transaction.id,
+          )
+        : undefined,
+    );
     setEditor(summary);
   }
 
   const categories =
     data?.categoryGroups.flatMap(({ categories }) => categories) ?? [];
+  const selectedCategoryFilter = categories.find(({ id }) => id === categoryId);
 
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
@@ -211,7 +232,7 @@ export function TransactionsScreen() {
                       <SuggestionOption
                         icon="shape-outline"
                         key={category.id}
-                        label={category.name}
+                        label={categoryDisplayName(category, t)}
                         onPress={() => {
                           setCategoryId(category.id);
                           continueRefiningSearch();
@@ -258,8 +279,9 @@ export function TransactionsScreen() {
               <AppliedFilter
                 label={t('transactions.categoryFilter', {
                   value:
-                    categories.find(({ id }) => id === categoryId)?.name ??
-                    categoryId,
+                    (selectedCategoryFilter
+                      ? categoryDisplayName(selectedCategoryFilter, t)
+                      : categoryId) ?? '',
                 })}
                 onRemove={() => setCategoryId(undefined)}
               />
@@ -270,12 +292,20 @@ export function TransactionsScreen() {
 
       <ScrollView
         contentContainerStyle={styles.content}
+        onScroll={({ nativeEvent }) => {
+          const distance =
+            nativeEvent.contentSize.height -
+            nativeEvent.layoutMeasurement.height -
+            nativeEvent.contentOffset.y;
+          if (distance < 240) void loadMore();
+        }}
         refreshControl={
           <RefreshControl
             onRefresh={() => void refresh()}
             refreshing={loading && data !== null}
           />
         }
+        scrollEventThrottle={160}
       >
         {error ? <Text style={styles.error}>{error}</Text> : null}
         {loading && !data ? (
@@ -297,16 +327,22 @@ export function TransactionsScreen() {
           <TransactionRow
             key={summary.transaction.id}
             onDelete={() => requestDelete(summary)}
-            onEdit={() => edit(summary)}
+            onEdit={() => void edit(summary)}
             summary={summary}
           />
         ))}
+        {loadingMore ? (
+          <ActivityIndicator color={theme.colors.primary} />
+        ) : null}
       </ScrollView>
 
       <Pressable
         accessibilityLabel={t('transactions.add')}
         accessibilityRole="button"
-        onPress={() => setEditor('create')}
+        onPress={() => {
+          setLinkedTransaction(undefined);
+          setEditor('create');
+        }}
         style={styles.fab}
       >
         <Text style={styles.fabText}>+ {t('budget.addTransaction')}</Text>
@@ -330,15 +366,7 @@ export function TransactionsScreen() {
             )
           }
           linkedTransaction={
-            visibleEditor === 'create' ||
-            !visibleEditor.transaction.transactionGroupId
-              ? undefined
-              : data.allTransactions.find(
-                  ({ transaction }) =>
-                    transaction.transactionGroupId ===
-                      visibleEditor.transaction.transactionGroupId &&
-                    transaction.id !== visibleEditor.transaction.id,
-                )
+            visibleEditor === 'create' ? undefined : linkedTransaction
           }
           transaction={visibleEditor === 'create' ? undefined : visibleEditor}
         />

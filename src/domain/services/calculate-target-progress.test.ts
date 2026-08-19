@@ -7,7 +7,7 @@ const base = {
   id: 'target-1',
   categoryId: 'category-1',
   amount: Money.fromCents(30_000),
-  createdAt: '2026-08-18T10:00:00.000Z',
+  createdAt: '2026-07-01T10:00:00.000Z',
   updatedAt: '2026-08-18T10:00:00.000Z',
 } as const;
 
@@ -133,6 +133,38 @@ describe('calculateTargetProgress', () => {
     );
     expect(calculate(target, 10_000, 0, '2026-11').recommended).toEqual(
       Money.fromCents(3_334),
+    );
+  });
+
+  it('does not ask for funding before a target exists', () => {
+    const target: CategoryTarget = {
+      ...base,
+      createdAt: '2026-08-18T10:00:00.000Z',
+      kind: 'monthly',
+      dayOfMonth: 0,
+      fundingMode: 'set_aside',
+    };
+
+    expect(calculate(target, 0, 0, '2026-07')).toEqual({
+      goal: Money.zero(),
+      funded: Money.zero(),
+      recommended: Money.zero(),
+      progress: 1,
+      status: 'complete',
+    });
+  });
+
+  it('adapts a dated custom goal across its remaining months', () => {
+    const target: CategoryTarget = {
+      ...base,
+      kind: 'custom',
+      amount: Money.fromCents(100_000),
+      customFundingMode: 'set_aside',
+      targetDate: '2026-09-30',
+    };
+
+    expect(calculate(target, 40_000, 40_000).recommended).toEqual(
+      Money.fromCents(10_000),
     );
   });
 

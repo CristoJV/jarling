@@ -14,7 +14,7 @@ export class InMemoryTransactionRepository implements TransactionRepository {
     const payee = filters.payee?.trim().toLocaleLowerCase();
     const memo = filters.memo?.trim().toLocaleLowerCase();
 
-    return [...this.transactions.values()]
+    const matching = [...this.transactions.values()]
       .filter(
         (transaction) =>
           !filters.accountId || transaction.accountId === filters.accountId,
@@ -40,6 +40,11 @@ export class InMemoryTransactionRepository implements TransactionRepository {
       )
       .filter(
         (transaction) =>
+          !filters.transactionGroupId ||
+          transaction.transactionGroupId === filters.transactionGroupId,
+      )
+      .filter(
+        (transaction) =>
           !search ||
           transaction.payee?.toLocaleLowerCase().includes(search) ||
           transaction.notes?.toLocaleLowerCase().includes(search),
@@ -49,6 +54,10 @@ export class InMemoryTransactionRepository implements TransactionRepository {
           right.date.localeCompare(left.date) ||
           right.createdAt.localeCompare(left.createdAt),
       );
+    const offset = Math.max(0, Math.trunc(filters.offset ?? 0));
+    return filters.limit
+      ? matching.slice(offset, offset + Math.max(1, Math.trunc(filters.limit)))
+      : matching;
   }
 
   async findByAccount(accountId: string): Promise<readonly Transaction[]> {
@@ -60,8 +69,24 @@ export class InMemoryTransactionRepository implements TransactionRepository {
   }
 
   async findByGroup(groupId: string): Promise<readonly Transaction[]> {
-    return [...this.transactions.values()].filter(
-      ({ transactionGroupId }) => transactionGroupId === groupId,
+    return this.findAll({ transactionGroupId: groupId });
+  }
+
+  async findDistinctPayees(): Promise<readonly string[]> {
+    const payees = new Map<string, string>();
+    for (const {
+      payee,
+      transactionGroupId,
+      kind,
+    } of this.transactions.values()) {
+      const normalized = payee?.trim();
+      if (normalized && !transactionGroupId && kind === 'standard') {
+        const key = normalized.toLocaleLowerCase();
+        if (!payees.has(key)) payees.set(key, normalized);
+      }
+    }
+    return [...payees.values()].sort((left, right) =>
+      left.localeCompare(right, undefined, { sensitivity: 'base' }),
     );
   }
 

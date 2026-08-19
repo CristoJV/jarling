@@ -8,7 +8,14 @@ import type {
 
 export type GetTransactionsInput = Pick<
   TransactionFilters,
-  'accountId' | 'categoryId' | 'search' | 'payee' | 'memo'
+  | 'accountId'
+  | 'categoryId'
+  | 'search'
+  | 'payee'
+  | 'memo'
+  | 'transactionGroupId'
+  | 'limit'
+  | 'offset'
 >;
 
 export type TransactionSummary = Readonly<{

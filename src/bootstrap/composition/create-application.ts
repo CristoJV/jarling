@@ -41,6 +41,7 @@ import { SQLiteCategoryTargetRepository } from '@/infrastructure/persistence/sql
 import { SQLiteTransactionRepository } from '@/infrastructure/persistence/sqlite/repositories/sqlite-transaction-repository';
 import { ExpoIdGenerator } from '@/infrastructure/system/expo-id-generator';
 import { SystemClock } from '@/infrastructure/system/system-clock';
+import { SQLiteDataProtection } from '@/infrastructure/security/sqlite-data-protection';
 
 export function createApplication(
   database: SQLiteDatabase,
@@ -70,9 +71,17 @@ export function createApplication(
 
   return {
     accounts: {
-      create: new CreateAccount(accounts, transactions, unitOfWork, ids, clock),
+      create: new CreateAccount(
+        accounts,
+        categoryGroups,
+        categories,
+        transactions,
+        unitOfWork,
+        ids,
+        clock,
+      ),
       getAll: new GetAccounts(accounts, transactions),
-      close: new CloseAccount(accounts, unitOfWork, clock),
+      close: new CloseAccount(accounts, categories, unitOfWork, clock),
       getReconciliation: new GetReconciliation(accounts, transactions, clock),
       reconcile: new ReconcileAccount(
         accounts,
@@ -155,12 +164,19 @@ export function createApplication(
     transfers: {
       create: new CreateTransfer(
         accounts,
+        categories,
         transactions,
         unitOfWork,
         ids,
         clock,
       ),
-      update: new UpdateTransfer(accounts, transactions, unitOfWork, clock),
+      update: new UpdateTransfer(
+        accounts,
+        categories,
+        transactions,
+        unitOfWork,
+        clock,
+      ),
     },
     reports: {
       get: new GetReports(accounts, categoryGroups, categories, transactions),
@@ -180,5 +196,6 @@ export function createApplication(
     plan: {
       delete: new DeletePlan(new SQLitePlanDataStore(database), ensureDefaults),
     },
+    dataProtection: new SQLiteDataProtection(database),
   };
 }

@@ -74,6 +74,7 @@ const transactionRow: TransactionRow = {
   date: '2026-08-18',
   notes: null,
   status: 'cleared',
+  kind: 'opening_balance',
   transaction_group_id: null,
   created_at: '2026-08-18T10:00:00.000Z',
   updated_at: '2026-08-18T10:00:00.000Z',
@@ -119,6 +120,7 @@ describe('SQLite repositories', () => {
       amount: Money.fromCents(200_000),
       date: '2026-08-18',
       status: 'cleared',
+      kind: 'opening_balance',
       createdAt: '2026-08-18T10:00:00.000Z',
       updatedAt: '2026-08-18T10:00:00.000Z',
     });
@@ -147,6 +149,7 @@ describe('SQLite repositories', () => {
       '2026-08-18',
       null,
       'cleared',
+      'opening_balance',
       'group-1',
       '2026-08-18T10:00:00.000Z',
       '2026-08-18T10:00:00.000Z',
@@ -169,6 +172,9 @@ describe('SQLite repositories', () => {
         memo: 'weekly',
         dateFrom: '2026-08-01',
         dateTo: '2026-08-31',
+        transactionGroupId: 'transfer-1',
+        limit: 25,
+        offset: 50,
       }),
     ).resolves.toEqual([transactionFromRow(transactionRow)]);
     expect(getAllAsync).toHaveBeenCalledWith(
@@ -177,10 +183,13 @@ describe('SQLite repositories', () => {
       'category-1',
       '2026-08-01',
       '2026-08-31',
+      'transfer-1',
       '%market%',
       '%market%',
       '%mercado%',
       '%weekly%',
+      25,
+      50,
     );
     await expect(repository.findById('opening-1')).resolves.toEqual(
       transactionFromRow(transactionRow),

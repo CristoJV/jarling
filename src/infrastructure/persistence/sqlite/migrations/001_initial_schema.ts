@@ -7,7 +7,9 @@ export const initialSchemaMigration: Migration = {
     CREATE TABLE accounts (
       id TEXT PRIMARY KEY NOT NULL,
       name TEXT NOT NULL CHECK (length(trim(name)) > 0),
-      type TEXT NOT NULL CHECK (type IN ('checking', 'savings', 'cash', 'tracking')),
+      type TEXT NOT NULL CHECK (type IN (
+        'checking', 'savings', 'cash', 'credit_card', 'tracking', 'loan'
+      )),
       on_budget INTEGER NOT NULL CHECK (on_budget IN (0, 1)),
       closed INTEGER NOT NULL CHECK (closed IN (0, 1)),
       created_at TEXT NOT NULL,
@@ -27,10 +29,12 @@ export const initialSchemaMigration: Migration = {
       group_id TEXT NOT NULL,
       name TEXT NOT NULL CHECK (length(trim(name)) > 0),
       hidden INTEGER NOT NULL CHECK (hidden IN (0, 1)),
+      linked_account_id TEXT UNIQUE,
       sort_order INTEGER NOT NULL CHECK (typeof(sort_order) = 'integer'),
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
-      FOREIGN KEY (group_id) REFERENCES category_groups(id) ON DELETE RESTRICT
+      FOREIGN KEY (group_id) REFERENCES category_groups(id) ON DELETE RESTRICT,
+      FOREIGN KEY (linked_account_id) REFERENCES accounts(id) ON DELETE RESTRICT
     );
 
     CREATE TABLE transactions (
@@ -42,6 +46,9 @@ export const initialSchemaMigration: Migration = {
       date TEXT NOT NULL CHECK (length(date) = 10),
       notes TEXT,
       status TEXT NOT NULL CHECK (status IN ('uncleared', 'cleared', 'reconciled')),
+      kind TEXT NOT NULL DEFAULT 'standard' CHECK (kind IN (
+        'standard', 'opening_balance', 'transfer', 'reconciliation_adjustment'
+      )),
       transaction_group_id TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
@@ -92,7 +99,7 @@ export const initialSchemaMigration: Migration = {
         OR (kind = 'yearly' AND day_of_week IS NULL AND funding_mode IS NOT NULL
           AND day_of_month IS NULL AND target_date IS NOT NULL AND custom_funding_mode IS NULL)
         OR (kind = 'custom' AND day_of_week IS NULL AND funding_mode IS NULL
-          AND day_of_month IS NULL AND target_date IS NULL AND custom_funding_mode IS NOT NULL)
+          AND day_of_month IS NULL AND custom_funding_mode IS NOT NULL)
       )
     );
 
@@ -103,6 +110,7 @@ export const initialSchemaMigration: Migration = {
     CREATE INDEX transactions_category_id_idx ON transactions(category_id);
     CREATE INDEX transactions_date_idx ON transactions(date);
     CREATE INDEX transactions_group_id_idx ON transactions(transaction_group_id);
+    CREATE INDEX transactions_kind_idx ON transactions(kind);
     CREATE INDEX budget_allocations_month_idx ON budget_allocations(month);
     CREATE INDEX category_targets_kind_idx ON category_targets(kind);
   `,

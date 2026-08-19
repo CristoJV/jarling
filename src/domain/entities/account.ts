@@ -4,7 +4,9 @@ export const ACCOUNT_TYPES = [
   'checking',
   'savings',
   'cash',
+  'credit_card',
   'tracking',
+  'loan',
 ] as const;
 
 export type AccountType = (typeof ACCOUNT_TYPES)[number];
@@ -33,6 +35,12 @@ export function createAccount(properties: CreateAccountProperties): Account {
   return {
     ...properties,
     name,
+    onBudget:
+      properties.type === 'credit_card'
+        ? true
+        : properties.type === 'tracking' || properties.type === 'loan'
+          ? false
+          : properties.onBudget,
     closed: false,
   };
 }

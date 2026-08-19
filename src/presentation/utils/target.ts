@@ -40,7 +40,16 @@ export function targetDescription(
           : target.customFundingMode === 'fill_up_to'
             ? translate(language, 'targets.fillUpTo')
             : translate(language, 'targets.haveBalance');
-      return `${mode} ${formatMoney(target.amount)}`;
+      if (!target.targetDate) return `${mode} ${formatMoney(target.amount)}`;
+      const date = new Date(`${target.targetDate}T12:00:00`);
+      const label = Number.isNaN(date.getTime())
+        ? target.targetDate
+        : new Intl.DateTimeFormat(language, {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+          }).format(date);
+      return `${mode} ${formatMoney(target.amount)} · ${label}`;
     }
   }
 }

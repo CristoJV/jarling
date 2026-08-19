@@ -52,6 +52,9 @@ long-term goals.
 - Account balances and reconciliation against the real-world balance.
 - Income, spending, and net-worth reports.
 - Local SQLite storage with no account required.
+- SQLCipher encryption on Android and iOS, with the key held in the device
+  secure store.
+- Readable JSON exports and portable, password-encrypted backups/restoration.
 - Optional protection with the device credentials.
 - Light, dark, and system themes.
 - English and Spanish interfaces selected from the device language.
@@ -70,11 +73,12 @@ long-term goals.
 You need Node.js 22.13 or newer and npm. Native builds additionally require
 Android Studio or, on macOS, Xcode.
 
-Install the dependencies and start Expo:
+Install the dependencies. SQLCipher requires a native development build and is
+not available in Expo Go:
 
 ```bash
 npm install
-npx expo start
+npm run android
 ```
 
 Run a specific platform:
@@ -94,8 +98,10 @@ npm run format:check
 npm run typecheck
 npm run lint
 npm test
+npm run test:e2e # requires Maestro and a native build/emulator
 ```
 
 Jarling is under active development. Read the
 [application plan](docs/application-plan.md) for the roadmap, product decisions,
-and acceptance criteria.
+and acceptance criteria. Data handling is documented in the bilingual
+[privacy and data protection note](docs/privacy.md).

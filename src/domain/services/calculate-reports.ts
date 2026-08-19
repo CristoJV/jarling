@@ -18,6 +18,7 @@ export type ReportMonth = Readonly<{
 export type SpendingCategoryReport = Readonly<{
   categoryId: string;
   categoryName: string;
+  groupId?: string;
   groupName: string;
   spending: Money;
   percentage: number;
@@ -84,6 +85,7 @@ export function calculateReports({
     const categorized = monthlyTransactions.filter(
       (transaction) =>
         Boolean(transaction.categoryId) &&
+        transaction.kind === 'standard' &&
         accountById.get(transaction.accountId)?.onBudget === true,
     );
     const spendingCents = Math.max(
@@ -98,8 +100,7 @@ export function calculateReports({
         (transaction) =>
           accountById.get(transaction.accountId)?.onBudget === true &&
           !transaction.categoryId &&
-          !transaction.transactionGroupId &&
-          transaction.payee !== 'Opening Balance',
+          transaction.kind === 'standard',
       )
       .reduce((sum, transaction) => sum + transaction.amount.cents, 0);
 
@@ -136,6 +137,7 @@ export function calculateReports({
         transaction.date.slice(0, 7) >= firstMonth &&
         transaction.date.slice(0, 7) <= throughMonth &&
         Boolean(transaction.categoryId) &&
+        transaction.kind === 'standard' &&
         accountById.get(transaction.accountId)?.onBudget === true,
     )
     .forEach((transaction) => {
@@ -154,6 +156,7 @@ export function calculateReports({
       return {
         categoryId,
         categoryName: category?.name ?? 'Unknown category',
+        ...(category ? { groupId: category.groupId } : {}),
         groupName: category
           ? (groupById.get(category.groupId)?.name ?? 'Other')
           : 'Other',

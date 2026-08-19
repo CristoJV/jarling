@@ -76,6 +76,7 @@ export class ReconcileAccount {
               date: now.date,
               notes: 'Created to match the confirmed bank balance.',
               status: 'reconciled',
+              kind: 'reconciliation_adjustment',
               createdAt: now.instant,
               updatedAt: now.instant,
             });

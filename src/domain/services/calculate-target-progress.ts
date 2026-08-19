@@ -26,10 +26,16 @@ function daysInMonth(year: number, month: number): number {
   return new Date(Date.UTC(year, month, 0)).getUTCDate();
 }
 
-function weeklyOccurrences(month: string, dayOfWeek: number): number {
+function weeklyOccurrences(
+  month: string,
+  dayOfWeek: number,
+  notBefore?: string,
+): number {
   const [year, monthNumber] = month.split('-').map(Number);
   let count = 0;
   for (let day = 1; day <= daysInMonth(year ?? 0, monthNumber ?? 0); day += 1) {
+    const candidate = `${month}-${String(day).padStart(2, '0')}`;
+    if (notBefore && candidate < notBefore) continue;
     const jsDay = new Date(
       Date.UTC(year ?? 0, (monthNumber ?? 1) - 1, day),
     ).getUTCDay();
@@ -101,13 +107,29 @@ export function calculateTargetProgress({
     throw new InvalidCategoryTargetError('today must use YYYY-MM-DD');
   }
 
+  const createdDate = target.createdAt.slice(0, 10);
+  const createdMonth = createdDate.slice(0, 7);
+  if (month < createdMonth) {
+    return {
+      goal: Money.zero(),
+      funded: Money.zero(),
+      recommended: Money.zero(),
+      progress: 1,
+      status: 'complete',
+    };
+  }
+
   const funded = targetFunding(target, assigned, available, spent);
   let goalCents = target.amount.cents;
   let remainingMonths = 1;
   let overdue = false;
 
   if (target.kind === 'weekly') {
-    goalCents *= weeklyOccurrences(month, target.dayOfWeek ?? 1);
+    goalCents *= weeklyOccurrences(
+      month,
+      target.dayOfWeek ?? 1,
+      month === createdMonth ? createdDate : undefined,
+    );
   } else if (target.kind === 'monthly') {
     const dueDate = monthlyDueDate(month, target.dayOfMonth ?? 0);
     overdue =
@@ -121,11 +143,16 @@ export function calculateTargetProgress({
       dueMonth === month &&
       month === today.slice(0, 7) &&
       today > `${dueMonth}-${dueDay}`;
+  } else if (target.kind === 'custom' && target.targetDate) {
+    const dueMonth = target.targetDate.slice(0, 7);
+    remainingMonths = Math.max(1, inclusiveMonths(month, dueMonth));
+    overdue = month >= dueMonth && today > target.targetDate;
   }
 
   const remaining = Math.max(0, goalCents - funded.cents);
   const recommendedCents =
-    target.kind === 'yearly'
+    target.kind === 'yearly' ||
+    (target.kind === 'custom' && target.targetDate !== undefined)
       ? yearlyContributionNeeded({
           goalCents,
           fundedCents: funded.cents,

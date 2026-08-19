@@ -8,6 +8,9 @@ export type TransactionFilters = Readonly<{
   memo?: string;
   dateFrom?: string;
   dateTo?: string;
+  transactionGroupId?: string;
+  limit?: number;
+  offset?: number;
 }>;
 
 export interface TransactionRepository {
@@ -15,6 +18,7 @@ export interface TransactionRepository {
   findByAccount(accountId: string): Promise<readonly Transaction[]>;
   findById(id: string): Promise<Transaction | null>;
   findByGroup(groupId: string): Promise<readonly Transaction[]>;
+  findDistinctPayees(): Promise<readonly string[]>;
   save(transaction: Transaction): Promise<void>;
   deleteById(id: string): Promise<void>;
   deleteByGroup(groupId: string): Promise<void>;

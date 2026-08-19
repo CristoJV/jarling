@@ -26,6 +26,10 @@ import {
   useThemedStyles,
 } from '@/presentation/theme/theme-provider';
 import { formatDate, formatMoney } from '@/presentation/utils/money';
+import {
+  categoryDisplayName,
+  groupDisplayName,
+} from '@/presentation/utils/category-name';
 
 type TransactionEditorModalProps = Readonly<{
   accounts: AccountsOverview;
@@ -89,9 +93,12 @@ export function TransactionEditorModal({
       categoryGroups.flatMap(({ group, categories }) =>
         categories
           .filter((category) => !category.hidden)
-          .map((category) => ({ category, groupName: group.name })),
+          .map((category) => ({
+            category,
+            groupName: groupDisplayName(group, t),
+          })),
       ),
-    [categoryGroups],
+    [categoryGroups, t],
   );
   const [kind, setKind] = useState<TransactionKind>(
     existingTransfer
@@ -129,9 +136,16 @@ export function TransactionEditorModal({
   const accountName =
     availableAccounts.find(({ account }) => account.id === accountId)?.account
       .name ?? t('transactions.chooseAccount');
-  const categoryName = availableCategories.find(
+  const selectableSourceAccounts =
+    kind === 'expense'
+      ? availableAccounts.filter(({ account }) => account.onBudget)
+      : availableAccounts;
+  const selectedCategory = availableCategories.find(
     ({ category }) => category.id === categoryId,
-  )?.category.name;
+  )?.category;
+  const categoryName = selectedCategory
+    ? categoryDisplayName(selectedCategory, t)
+    : undefined;
   const destinationAccountName =
     availableAccounts.find(({ account }) => account.id === destinationAccountId)
       ?.account.name ?? t('transactions.chooseDestination');
@@ -352,7 +366,7 @@ export function TransactionEditorModal({
         <View style={[styles.bottomPanel, { paddingBottom: insets.bottom }]}>
           <View style={styles.actionBar}>
             <Pressable
-              disabled={submitting || availableAccounts.length === 0}
+              disabled={submitting || selectableSourceAccounts.length === 0}
               onPress={() => void submit()}
               style={[styles.save, submitting && styles.disabled]}
             >
@@ -376,7 +390,20 @@ export function TransactionEditorModal({
         {editor === 'kind' ? (
           <SelectionModal
             onDismiss={() => setEditor(null)}
-            onSelect={(value) => setKind(value)}
+            onSelect={(value) => {
+              setKind(value);
+              if (
+                value === 'expense' &&
+                !availableAccounts.find(
+                  ({ account }) => account.id === accountId,
+                )?.account.onBudget
+              ) {
+                setAccountId(
+                  availableAccounts.find(({ account }) => account.onBudget)
+                    ?.account.id ?? '',
+                );
+              }
+            }}
             options={[
               ...(existingTransfer
                 ? []
@@ -419,7 +446,7 @@ export function TransactionEditorModal({
           <SelectionModal
             onDismiss={() => setEditor(null)}
             onSelect={setAccountId}
-            options={availableAccounts
+            options={selectableSourceAccounts
               .filter(
                 ({ account }) =>
                   kind !== 'transfer' || account.id !== destinationAccountId,
@@ -452,7 +479,7 @@ export function TransactionEditorModal({
             onSelect={setCategoryId}
             options={availableCategories.map(({ category, groupName }) => ({
               value: category.id,
-              label: category.name,
+              label: categoryDisplayName(category, t),
               description: groupName,
             }))}
             selectedValue={categoryId}

@@ -10,6 +10,7 @@ function transaction(id: string, amountCents: number): Transaction {
     amount: Money.fromCents(amountCents),
     date: '2026-08-18',
     status: 'cleared',
+    kind: 'standard',
     createdAt: '2026-08-18T10:00:00.000Z',
     updatedAt: '2026-08-18T10:00:00.000Z',
   };

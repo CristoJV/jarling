@@ -42,7 +42,9 @@ export function CreateAccountModal({
     checking: t('accounts.checking'),
     savings: t('accounts.savings'),
     cash: t('accounts.cash'),
+    credit_card: t('accounts.creditCard'),
     tracking: t('accounts.tracking'),
+    loan: t('accounts.loan'),
   };
   const [name, setName] = useState('');
   const [type, setType] = useState<AccountType>('checking');
@@ -115,6 +117,7 @@ export function CreateAccountModal({
               placeholder={t('accounts.namePlaceholder')}
               placeholderTextColor={theme.colors.textMuted}
               style={styles.input}
+              testID="create-account-name"
               value={name}
             />
           </View>
@@ -153,7 +156,9 @@ export function CreateAccountModal({
               <Text style={styles.help}>{t('accounts.trackingHelp')}</Text>
             </View>
             <Switch
-              disabled={type === 'tracking'}
+              disabled={
+                type === 'tracking' || type === 'loan' || type === 'credit_card'
+              }
               onValueChange={setOnBudget}
               value={onBudget}
             />
@@ -170,6 +175,7 @@ export function CreateAccountModal({
             disabled={submitting}
             onPress={() => void submit()}
             style={[styles.submit, submitting && styles.submitDisabled]}
+            testID="create-account-submit"
           >
             <Text style={styles.submitText}>
               {submitting ? t('accounts.creating') : t('accounts.create')}
@@ -182,7 +188,8 @@ export function CreateAccountModal({
           onDismiss={() => setSelectingType(false)}
           onSelect={(value) => {
             setType(value);
-            if (value === 'tracking') setOnBudget(false);
+            if (value === 'tracking' || value === 'loan') setOnBudget(false);
+            if (value === 'credit_card') setOnBudget(true);
           }}
           options={ACCOUNT_TYPES.map((value) => ({
             value,
@@ -190,7 +197,11 @@ export function CreateAccountModal({
             description:
               value === 'tracking'
                 ? t('accounts.trackingDescription')
-                : t('accounts.budgetAccountDescription'),
+                : value === 'loan'
+                  ? t('accounts.loanDescription')
+                  : value === 'credit_card'
+                    ? t('accounts.creditCardDescription')
+                    : t('accounts.budgetAccountDescription'),
           }))}
           selectedValue={type}
           title={t('accounts.type')}

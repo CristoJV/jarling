@@ -7,6 +7,8 @@ import { InvalidMoneyError } from '@/domain/errors/invalid-money-error';
 import { Money } from '@/domain/value-objects/money';
 import { ImmediateUnitOfWork } from '@/infrastructure/persistence/in-memory/immediate-unit-of-work';
 import { InMemoryAccountRepository } from '@/infrastructure/persistence/in-memory/in-memory-account-repository';
+import { InMemoryCategoryGroupRepository } from '@/infrastructure/persistence/in-memory/in-memory-category-group-repository';
+import { InMemoryCategoryRepository } from '@/infrastructure/persistence/in-memory/in-memory-category-repository';
 import { InMemoryTransactionRepository } from '@/infrastructure/persistence/in-memory/in-memory-transaction-repository';
 
 import { CloseAccount } from './close-account';
@@ -50,18 +52,30 @@ class TrackingUnitOfWork implements UnitOfWork {
 
 function setup() {
   const accounts = new InMemoryAccountRepository();
+  const groups = new InMemoryCategoryGroupRepository();
+  const categories = new InMemoryCategoryRepository();
   const transactions = new InMemoryTransactionRepository();
   const unitOfWork = new TrackingUnitOfWork();
   const clock = new FixedClock();
   const createAccount = new CreateAccount(
     accounts,
+    groups,
+    categories,
     transactions,
     unitOfWork,
     new SequenceIdGenerator(['account-1', 'opening-1']),
     clock,
   );
 
-  return { accounts, transactions, unitOfWork, clock, createAccount };
+  return {
+    accounts,
+    groups,
+    categories,
+    transactions,
+    unitOfWork,
+    clock,
+    createAccount,
+  };
 }
 
 describe('account use cases', () => {
@@ -95,6 +109,30 @@ describe('account use cases', () => {
       }),
     ]);
     expect(unitOfWork.executions).toBe(1);
+  });
+
+  it('creates a credit card with its linked payment category', async () => {
+    const { createAccount, groups, categories } = setup();
+
+    const account = await createAccount.execute({
+      name: 'Visa',
+      type: 'credit_card',
+      onBudget: false,
+      openingBalanceCents: -50_000,
+    });
+
+    expect(account.onBudget).toBe(true);
+    await expect(
+      groups.findById('system-group-credit-card-payments'),
+    ).resolves.not.toBeNull();
+    await expect(
+      categories.findByGroup('system-group-credit-card-payments'),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        name: '💳 Visa',
+        linkedAccountId: account.id,
+      }),
+    ]);
   });
 
   it.each([
@@ -132,6 +170,7 @@ describe('account use cases', () => {
       amount: Money.fromCents(-5_000),
       date: '2026-08-18',
       status: 'cleared',
+      kind: 'standard',
       createdAt: '2026-08-18T12:00:00.000Z',
       updatedAt: '2026-08-18T12:00:00.000Z',
     });
@@ -150,7 +189,8 @@ describe('account use cases', () => {
   });
 
   it('closes an account without deleting its history', async () => {
-    const { accounts, transactions, clock, createAccount } = setup();
+    const { accounts, categories, transactions, clock, createAccount } =
+      setup();
     const account = await createAccount.execute({
       name: 'imagin',
       type: 'checking',
@@ -160,6 +200,7 @@ describe('account use cases', () => {
 
     const closed = await new CloseAccount(
       accounts,
+      categories,
       new ImmediateUnitOfWork(),
       clock,
     ).execute(account.id);
@@ -175,6 +216,7 @@ describe('account use cases', () => {
     await expect(
       new CloseAccount(
         accounts,
+        new InMemoryCategoryRepository(),
         new ImmediateUnitOfWork(),
         new FixedClock(),
       ).execute('missing'),

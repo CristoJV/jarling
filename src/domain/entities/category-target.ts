@@ -60,8 +60,7 @@ function hasOnlyCustomFields(target: CategoryTarget): boolean {
   return (
     target.dayOfWeek === undefined &&
     target.fundingMode === undefined &&
-    target.dayOfMonth === undefined &&
-    target.targetDate === undefined
+    target.dayOfMonth === undefined
   );
 }
 
@@ -117,10 +116,12 @@ export function createCategoryTarget(
         !['set_aside', 'fill_up_to', 'balance'].includes(
           properties.customFundingMode ?? '',
         ) ||
+        (properties.targetDate !== undefined &&
+          !isValidDate(properties.targetDate)) ||
         !hasOnlyCustomFields(properties)
       ) {
         throw new InvalidCategoryTargetError(
-          'custom targets require only a funding mode',
+          'custom targets require a funding mode and an optional valid date',
         );
       }
       break;

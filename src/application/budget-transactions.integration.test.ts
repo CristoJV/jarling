@@ -55,6 +55,8 @@ describe('accounts, transactions and budget integration', () => {
     ]);
     const account = await new CreateAccount(
       accounts,
+      groups,
+      categories,
       transactions,
       unitOfWork,
       ids,

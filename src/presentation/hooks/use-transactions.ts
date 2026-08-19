@@ -1,5 +1,5 @@
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 
 import type { AccountsOverview } from '@/application/use-cases/accounts/get-accounts';
 import type { CategoryGroupSummary } from '@/application/use-cases/categories/get-category-groups';
@@ -15,11 +15,13 @@ import { domainErrorMessage } from '@/presentation/utils/domain-error-message';
 
 export type TransactionScreenData = Readonly<{
   transactions: readonly TransactionSummary[];
-  allTransactions: readonly TransactionSummary[];
+  hasMore: boolean;
   accounts: AccountsOverview;
   categoryGroups: readonly CategoryGroupSummary[];
   payees: readonly string[];
 }>;
+
+const PAGE_SIZE = 100;
 
 export type TransactionEditorInput = TransactionInput | TransferInput;
 
@@ -29,17 +31,27 @@ export function useTransactions(filters: GetTransactionsInput) {
   const [data, setData] = useState<TransactionScreenData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const loadingMoreRef = useRef(false);
 
   const load = useCallback(async () => {
-    const [transactions, allTransactions, accounts, categoryGroups, payees] =
-      await Promise.all([
-        application.transactions.getAll.execute(filters),
-        application.transactions.getAll.execute(),
-        application.accounts.getAll.execute(),
-        application.categories.getGroups.execute(),
-        application.transactions.getPayees.execute(),
-      ]);
-    return { transactions, allTransactions, accounts, categoryGroups, payees };
+    const [transactions, accounts, categoryGroups, payees] = await Promise.all([
+      application.transactions.getAll.execute({
+        ...filters,
+        limit: PAGE_SIZE,
+        offset: 0,
+      }),
+      application.accounts.getAll.execute(),
+      application.categories.getGroups.execute(),
+      application.transactions.getPayees.execute(),
+    ]);
+    return {
+      transactions,
+      hasMore: transactions.length === PAGE_SIZE,
+      accounts,
+      categoryGroups,
+      payees,
+    };
   }, [application, filters]);
 
   const refresh = useCallback(async () => {
@@ -127,5 +139,53 @@ export function useTransactions(filters: GetTransactionsInput) {
     [application, refresh, t],
   );
 
-  return { data, error, loading, refresh, save, deleteTransaction };
+  const loadMore = useCallback(async () => {
+    if (!data?.hasMore || loadingMoreRef.current) return;
+    loadingMoreRef.current = true;
+    setLoadingMore(true);
+    try {
+      const transactions = await application.transactions.getAll.execute({
+        ...filters,
+        limit: PAGE_SIZE,
+        offset: data.transactions.length,
+      });
+      setData((current) =>
+        current
+          ? {
+              ...current,
+              transactions: [...current.transactions, ...transactions],
+              hasMore: transactions.length === PAGE_SIZE,
+            }
+          : current,
+      );
+    } catch (cause) {
+      setError(domainErrorMessage(cause, t));
+    } finally {
+      loadingMoreRef.current = false;
+      setLoadingMore(false);
+    }
+  }, [application, data, filters, t]);
+
+  const getLinkedTransaction = useCallback(
+    async (transactionGroupId: string, currentId: string) => {
+      const group = await application.transactions.getAll.execute({
+        transactionGroupId,
+        limit: 2,
+      });
+      return group.find(({ transaction }) => transaction.id !== currentId);
+    },
+    [application],
+  );
+
+  return {
+    data,
+    error,
+    loading,
+    loadingMore,
+    refresh,
+    loadMore,
+    getLinkedTransaction,
+    save,
+    deleteTransaction,
+  };
 }

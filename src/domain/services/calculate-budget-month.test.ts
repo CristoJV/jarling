@@ -46,6 +46,25 @@ const trackingAccount: Account = {
   type: 'tracking',
   onBudget: false,
 };
+const creditCard: Account = {
+  ...onBudgetAccount,
+  id: 'credit-1',
+  name: 'Visa',
+  type: 'credit_card',
+};
+const paymentGroup: CategoryGroup = {
+  ...group,
+  id: 'credit-payments',
+  name: 'Credit Card Payments',
+  sortOrder: 1,
+};
+const paymentCategory: Category = {
+  ...groceries,
+  id: 'visa-payment',
+  groupId: paymentGroup.id,
+  name: '💳 Visa',
+  linkedAccountId: creditCard.id,
+};
 
 function transaction(
   id: string,
@@ -61,6 +80,7 @@ function transaction(
     amount: Money.fromCents(amountCents),
     date,
     status: 'cleared',
+    kind: 'standard',
     createdAt: instant,
     updatedAt: instant,
   };
@@ -207,6 +227,103 @@ describe('calculateBudgetMonth', () => {
 
     expect(result.groups[0]?.categories[1]?.available).toEqual(
       Money.fromCents(-2_000),
+    );
+  });
+
+  it('moves funded card spending into its payment category without creating cash', () => {
+    const result = calculateBudgetMonth({
+      month: '2026-08',
+      accounts: [onBudgetAccount, creditCard],
+      groups: [group, paymentGroup],
+      categories: [groceries, paymentCategory],
+      allocations: [allocation('food', groceries.id, '2026-08', 20_000)],
+      transactions: [
+        {
+          ...transaction('cash', 100_000, '2026-08-01'),
+          kind: 'opening_balance',
+        },
+        {
+          ...transaction(
+            'debt',
+            -50_000,
+            '2026-08-01',
+            undefined,
+            creditCard.id,
+          ),
+          kind: 'opening_balance',
+        },
+        transaction(
+          'card-spend',
+          -10_000,
+          '2026-08-10',
+          groceries.id,
+          creditCard.id,
+        ),
+        {
+          ...transaction(
+            'payment-out',
+            -10_000,
+            '2026-08-15',
+            paymentCategory.id,
+          ),
+          kind: 'transfer',
+          transactionGroupId: 'payment',
+        },
+        {
+          ...transaction(
+            'payment-in',
+            10_000,
+            '2026-08-15',
+            undefined,
+            creditCard.id,
+          ),
+          kind: 'transfer',
+          transactionGroupId: 'payment',
+        },
+      ],
+    });
+
+    expect(result.readyToAssign).toEqual(Money.fromCents(80_000));
+    expect(result.groups[0]?.categories[0]).toEqual(
+      expect.objectContaining({
+        activity: Money.fromCents(-10_000),
+        available: Money.fromCents(10_000),
+      }),
+    );
+    expect(result.groups[1]?.categories[0]).toEqual(
+      expect.objectContaining({
+        activity: Money.zero(),
+        available: Money.zero(),
+      }),
+    );
+  });
+
+  it('moves only the funded portion of overspending into a card payment', () => {
+    const result = calculateBudgetMonth({
+      month: '2026-08',
+      accounts: [onBudgetAccount, creditCard],
+      groups: [group, paymentGroup],
+      categories: [groceries, paymentCategory],
+      allocations: [allocation('food', groceries.id, '2026-08', 5_000)],
+      transactions: [
+        transaction(
+          'card-spend',
+          -10_000,
+          '2026-08-10',
+          groceries.id,
+          creditCard.id,
+        ),
+      ],
+    });
+
+    expect(result.groups[0]?.categories[0]?.available).toEqual(
+      Money.fromCents(-5_000),
+    );
+    expect(result.groups[1]?.categories[0]).toEqual(
+      expect.objectContaining({
+        activity: Money.fromCents(5_000),
+        available: Money.fromCents(5_000),
+      }),
     );
   });
 });

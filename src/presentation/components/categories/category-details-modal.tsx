@@ -9,6 +9,7 @@ import { AnimatedBottomSheetModal } from '@/presentation/components/common/anima
 import { useTranslation } from '@/presentation/localization/localization-provider';
 import type { AppTheme } from '@/presentation/theme/theme';
 import { useThemedStyles } from '@/presentation/theme/theme-provider';
+import { categoryDisplayName } from '@/presentation/utils/category-name';
 
 type CategoryDetailsModalProps = Readonly<{
   values: BudgetCategoryValues;
@@ -37,7 +38,9 @@ export function CategoryDetailsModal({
 
         <Pressable onPress={onRename} style={styles.nameCard}>
           <Text style={styles.label}>{t('budget.categoryName')}</Text>
-          <Text style={styles.name}>{values.category.name}</Text>
+          <Text style={styles.name}>
+            {categoryDisplayName(values.category, t)}
+          </Text>
           <Text style={styles.editHint}>{t('budget.tapToRename')}</Text>
         </Pressable>
 

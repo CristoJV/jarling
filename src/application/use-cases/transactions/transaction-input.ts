@@ -1,6 +1,7 @@
 import type { TransactionStatus } from '@/domain/entities/transaction';
 import { AccountNotFoundError } from '@/domain/errors/account-not-found-error';
 import { CategoryNotFoundError } from '@/domain/errors/category-not-found-error';
+import { CategoryNotAllowedForTrackingAccountError } from '@/domain/errors/category-not-allowed-for-tracking-account-error';
 import { CategoryRequiredForExpenseError } from '@/domain/errors/category-required-for-expense-error';
 import { ClosedAccountError } from '@/domain/errors/closed-account-error';
 import { InvalidTransactionAmountError } from '@/domain/errors/invalid-transaction-amount-error';
@@ -55,6 +56,9 @@ export async function prepareTransactionInput(
   }
 
   if (input.kind === 'expense') {
+    if (!account.onBudget) {
+      throw new CategoryNotAllowedForTrackingAccountError();
+    }
     if (!input.categoryId) {
       throw new CategoryRequiredForExpenseError();
     }

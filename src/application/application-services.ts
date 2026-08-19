@@ -28,6 +28,7 @@ import type { CreateTransfer } from '@/application/use-cases/transfers/create-tr
 import type { UpdateTransfer } from '@/application/use-cases/transfers/update-transfer';
 import type { GetReports } from '@/application/use-cases/reports/get-reports';
 import type { DeletePlan } from '@/application/use-cases/plan/delete-plan';
+import type { DataProtection } from '@/application/ports/data-protection';
 
 export type ApplicationServices = Readonly<{
   accounts: Readonly<{
@@ -78,4 +79,5 @@ export type ApplicationServices = Readonly<{
   plan: Readonly<{
     delete: Pick<DeletePlan, 'execute'>;
   }>;
+  dataProtection: DataProtection;
 }>;

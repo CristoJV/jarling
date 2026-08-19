@@ -50,6 +50,7 @@ export default function TabsLayout() {
         name="budget"
         options={{
           title: t('tabs.budget'),
+          tabBarButtonTestID: 'tab-budget',
           tabBarIcon: ({ color }) => (
             <TabIcon color={color} name="piggy-bank-outline" />
           ),
@@ -59,6 +60,7 @@ export default function TabsLayout() {
         name="accounts"
         options={{
           title: t('tabs.accounts'),
+          tabBarButtonTestID: 'tab-accounts',
           tabBarIcon: ({ color }) => (
             <TabIcon color={color} name="bank-outline" />
           ),
@@ -68,6 +70,7 @@ export default function TabsLayout() {
         name="transactions"
         options={{
           title: t('tabs.transactions'),
+          tabBarButtonTestID: 'tab-transactions',
           tabBarIcon: ({ color }) => <TabIcon color={color} name="cash" />,
         }}
       />
@@ -75,6 +78,7 @@ export default function TabsLayout() {
         name="reports"
         options={{
           title: t('tabs.reports'),
+          tabBarButtonTestID: 'tab-reports',
           tabBarIcon: ({ color }) => <TabIcon color={color} name="chart-bar" />,
         }}
       />

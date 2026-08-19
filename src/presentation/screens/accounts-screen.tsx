@@ -73,7 +73,11 @@ export function AccountsScreen() {
   }
 
   return (
-    <SafeAreaView edges={['top']} style={styles.safeArea}>
+    <SafeAreaView
+      edges={['top']}
+      style={styles.safeArea}
+      testID="accounts-screen"
+    >
       <View style={styles.header}>
         <Text style={styles.title}>{t('accounts.title')}</Text>
         <View style={styles.headerActions}>
@@ -83,6 +87,7 @@ export function AccountsScreen() {
             hitSlop={8}
             onPress={() => setCreateModalVisible(true)}
             style={styles.addButton}
+            testID="add-account"
           >
             <Text style={styles.addButtonText}>+</Text>
           </Pressable>
@@ -130,6 +135,7 @@ export function AccountsScreen() {
             <Pressable
               onPress={() => setCreateModalVisible(true)}
               style={styles.emptyAction}
+              testID="create-first-account"
             >
               <Text style={styles.emptyActionText}>
                 {t('accounts.createFirst')}

@@ -12,6 +12,10 @@ import {
   type BudgetProgressTone,
 } from '@/presentation/utils/budget-progress';
 import { formatMoney } from '@/presentation/utils/money';
+import {
+  categoryDisplayName,
+  groupDisplayName,
+} from '@/presentation/utils/category-name';
 import { useTranslation } from '@/presentation/localization/localization-provider';
 import type { TranslationKey } from '@/presentation/localization/translations';
 import type { TranslationParams } from '@/presentation/localization/translator';
@@ -87,7 +91,7 @@ export function CategoryGroupCard({
             numberOfLines={1}
             style={[styles.groupName, { color: theme.colors.text }]}
           >
-            {summary.group.name}
+            {groupDisplayName(summary.group, t)}
           </Text>
         </View>
         <View style={styles.groupTotals}>
@@ -135,7 +139,7 @@ export function CategoryGroupCard({
                     numberOfLines={1}
                     style={[styles.categoryName, { color: theme.colors.text }]}
                   >
-                    {category.name}
+                    {categoryDisplayName(category, t)}
                   </Text>
                   <View style={styles.budgetValues}>
                     <Text

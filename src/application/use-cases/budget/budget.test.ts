@@ -72,6 +72,7 @@ const openingBalance: Transaction = {
   amount: Money.fromCents(200_000),
   date: '2026-08-01',
   status: 'cleared',
+  kind: 'opening_balance',
   createdAt: instant,
   updatedAt: instant,
 };

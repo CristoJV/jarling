@@ -60,6 +60,7 @@ function transaction(
     amount: Money.fromCents(amount),
     date,
     status: 'cleared',
+    kind: 'standard',
     createdAt: `${date}T00:00:00.000Z`,
     updatedAt: `${date}T00:00:00.000Z`,
     ...extra,
@@ -76,6 +77,7 @@ describe('calculateReports', () => {
       transactions: [
         transaction('opening', 'cash', 100_000, '2026-07-01', {
           payee: 'Opening Balance',
+          kind: 'opening_balance',
         }),
         transaction('salary', 'cash', 50_000, '2026-08-01', {
           payee: 'Salary',
@@ -87,13 +89,17 @@ describe('calculateReports', () => {
           categoryId: 'food',
         }),
         transaction('transfer-out', 'cash', -5_000, '2026-08-04', {
+          categoryId: 'food',
           transactionGroupId: 'transfer',
+          kind: 'transfer',
         }),
         transaction('transfer-in', 'loan', 5_000, '2026-08-04', {
           transactionGroupId: 'transfer',
+          kind: 'transfer',
         }),
         transaction('loan-opening', 'loan', -30_000, '2026-07-01', {
           payee: 'Opening Balance',
+          kind: 'opening_balance',
         }),
       ],
     });

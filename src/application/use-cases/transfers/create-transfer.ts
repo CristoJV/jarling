@@ -6,7 +6,9 @@ import {
   type Transaction,
 } from '@/domain/entities/transaction';
 import type { AccountRepository } from '@/domain/repositories/account-repository';
+import type { CategoryRepository } from '@/domain/repositories/category-repository';
 import type { TransactionRepository } from '@/domain/repositories/transaction-repository';
+import { paymentCategoryForAccount } from '@/domain/services/credit-card-payment';
 import { Money } from '@/domain/value-objects/money';
 
 import { prepareTransferAccounts, type TransferInput } from './transfer-input';
@@ -19,6 +21,7 @@ export type TransferPair = Readonly<{
 export class CreateTransfer {
   constructor(
     private readonly accounts: AccountRepository,
+    private readonly categories: CategoryRepository,
     private readonly transactions: TransactionRepository,
     private readonly unitOfWork: UnitOfWork,
     private readonly ids: IdGenerator,
@@ -30,10 +33,18 @@ export class CreateTransfer {
       await prepareTransferAccounts(input, this.accounts);
     const groupId = this.ids.next();
     const { instant } = this.clock.now();
+    const paymentCategory =
+      destinationAccount.type === 'credit_card'
+        ? paymentCategoryForAccount(
+            await this.categories.findAll(),
+            destinationAccount.id,
+          )
+        : undefined;
     const common = {
       date: input.date,
       notes: input.notes,
       status: input.status,
+      kind: 'transfer',
       transactionGroupId: groupId,
       createdAt: instant,
       updatedAt: instant,
@@ -42,6 +53,9 @@ export class CreateTransfer {
       ...common,
       id: this.ids.next(),
       accountId: sourceAccount.id,
+      ...(sourceAccount.onBudget && paymentCategory
+        ? { categoryId: paymentCategory.id }
+        : {}),
       payee: `Transfer to ${destinationAccount.name}`,
       amount: Money.fromCents(-input.amountCents),
     });

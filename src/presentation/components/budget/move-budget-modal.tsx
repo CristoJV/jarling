@@ -10,6 +10,7 @@ import { formatMoney } from '@/presentation/utils/money';
 import { useTranslation } from '@/presentation/localization/localization-provider';
 import type { AppTheme } from '@/presentation/theme/theme';
 import { useThemedStyles } from '@/presentation/theme/theme-provider';
+import { categoryDisplayName } from '@/presentation/utils/category-name';
 
 type MoveBudgetModalProps = Readonly<{
   categories: readonly BudgetCategoryValues[];
@@ -141,6 +142,7 @@ function CategoryChoices({
   showAvailable?: boolean;
   onSelect: (categoryId: string) => void;
 }>) {
+  const { t } = useTranslation();
   const styles = useThemedStyles(createStyles);
   return (
     <View style={styles.field}>
@@ -163,7 +165,7 @@ function CategoryChoices({
                 selectedId === category.id && styles.choiceNameSelected,
               ]}
             >
-              {category.name}
+              {categoryDisplayName(category, t)}
             </Text>
             {showAvailable ? (
               <Text style={styles.choiceAmount}>{formatMoney(available)}</Text>

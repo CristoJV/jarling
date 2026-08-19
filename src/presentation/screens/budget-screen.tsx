@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { BudgetCategoryValues } from '@/domain/services/calculate-budget-month';
 import { calculateTargetProgress } from '@/domain/services/calculate-target-progress';
 import { Money } from '@/domain/value-objects/money';
+import { categoryDisplayName } from '@/presentation/utils/category-name';
 import { CategoryBudgetModal } from '@/presentation/components/budget/category-budget-modal';
 import { EditBudgetModal } from '@/presentation/components/budget/edit-budget-modal';
 import { MoveBudgetModal } from '@/presentation/components/budget/move-budget-modal';
@@ -371,7 +372,7 @@ export function BudgetScreen() {
             setNameEditor({
               kind: 'rename-category',
               id: categoryDetails.category.id,
-              name: categoryDetails.category.name,
+              name: categoryDisplayName(categoryDetails.category, t),
             });
           }}
           onToggleHidden={() => {
@@ -391,7 +392,7 @@ export function BudgetScreen() {
       {targetEditor ? (
         <TargetEditorModal
           categoryId={targetEditor.category.id}
-          categoryName={targetEditor.category.name}
+          categoryName={categoryDisplayName(targetEditor.category, t)}
           onDelete={deleteTarget}
           onDismiss={() => setTargetEditor(null)}
           onSave={setTarget}
