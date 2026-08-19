@@ -3,6 +3,7 @@ import type { IdGenerator } from '@/application/ports/id-generator';
 import type { UnitOfWork } from '@/application/ports/unit-of-work';
 import {
   createAccount,
+  isCreditAccountType,
   type Account,
   type AccountType,
 } from '@/domain/entities/account';
@@ -59,26 +60,26 @@ export class CreateAccount {
       createdAt: instant,
       updatedAt: instant,
     };
-    const groups =
-      account.type === 'credit_card' ? await this.groups.findAll() : [];
+    const groups = isCreditAccountType(account.type)
+      ? await this.groups.findAll()
+      : [];
     const paymentGroup = groups.find(
       ({ id }) => id === CREDIT_CARD_PAYMENT_GROUP_ID,
     );
-    const paymentCategory =
-      account.type === 'credit_card'
-        ? createCategory({
-            id: creditCardPaymentCategoryId(account.id),
-            groupId: CREDIT_CARD_PAYMENT_GROUP_ID,
-            name: `💳 ${account.name}`,
-            linkedAccountId: account.id,
-            hidden: false,
-            sortOrder: (
-              await this.categories.findByGroup(CREDIT_CARD_PAYMENT_GROUP_ID)
-            ).length,
-            createdAt: instant,
-            updatedAt: instant,
-          })
-        : undefined;
+    const paymentCategory = isCreditAccountType(account.type)
+      ? createCategory({
+          id: creditCardPaymentCategoryId(account.id),
+          groupId: CREDIT_CARD_PAYMENT_GROUP_ID,
+          name: `💳 ${account.name}`,
+          linkedAccountId: account.id,
+          hidden: false,
+          sortOrder: (
+            await this.categories.findByGroup(CREDIT_CARD_PAYMENT_GROUP_ID)
+          ).length,
+          createdAt: instant,
+          updatedAt: instant,
+        })
+      : undefined;
 
     return this.unitOfWork.run(async () => {
       await this.accounts.save(account);

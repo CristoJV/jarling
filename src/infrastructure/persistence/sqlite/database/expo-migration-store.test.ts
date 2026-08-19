@@ -12,18 +12,24 @@ function createDatabaseMock(appliedVersions: readonly number[] = []) {
     changes: 1,
     lastInsertRowId: 1,
   }));
-  const withTransactionAsync = jest.fn(async (task: () => Promise<void>) =>
-    task(),
+  const withExclusiveTransactionAsync = jest.fn(
+    async (task: () => Promise<void>) => task(),
   );
 
   const database = {
     execAsync,
     getAllAsync,
     runAsync,
-    withTransactionAsync,
+    withExclusiveTransactionAsync,
   } as unknown as SQLiteDatabase;
 
-  return { database, execAsync, getAllAsync, runAsync, withTransactionAsync };
+  return {
+    database,
+    execAsync,
+    getAllAsync,
+    runAsync,
+    withExclusiveTransactionAsync,
+  };
 }
 
 describe('ExpoMigrationStore', () => {
@@ -66,13 +72,13 @@ describe('ExpoMigrationStore', () => {
   });
 
   it('delegates transaction boundaries to SQLite', async () => {
-    const { database, withTransactionAsync } = createDatabaseMock();
+    const { database, withExclusiveTransactionAsync } = createDatabaseMock();
     const store = new ExpoMigrationStore(database);
     const task = jest.fn(async () => undefined);
 
     await store.transaction(task);
 
-    expect(withTransactionAsync).toHaveBeenCalledWith(task);
+    expect(withExclusiveTransactionAsync).toHaveBeenCalledWith(task);
     expect(task).toHaveBeenCalledTimes(1);
   });
 });

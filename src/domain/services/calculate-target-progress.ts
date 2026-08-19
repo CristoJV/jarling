@@ -18,6 +18,8 @@ type CalculateTargetProgressInput = Readonly<{
   assigned: Money;
   available: Money;
   spent: Money;
+  assignedSinceTargetStarted?: Money;
+  spentSinceTargetStarted?: Money;
   month: string;
   today: string;
 }>;
@@ -57,12 +59,39 @@ function inclusiveMonths(from: string, to: string): number {
 }
 
 function yearlyDueMonth(month: string, targetDate: string): string {
-  const year = Number(month.slice(0, 4));
-  const monthAndDay = targetDate.slice(5);
-  const candidate = `${year}-${monthAndDay}`;
-  const dueDate =
-    candidate.slice(0, 7) < month ? `${year + 1}-${monthAndDay}` : candidate;
-  return dueDate.slice(0, 7);
+  return yearlyDueDate(month, targetDate).slice(0, 7);
+}
+
+function yearlyDueDate(month: string, targetDate: string): string {
+  const currentYear = Number(month.slice(0, 4));
+  const currentMonth = Number(month.slice(5, 7));
+  const targetMonth = Number(targetDate.slice(5, 7));
+  const targetDay = Number(targetDate.slice(8, 10));
+  const dueYear = targetMonth < currentMonth ? currentYear + 1 : currentYear;
+  const dueDay = Math.min(targetDay, daysInMonth(dueYear, targetMonth));
+  return `${dueYear}-${String(targetMonth).padStart(2, '0')}-${String(dueDay).padStart(2, '0')}`;
+}
+
+function addMonths(month: string, amount: number): string {
+  const [year, monthNumber] = month.split('-').map(Number);
+  const date = new Date(
+    Date.UTC(year ?? 0, (monthNumber ?? 1) - 1 + amount, 1),
+  );
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
+export function targetFundingPeriodStartMonth(
+  target: CategoryTarget,
+  month: string,
+): string {
+  const createdMonth = target.createdAt.slice(0, 7);
+  if (target.kind === 'weekly' || target.kind === 'monthly') return month;
+  if (target.kind === 'yearly' && target.targetDate) {
+    const dueMonth = yearlyDueMonth(month, target.targetDate);
+    const recurringStart = addMonths(dueMonth, -11);
+    return recurringStart > createdMonth ? recurringStart : createdMonth;
+  }
+  return createdMonth;
 }
 
 function monthlyDueDate(month: string, dayOfMonth: number): string {
@@ -77,20 +106,31 @@ function targetFunding(
   assigned: Money,
   available: Money,
   spent: Money,
+  assignedSinceTargetStarted: Money,
+  spentSinceTargetStarted: Money,
 ): Money {
-  const usesAssigned =
-    ((target.kind === 'weekly' || target.kind === 'monthly') &&
-      target.fundingMode === 'set_aside') ||
+  const recurringSetAside =
+    (target.kind === 'weekly' || target.kind === 'monthly') &&
+    target.fundingMode === 'set_aside';
+  if (recurringSetAside) return assigned;
+  const datedSetAside =
+    (target.kind === 'yearly' && target.fundingMode === 'set_aside') ||
     (target.kind === 'custom' && target.customFundingMode === 'set_aside');
-  if (usesAssigned) return assigned;
+  if (datedSetAside) return assignedSinceTargetStarted;
 
   const spendingCountsTowardFunding =
     ((target.kind === 'weekly' || target.kind === 'monthly') &&
       target.fundingMode === 'refill_up_to') ||
+    target.kind === 'yearly' ||
     (target.kind === 'custom' && target.customFundingMode === 'fill_up_to');
 
   return spendingCountsTowardFunding
-    ? Money.fromCents(available.cents + spent.cents)
+    ? Money.fromCents(
+        available.cents +
+          (target.kind === 'yearly' || target.kind === 'custom'
+            ? spentSinceTargetStarted.cents
+            : spent.cents),
+      )
     : available;
 }
 
@@ -99,6 +139,8 @@ export function calculateTargetProgress({
   assigned,
   available,
   spent,
+  assignedSinceTargetStarted = assigned,
+  spentSinceTargetStarted = spent,
   month,
   today,
 }: CalculateTargetProgressInput): TargetProgress {
@@ -119,7 +161,14 @@ export function calculateTargetProgress({
     };
   }
 
-  const funded = targetFunding(target, assigned, available, spent);
+  const funded = targetFunding(
+    target,
+    assigned,
+    available,
+    spent,
+    assignedSinceTargetStarted,
+    spentSinceTargetStarted,
+  );
   let goalCents = target.amount.cents;
   let remainingMonths = 1;
   let overdue = false;
@@ -136,13 +185,10 @@ export function calculateTargetProgress({
       month < today.slice(0, 7) ||
       (month === today.slice(0, 7) && today > dueDate);
   } else if (target.kind === 'yearly') {
-    const dueMonth = yearlyDueMonth(month, target.targetDate ?? today);
+    const dueDate = yearlyDueDate(month, target.targetDate ?? today);
+    const dueMonth = dueDate.slice(0, 7);
     remainingMonths = Math.max(1, inclusiveMonths(month, dueMonth));
-    const dueDay = target.targetDate?.slice(8, 10) ?? '31';
-    overdue =
-      dueMonth === month &&
-      month === today.slice(0, 7) &&
-      today > `${dueMonth}-${dueDay}`;
+    overdue = today > dueDate;
   } else if (target.kind === 'custom' && target.targetDate) {
     const dueMonth = target.targetDate.slice(0, 7);
     remainingMonths = Math.max(1, inclusiveMonths(month, dueMonth));

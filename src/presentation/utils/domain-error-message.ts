@@ -1,4 +1,6 @@
 import { AccountNotFoundError } from '@/domain/errors/account-not-found-error';
+import { AccountBalanceNotZeroError } from '@/domain/errors/account-balance-not-zero-error';
+import { ProtectedTransactionError } from '@/domain/errors/protected-transaction-error';
 import { CategoryGroupNotFoundError } from '@/domain/errors/category-group-not-found-error';
 import { CategoryNotFoundError } from '@/domain/errors/category-not-found-error';
 import { CategoryNotAllowedForTrackingAccountError } from '@/domain/errors/category-not-allowed-for-tracking-account-error';
@@ -32,6 +34,10 @@ export function domainErrorMessage(error: unknown, t: Translate): string {
 
   if (error instanceof AccountNotFoundError) {
     return t('errors.accountNotFound');
+  }
+
+  if (error instanceof AccountBalanceNotZeroError) {
+    return t('errors.accountBalanceNotZero');
   }
 
   if (error instanceof InvalidCategoryNameError) {
@@ -84,6 +90,10 @@ export function domainErrorMessage(error: unknown, t: Translate): string {
 
   if (error instanceof CannotModifyReconciledTransactionError) {
     return t('errors.reconciledTransaction');
+  }
+
+  if (error instanceof ProtectedTransactionError) {
+    return t('errors.protectedTransaction');
   }
 
   if (error instanceof InsufficientReadyToAssignError) {

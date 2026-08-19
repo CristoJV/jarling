@@ -6,6 +6,7 @@ import {
   type Transaction,
 } from '@/domain/entities/transaction';
 import type { AccountRepository } from '@/domain/repositories/account-repository';
+import { isCreditAccountType } from '@/domain/entities/account';
 import type { CategoryRepository } from '@/domain/repositories/category-repository';
 import type { TransactionRepository } from '@/domain/repositories/transaction-repository';
 import { paymentCategoryForAccount } from '@/domain/services/credit-card-payment';
@@ -33,13 +34,12 @@ export class CreateTransfer {
       await prepareTransferAccounts(input, this.accounts);
     const groupId = this.ids.next();
     const { instant } = this.clock.now();
-    const paymentCategory =
-      destinationAccount.type === 'credit_card'
-        ? paymentCategoryForAccount(
-            await this.categories.findAll(),
-            destinationAccount.id,
-          )
-        : undefined;
+    const paymentCategory = isCreditAccountType(destinationAccount.type)
+      ? paymentCategoryForAccount(
+          await this.categories.findAll(),
+          destinationAccount.id,
+        )
+      : undefined;
     const common = {
       date: input.date,
       notes: input.notes,

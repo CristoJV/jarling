@@ -3,24 +3,24 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { SQLiteUnitOfWork } from './sqlite-unit-of-work';
 
 function createDatabaseMock() {
-  const withTransactionAsync = jest.fn(async (task: () => Promise<void>) =>
-    task(),
+  const withExclusiveTransactionAsync = jest.fn(
+    async (task: () => Promise<void>) => task(),
   );
   return {
-    database: { withTransactionAsync } as unknown as SQLiteDatabase,
-    withTransactionAsync,
+    database: { withExclusiveTransactionAsync } as unknown as SQLiteDatabase,
+    withExclusiveTransactionAsync,
   };
 }
 
 describe('SQLiteUnitOfWork', () => {
   it('returns the task result inside a SQLite transaction', async () => {
-    const { database, withTransactionAsync } = createDatabaseMock();
+    const { database, withExclusiveTransactionAsync } = createDatabaseMock();
     const unitOfWork = new SQLiteUnitOfWork(database);
 
     await expect(unitOfWork.run(async () => 'created')).resolves.toBe(
       'created',
     );
-    expect(withTransactionAsync).toHaveBeenCalledTimes(1);
+    expect(withExclusiveTransactionAsync).toHaveBeenCalledTimes(1);
   });
 
   it('continues accepting work after a failed transaction', async () => {

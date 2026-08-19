@@ -39,7 +39,6 @@ export function useTransactions(filters: GetTransactionsInput) {
       application.transactions.getAll.execute({
         ...filters,
         limit: PAGE_SIZE,
-        offset: 0,
       }),
       application.accounts.getAll.execute(),
       application.categories.getGroups.execute(),
@@ -144,10 +143,19 @@ export function useTransactions(filters: GetTransactionsInput) {
     loadingMoreRef.current = true;
     setLoadingMore(true);
     try {
+      const last = data.transactions.at(-1)?.transaction;
       const transactions = await application.transactions.getAll.execute({
         ...filters,
         limit: PAGE_SIZE,
-        offset: data.transactions.length,
+        ...(last
+          ? {
+              before: {
+                date: last.date,
+                createdAt: last.createdAt,
+                id: last.id,
+              },
+            }
+          : {}),
       });
       setData((current) =>
         current

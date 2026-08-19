@@ -5,6 +5,7 @@ import type {
   TransactionKind,
   TransactionStatus,
 } from '@/domain/entities/transaction';
+import { createTransaction } from '@/domain/entities/transaction';
 import type {
   TransactionFilters,
   TransactionRepository,
@@ -27,7 +28,7 @@ export type TransactionRow = {
 };
 
 export function transactionFromRow(row: TransactionRow): Transaction {
-  return {
+  const base = {
     id: row.id,
     accountId: row.account_id,
     ...(row.category_id ? { categoryId: row.category_id } : {}),
@@ -36,13 +37,23 @@ export function transactionFromRow(row: TransactionRow): Transaction {
     date: row.date,
     ...(row.notes ? { notes: row.notes } : {}),
     status: row.status,
-    kind: row.kind,
-    ...(row.transaction_group_id
-      ? { transactionGroupId: row.transaction_group_id }
-      : {}),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+  if (row.kind === 'transfer') {
+    if (!row.transaction_group_id) {
+      throw new Error('Stored transfer is missing its group identifier.');
+    }
+    return createTransaction({
+      ...base,
+      kind: 'transfer',
+      transactionGroupId: row.transaction_group_id,
+    });
+  }
+  if (row.transaction_group_id) {
+    throw new Error('Stored non-transfer unexpectedly owns a transfer group.');
+  }
+  return createTransaction({ ...base, kind: row.kind });
 }
 
 export class SQLiteTransactionRepository implements TransactionRepository {
@@ -79,6 +90,22 @@ export class SQLiteTransactionRepository implements TransactionRepository {
       values.push(filters.transactionGroupId);
     }
 
+    if (filters.before) {
+      conditions.push(`(
+        date < ? OR
+        (date = ? AND created_at < ?) OR
+        (date = ? AND created_at = ? AND id < ?)
+      )`);
+      values.push(
+        filters.before.date,
+        filters.before.date,
+        filters.before.createdAt,
+        filters.before.date,
+        filters.before.createdAt,
+        filters.before.id,
+      );
+    }
+
     const search = filters.search?.trim().toLocaleLowerCase();
     if (search) {
       conditions.push(
@@ -113,7 +140,7 @@ export class SQLiteTransactionRepository implements TransactionRepository {
          kind, transaction_group_id, created_at, updated_at
        FROM transactions
        ${where}
-       ORDER BY date DESC, created_at DESC
+       ORDER BY date DESC, created_at DESC, id DESC
        ${pagination}`,
       ...values,
     );
@@ -162,6 +189,23 @@ export class SQLiteTransactionRepository implements TransactionRepository {
        ORDER BY payee COLLATE NOCASE ASC`,
     );
     return rows.map(({ payee }) => payee);
+  }
+
+  async findBalancesByAccount(): Promise<ReadonlyMap<string, Money>> {
+    const rows = await this.database.getAllAsync<{
+      account_id: string;
+      balance: number;
+    }>(
+      `SELECT account_id, coalesce(sum(amount), 0) AS balance
+       FROM transactions
+       GROUP BY account_id`,
+    );
+    return new Map(
+      rows.map(({ account_id, balance }) => [
+        account_id,
+        Money.fromCents(balance),
+      ]),
+    );
   }
 
   async save(transaction: Transaction): Promise<void> {

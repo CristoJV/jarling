@@ -1,7 +1,10 @@
 import type { Account } from '@/domain/entities/account';
 import type { Category } from '@/domain/entities/category';
 import type { CategoryGroup } from '@/domain/entities/category-group';
-import type { Transaction } from '@/domain/entities/transaction';
+import {
+  createTransaction,
+  type Transaction,
+} from '@/domain/entities/transaction';
 import { Money } from '@/domain/value-objects/money';
 
 import { calculateReports } from './calculate-reports';
@@ -52,9 +55,20 @@ function transaction(
   accountId: string,
   amount: number,
   date: string,
-  extra: Partial<Transaction> = {},
+  extra:
+    | Readonly<{
+        kind?: 'standard';
+        categoryId?: string;
+        payee?: string;
+      }>
+    | Readonly<{ kind: 'opening_balance'; payee?: string }>
+    | Readonly<{
+        kind: 'transfer';
+        transactionGroupId: string;
+        categoryId?: string;
+      }> = {},
 ): Transaction {
-  return {
+  return createTransaction({
     id,
     accountId,
     amount: Money.fromCents(amount),
@@ -64,7 +78,7 @@ function transaction(
     createdAt: `${date}T00:00:00.000Z`,
     updatedAt: `${date}T00:00:00.000Z`,
     ...extra,
-  };
+  });
 }
 
 describe('calculateReports', () => {

@@ -2,7 +2,7 @@ import { initialSchemaMigration } from './001_initial_schema';
 import { migrations } from './migrations';
 
 describe('initial schema migration', () => {
-  it('is the only baseline migration', () => {
+  it('contains the complete pre-production baseline', () => {
     expect(migrations).toEqual([initialSchemaMigration]);
     expect(initialSchemaMigration).toEqual(
       expect.objectContaining({ version: 1, name: 'initial_schema' }),
@@ -14,6 +14,7 @@ describe('initial schema migration', () => {
     'category_groups',
     'categories',
     'transactions',
+    'transaction_links',
     'budget_allocations',
     'category_targets',
   ])('creates the %s source of truth', (table) => {
@@ -33,6 +34,12 @@ describe('initial schema migration', () => {
     );
     expect(initialSchemaMigration.up).toContain(
       "kind TEXT NOT NULL CHECK (kind IN ('weekly', 'monthly', 'yearly', 'custom'))",
+    );
+    expect(initialSchemaMigration.up).toContain(
+      'transactions_group_account_unique_idx',
+    );
+    expect(initialSchemaMigration.up).toContain(
+      "kind = 'transfer' AND transaction_group_id IS NOT NULL",
     );
     expect(initialSchemaMigration.up).not.toContain('ALTER TABLE');
     expect(initialSchemaMigration.up).not.toContain('DROP TABLE');

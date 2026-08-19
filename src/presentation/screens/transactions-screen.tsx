@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  FlatList,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -107,7 +108,7 @@ export function TransactionsScreen() {
   }
 
   function requestDelete(summary: TransactionSummary) {
-    const transfer = Boolean(summary.transaction.transactionGroupId);
+    const transfer = summary.transaction.kind === 'transfer';
     Alert.alert(
       transfer
         ? t('transactions.deleteTransfer')
@@ -135,7 +136,8 @@ export function TransactionsScreen() {
       return;
     }
     setLinkedTransaction(
-      summary.transaction.transactionGroupId
+      summary.transaction.kind === 'transfer' &&
+        summary.transaction.transactionGroupId
         ? await getLinkedTransaction(
             summary.transaction.transactionGroupId,
             summary.transaction.id,
@@ -290,51 +292,50 @@ export function TransactionsScreen() {
         ) : null}
       </View>
 
-      <ScrollView
+      <FlatList
         contentContainerStyle={styles.content}
-        onScroll={({ nativeEvent }) => {
-          const distance =
-            nativeEvent.contentSize.height -
-            nativeEvent.layoutMeasurement.height -
-            nativeEvent.contentOffset.y;
-          if (distance < 240) void loadMore();
-        }}
+        data={data?.transactions ?? []}
+        keyExtractor={(summary) => summary.transaction.id}
+        ListEmptyComponent={
+          loading && !data ? (
+            <ActivityIndicator color={theme.colors.primary} />
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyTitle}>
+                {t('transactions.noTransactions')}
+              </Text>
+              <Text style={styles.emptyDescription}>
+                {appliedSearches.length > 0 || accountId || categoryId
+                  ? t('transactions.noResults')
+                  : t('transactions.emptyHint')}
+              </Text>
+            </View>
+          )
+        }
+        ListFooterComponent={
+          loadingMore ? (
+            <ActivityIndicator color={theme.colors.primary} />
+          ) : null
+        }
+        ListHeaderComponent={
+          error ? <Text style={styles.error}>{error}</Text> : null
+        }
+        onEndReached={() => void loadMore()}
+        onEndReachedThreshold={0.35}
         refreshControl={
           <RefreshControl
             onRefresh={() => void refresh()}
             refreshing={loading && data !== null}
           />
         }
-        scrollEventThrottle={160}
-      >
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-        {loading && !data ? (
-          <ActivityIndicator color={theme.colors.primary} />
-        ) : null}
-        {data?.transactions.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyTitle}>
-              {t('transactions.noTransactions')}
-            </Text>
-            <Text style={styles.emptyDescription}>
-              {appliedSearches.length > 0 || accountId || categoryId
-                ? t('transactions.noResults')
-                : t('transactions.emptyHint')}
-            </Text>
-          </View>
-        ) : null}
-        {data?.transactions.map((summary) => (
+        renderItem={({ item: summary }) => (
           <TransactionRow
-            key={summary.transaction.id}
             onDelete={() => requestDelete(summary)}
             onEdit={() => void edit(summary)}
             summary={summary}
           />
-        ))}
-        {loadingMore ? (
-          <ActivityIndicator color={theme.colors.primary} />
-        ) : null}
-      </ScrollView>
+        )}
+      />
 
       <Pressable
         accessibilityLabel={t('transactions.add')}

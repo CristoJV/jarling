@@ -126,13 +126,10 @@ describe('SQLite repositories', () => {
     });
   });
 
-  it('reads and saves transactions using cents and the generic group ID', async () => {
+  it('reads and saves protected transactions using cents', async () => {
     const { database, runAsync } = databaseMock({ allRows: [transactionRow] });
     const repository = new SQLiteTransactionRepository(database);
-    const transaction: Transaction = {
-      ...transactionFromRow(transactionRow),
-      transactionGroupId: 'group-1',
-    };
+    const transaction: Transaction = transactionFromRow(transactionRow);
 
     await expect(repository.findByAccount('account-1')).resolves.toEqual([
       transactionFromRow(transactionRow),
@@ -150,7 +147,7 @@ describe('SQLite repositories', () => {
       null,
       'cleared',
       'opening_balance',
-      'group-1',
+      null,
       '2026-08-18T10:00:00.000Z',
       '2026-08-18T10:00:00.000Z',
     );
@@ -173,6 +170,11 @@ describe('SQLite repositories', () => {
         dateFrom: '2026-08-01',
         dateTo: '2026-08-31',
         transactionGroupId: 'transfer-1',
+        before: {
+          date: '2026-08-20',
+          createdAt: '2026-08-20T12:00:00.000Z',
+          id: 'cursor-id',
+        },
         limit: 25,
         offset: 50,
       }),
@@ -184,6 +186,12 @@ describe('SQLite repositories', () => {
       '2026-08-01',
       '2026-08-31',
       'transfer-1',
+      '2026-08-20',
+      '2026-08-20',
+      '2026-08-20T12:00:00.000Z',
+      '2026-08-20',
+      '2026-08-20T12:00:00.000Z',
+      'cursor-id',
       '%market%',
       '%market%',
       '%mercado%',

@@ -20,6 +20,7 @@ export function AccountRow({ summary, onPress }: AccountRowProps) {
     savings: t('accounts.savings'),
     cash: t('accounts.cash'),
     credit_card: t('accounts.creditCard'),
+    line_of_credit: t('accounts.lineOfCredit'),
     tracking: t('accounts.tracking'),
     loan: t('accounts.loan'),
   }[account.type];

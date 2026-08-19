@@ -1,4 +1,5 @@
 import type { PlanDataStore } from '@/application/ports/plan-data-store';
+import type { UnitOfWork } from '@/application/ports/unit-of-work';
 import type { EnsureDefaultCategories } from '@/application/use-cases/categories/ensure-default-categories';
 
 export class DeletePlan {
@@ -6,12 +7,15 @@ export class DeletePlan {
     private readonly dataStore: PlanDataStore,
     private readonly ensureDefaultCategories: Pick<
       EnsureDefaultCategories,
-      'execute'
+      'executeInCurrentTransaction'
     >,
+    private readonly unitOfWork: UnitOfWork,
   ) {}
 
   async execute(): Promise<void> {
-    await this.dataStore.deleteAll();
-    await this.ensureDefaultCategories.execute();
+    await this.unitOfWork.run(async () => {
+      await this.dataStore.deleteAll();
+      await this.ensureDefaultCategories.executeInCurrentTransaction();
+    });
   }
 }

@@ -77,41 +77,68 @@ export function calculateReports({
   );
   const groupById = new Map(groups.map((group) => [group.id, group]));
   const categorySpending = new Map<string, number>();
+  const reportMonthSet = new Set(months);
+  const incomeByMonth = new Map<string, number>();
+  const spendingByMonth = new Map<string, number>();
+  const startingBalanceByAccount = new Map<string, number>();
+  const balanceChangesByMonth = new Map<string, Map<string, number>>();
 
+  for (const transaction of transactions) {
+    const month = transaction.date.slice(0, 7);
+    if (month > throughMonth) continue;
+    const account = accountById.get(transaction.accountId);
+
+    if (month < firstMonth) {
+      startingBalanceByAccount.set(
+        transaction.accountId,
+        (startingBalanceByAccount.get(transaction.accountId) ?? 0) +
+          transaction.amount.cents,
+      );
+      continue;
+    }
+    if (!reportMonthSet.has(month)) continue;
+
+    const changes =
+      balanceChangesByMonth.get(month) ?? new Map<string, number>();
+    changes.set(
+      transaction.accountId,
+      (changes.get(transaction.accountId) ?? 0) + transaction.amount.cents,
+    );
+    balanceChangesByMonth.set(month, changes);
+
+    if (transaction.kind !== 'standard' || account?.onBudget !== true) {
+      continue;
+    }
+    if (!transaction.categoryId) {
+      incomeByMonth.set(
+        month,
+        (incomeByMonth.get(month) ?? 0) + transaction.amount.cents,
+      );
+      continue;
+    }
+    spendingByMonth.set(
+      month,
+      (spendingByMonth.get(month) ?? 0) - transaction.amount.cents,
+    );
+    categorySpending.set(
+      transaction.categoryId,
+      (categorySpending.get(transaction.categoryId) ?? 0) -
+        transaction.amount.cents,
+    );
+  }
+
+  const runningBalances = new Map(startingBalanceByAccount);
   const monthReports = months.map((month) => {
-    const monthlyTransactions = transactions.filter(
-      (transaction) => transaction.date.slice(0, 7) === month,
-    );
-    const categorized = monthlyTransactions.filter(
-      (transaction) =>
-        Boolean(transaction.categoryId) &&
-        transaction.kind === 'standard' &&
-        accountById.get(transaction.accountId)?.onBudget === true,
-    );
-    const spendingCents = Math.max(
-      0,
-      categorized.reduce(
-        (sum, transaction) => sum - transaction.amount.cents,
-        0,
-      ),
-    );
-    const incomeCents = monthlyTransactions
-      .filter(
-        (transaction) =>
-          accountById.get(transaction.accountId)?.onBudget === true &&
-          !transaction.categoryId &&
-          transaction.kind === 'standard',
-      )
-      .reduce((sum, transaction) => sum + transaction.amount.cents, 0);
-
-    const balances = accounts.map((account) =>
-      transactions
-        .filter(
-          (transaction) =>
-            transaction.accountId === account.id &&
-            transaction.date.slice(0, 7) <= month,
-        )
-        .reduce((sum, transaction) => sum + transaction.amount.cents, 0),
+    for (const [accountId, change] of balanceChangesByMonth.get(month) ?? []) {
+      runningBalances.set(
+        accountId,
+        (runningBalances.get(accountId) ?? 0) + change,
+      );
+    }
+    const spendingCents = Math.max(0, spendingByMonth.get(month) ?? 0);
+    const incomeCents = incomeByMonth.get(month) ?? 0;
+    const balances = accounts.map(
+      (account) => runningBalances.get(account.id) ?? 0,
     );
     const assetsCents = balances
       .filter((balance) => balance > 0)
@@ -130,24 +157,6 @@ export function calculateReports({
       netWorth: Money.fromCents(assetsCents - debtCents),
     };
   });
-
-  transactions
-    .filter(
-      (transaction) =>
-        transaction.date.slice(0, 7) >= firstMonth &&
-        transaction.date.slice(0, 7) <= throughMonth &&
-        Boolean(transaction.categoryId) &&
-        transaction.kind === 'standard' &&
-        accountById.get(transaction.accountId)?.onBudget === true,
-    )
-    .forEach((transaction) => {
-      const categoryId = transaction.categoryId;
-      if (!categoryId) return;
-      categorySpending.set(
-        categoryId,
-        (categorySpending.get(categoryId) ?? 0) - transaction.amount.cents,
-      );
-    });
 
   const categoryRows = [...categorySpending]
     .filter(([, cents]) => cents > 0)

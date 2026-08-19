@@ -44,6 +44,6 @@ export class ExpoMigrationStore implements MigrationStore {
   }
 
   async transaction(task: () => Promise<void>): Promise<void> {
-    await this.database.withTransactionAsync(task);
+    await this.database.withExclusiveTransactionAsync(task);
   }
 }

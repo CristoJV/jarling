@@ -7,10 +7,12 @@ import {
 import { CannotModifyReconciledTransactionError } from '@/domain/errors/cannot-modify-reconciled-transaction-error';
 import { InvalidTransferError } from '@/domain/errors/invalid-transfer-error';
 import type { AccountRepository } from '@/domain/repositories/account-repository';
+import { isCreditAccountType } from '@/domain/entities/account';
 import type { CategoryRepository } from '@/domain/repositories/category-repository';
 import type { TransactionRepository } from '@/domain/repositories/transaction-repository';
 import { paymentCategoryForAccount } from '@/domain/services/credit-card-payment';
 import { Money } from '@/domain/value-objects/money';
+import { parseTransferPair } from '@/domain/services/transfer-pair';
 
 import { prepareTransferAccounts, type TransferInput } from './transfer-input';
 import type { TransferPair } from './create-transfer';
@@ -31,27 +33,21 @@ export class UpdateTransfer {
     const current = await this.transactions.findByGroup(
       input.transactionGroupId,
     );
-    if (current.length !== 2)
-      throw new InvalidTransferError('linked pair not found');
+    const pair = parseTransferPair(current, input.transactionGroupId);
+    if (!pair) throw new InvalidTransferError('linked pair not found');
     if (current.some(({ status }) => status === 'reconciled')) {
       throw new CannotModifyReconciledTransactionError();
     }
     const { source: sourceAccount, destination: destinationAccount } =
       await prepareTransferAccounts(input, this.accounts);
-    const currentSource = current.find(({ amount }) => amount.cents < 0);
-    const currentDestination = current.find(({ amount }) => amount.cents > 0);
-    if (!currentSource || !currentDestination) {
-      throw new InvalidTransferError('linked pair has invalid amounts');
-    }
     const updatedAt = this.clock.now().instant;
-    const paymentCategory =
-      destinationAccount.type === 'credit_card'
-        ? paymentCategoryForAccount(
-            await this.categories.findAll(),
-            destinationAccount.id,
-          )
-        : undefined;
-    const source = updateLeg(currentSource, {
+    const paymentCategory = isCreditAccountType(destinationAccount.type)
+      ? paymentCategoryForAccount(
+          await this.categories.findAll(),
+          destinationAccount.id,
+        )
+      : undefined;
+    const source = updateLeg(pair.source, {
       accountId: sourceAccount.id,
       categoryId:
         sourceAccount.onBudget && paymentCategory
@@ -62,7 +58,7 @@ export class UpdateTransfer {
       input,
       updatedAt,
     });
-    const destination = updateLeg(currentDestination, {
+    const destination = updateLeg(pair.destination, {
       accountId: destinationAccount.id,
       payee: `Transfer from ${sourceAccount.name}`,
       amountCents: input.amountCents,

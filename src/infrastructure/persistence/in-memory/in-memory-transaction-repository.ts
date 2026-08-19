@@ -3,6 +3,7 @@ import type {
   TransactionFilters,
   TransactionRepository,
 } from '@/domain/repositories/transaction-repository';
+import { Money } from '@/domain/value-objects/money';
 
 export class InMemoryTransactionRepository implements TransactionRepository {
   private readonly transactions = new Map<string, Transaction>();
@@ -49,10 +50,22 @@ export class InMemoryTransactionRepository implements TransactionRepository {
           transaction.payee?.toLocaleLowerCase().includes(search) ||
           transaction.notes?.toLocaleLowerCase().includes(search),
       )
+      .filter((transaction) => {
+        if (!filters.before) return true;
+        return (
+          transaction.date < filters.before.date ||
+          (transaction.date === filters.before.date &&
+            transaction.createdAt < filters.before.createdAt) ||
+          (transaction.date === filters.before.date &&
+            transaction.createdAt === filters.before.createdAt &&
+            transaction.id < filters.before.id)
+        );
+      })
       .sort(
         (left, right) =>
           right.date.localeCompare(left.date) ||
-          right.createdAt.localeCompare(left.createdAt),
+          right.createdAt.localeCompare(left.createdAt) ||
+          right.id.localeCompare(left.id),
       );
     const offset = Math.max(0, Math.trunc(filters.offset ?? 0));
     return filters.limit
@@ -87,6 +100,22 @@ export class InMemoryTransactionRepository implements TransactionRepository {
     }
     return [...payees.values()].sort((left, right) =>
       left.localeCompare(right, undefined, { sensitivity: 'base' }),
+    );
+  }
+
+  async findBalancesByAccount(): Promise<ReadonlyMap<string, Money>> {
+    const cents = new Map<string, number>();
+    for (const transaction of this.transactions.values()) {
+      cents.set(
+        transaction.accountId,
+        (cents.get(transaction.accountId) ?? 0) + transaction.amount.cents,
+      );
+    }
+    return new Map(
+      [...cents].map(([accountId, balance]) => [
+        accountId,
+        Money.fromCents(balance),
+      ]),
     );
   }
 

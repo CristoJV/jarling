@@ -13,12 +13,30 @@ import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import type { SQLiteBindValue, SQLiteDatabase } from 'expo-sqlite';
 
-import type { DataProtection } from '@/application/ports/data-protection';
+import type { PlanPortability } from '@/application/ports/plan-portability';
+import { ACCOUNT_TYPES } from '@/domain/entities/account';
+import { isValidBudgetMonth } from '@/domain/entities/budget-allocation';
+import {
+  createCategoryTarget,
+  TARGET_KINDS,
+  type CustomFundingMode,
+  type IsoDayOfWeek,
+  type RecurringFundingMode,
+  type TargetKind,
+} from '@/domain/entities/category-target';
+import {
+  isValidTransactionDate,
+  TRANSACTION_KINDS,
+  TRANSACTION_STATUSES,
+} from '@/domain/entities/transaction';
+import { Money } from '@/domain/value-objects/money';
 
 const BACKUP_FORMAT = 'com.cristojv.jarling.backup';
 const BACKUP_VERSION = 1;
 const PBKDF2_ITERATIONS = 310_000;
 const MAX_BACKUP_BYTES = 100 * 1024 * 1024;
+const MAX_TOTAL_ROWS = 250_000;
+const MAX_TEXT_LENGTH = 100_000;
 const AUTHENTICATED_CONTEXT = utf8ToBytes('Jarling backup version 1');
 
 const tables = [
@@ -66,6 +84,16 @@ const tables = [
       'transaction_group_id',
       'created_at',
       'updated_at',
+    ],
+  },
+  {
+    name: 'transaction_links',
+    columns: [
+      'id',
+      'source_transaction_id',
+      'target_transaction_id',
+      'link_type',
+      'created_at',
     ],
   },
   {
@@ -126,8 +154,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function isBindValue(value: unknown): value is SQLiteBindValue {
   return (
     value === null ||
-    typeof value === 'string' ||
-    typeof value === 'number' ||
+    (typeof value === 'string' && value.length <= MAX_TEXT_LENGTH) ||
+    (typeof value === 'number' && Number.isSafeInteger(value)) ||
     typeof value === 'boolean'
   );
 }
@@ -144,10 +172,15 @@ export function parsePlanSnapshot(value: unknown): PlanSnapshot {
   }
 
   const parsedTables = {} as Record<TableName, readonly DataRow[]>;
+  let totalRows = 0;
   for (const table of tables) {
     const rows = value.tables[table.name];
     if (!Array.isArray(rows)) {
       throw new Error(`Backup table ${table.name} is missing.`);
+    }
+    totalRows += rows.length;
+    if (totalRows > MAX_TOTAL_ROWS) {
+      throw new Error('The backup contains too many records.');
     }
     parsedTables[table.name] = rows.map((row) => {
       if (!isRecord(row)) throw new Error(`Invalid row in ${table.name}.`);
@@ -163,13 +196,200 @@ export function parsePlanSnapshot(value: unknown): PlanSnapshot {
     });
   }
 
-  return {
+  const snapshot: PlanSnapshot = {
     format: BACKUP_FORMAT,
     version: BACKUP_VERSION,
     exportedAt: value.exportedAt,
     ...(isRecord(value.preferences) ? { preferences: value.preferences } : {}),
     tables: parsedTables,
   };
+  validateSnapshotSemantics(snapshot);
+  return snapshot;
+}
+
+function requiredText(row: DataRow, field: string): string {
+  const value = row[field];
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    throw new Error(`Invalid ${field} in backup.`);
+  }
+  return value;
+}
+
+function integer(row: DataRow, field: string): number {
+  const value = row[field];
+  if (typeof value !== 'number' || !Number.isSafeInteger(value)) {
+    throw new Error(`Invalid ${field} in backup.`);
+  }
+  return value;
+}
+
+function nullableString(row: DataRow, field: string): string | undefined {
+  const value = row[field];
+  if (value === null) return undefined;
+  if (typeof value !== 'string') throw new Error(`Invalid ${field} in backup.`);
+  return value;
+}
+
+function validateSnapshotSemantics(snapshot: PlanSnapshot): void {
+  const accountIds = new Set<string>();
+  const accountTypes = new Map<string, string>();
+  for (const row of snapshot.tables.accounts) {
+    const id = requiredText(row, 'id');
+    const type = requiredText(row, 'type');
+    if (accountIds.has(id) || !ACCOUNT_TYPES.includes(type as never)) {
+      throw new Error('The backup contains an invalid or duplicate account.');
+    }
+    if (![0, 1].includes(integer(row, 'on_budget'))) {
+      throw new Error('The backup contains an invalid account budget flag.');
+    }
+    if (![0, 1].includes(integer(row, 'closed'))) {
+      throw new Error('The backup contains an invalid account state.');
+    }
+    accountIds.add(id);
+    accountTypes.set(id, type);
+  }
+
+  const groupIds = new Set<string>();
+  for (const row of snapshot.tables.category_groups) {
+    const id = requiredText(row, 'id');
+    if (groupIds.has(id))
+      throw new Error('Duplicate category group in backup.');
+    groupIds.add(id);
+  }
+
+  const categoryIds = new Set<string>();
+  for (const row of snapshot.tables.categories) {
+    const id = requiredText(row, 'id');
+    const groupId = requiredText(row, 'group_id');
+    const linkedAccountId = nullableString(row, 'linked_account_id');
+    if (categoryIds.has(id) || !groupIds.has(groupId)) {
+      throw new Error('The backup contains an invalid category relationship.');
+    }
+    if (
+      linkedAccountId &&
+      !['credit_card', 'line_of_credit'].includes(
+        accountTypes.get(linkedAccountId) ?? '',
+      )
+    ) {
+      throw new Error('A payment category links to an invalid account.');
+    }
+    if (![0, 1].includes(integer(row, 'hidden'))) {
+      throw new Error('The backup contains an invalid category state.');
+    }
+    categoryIds.add(id);
+  }
+
+  const transactionIds = new Set<string>();
+  const transferGroups = new Map<
+    string,
+    Readonly<{ accountId: string; amount: number }>[]
+  >();
+  for (const row of snapshot.tables.transactions) {
+    const id = requiredText(row, 'id');
+    const accountId = requiredText(row, 'account_id');
+    const kind = requiredText(row, 'kind');
+    const status = requiredText(row, 'status');
+    const date = requiredText(row, 'date');
+    const categoryId = nullableString(row, 'category_id');
+    const groupId = nullableString(row, 'transaction_group_id');
+    if (
+      transactionIds.has(id) ||
+      !accountIds.has(accountId) ||
+      (categoryId !== undefined && !categoryIds.has(categoryId)) ||
+      !TRANSACTION_KINDS.includes(kind as never) ||
+      !TRANSACTION_STATUSES.includes(status as never) ||
+      !isValidTransactionDate(date)
+    ) {
+      throw new Error('The backup contains an invalid transaction.');
+    }
+    if (kind === 'transfer') {
+      if (!groupId) throw new Error('A transfer is missing its group.');
+      transferGroups.set(groupId, [
+        ...(transferGroups.get(groupId) ?? []),
+        { accountId, amount: integer(row, 'amount') },
+      ]);
+    } else if (groupId) {
+      throw new Error('Only transfers may own a transaction group.');
+    }
+    transactionIds.add(id);
+  }
+  for (const legs of transferGroups.values()) {
+    if (
+      legs.length !== 2 ||
+      legs[0]?.accountId === legs[1]?.accountId ||
+      legs.reduce((sum, leg) => sum + leg.amount, 0) !== 0
+    ) {
+      throw new Error('The backup contains an unbalanced transfer.');
+    }
+  }
+
+  const linkIds = new Set<string>();
+  for (const row of snapshot.tables.transaction_links) {
+    const id = requiredText(row, 'id');
+    const source = requiredText(row, 'source_transaction_id');
+    const target = requiredText(row, 'target_transaction_id');
+    const linkType = requiredText(row, 'link_type');
+    if (
+      linkIds.has(id) ||
+      source >= target ||
+      !transactionIds.has(source) ||
+      !transactionIds.has(target) ||
+      !['related', 'bizum'].includes(linkType)
+    ) {
+      throw new Error('The backup contains an invalid transaction link.');
+    }
+    linkIds.add(id);
+  }
+
+  for (const row of snapshot.tables.budget_allocations) {
+    if (
+      !categoryIds.has(requiredText(row, 'category_id')) ||
+      !isValidBudgetMonth(requiredText(row, 'month'))
+    ) {
+      throw new Error('The backup contains an invalid budget allocation.');
+    }
+  }
+
+  for (const row of snapshot.tables.category_targets) {
+    const categoryId = requiredText(row, 'category_id');
+    const kind = requiredText(row, 'kind');
+    if (!categoryIds.has(categoryId) || !TARGET_KINDS.includes(kind as never)) {
+      throw new Error('The backup contains a target for an unknown category.');
+    }
+    createCategoryTarget({
+      id: requiredText(row, 'id'),
+      categoryId,
+      kind: kind as TargetKind,
+      amount: Money.fromCents(integer(row, 'amount')),
+      ...(row.day_of_week !== null
+        ? { dayOfWeek: integer(row, 'day_of_week') as IsoDayOfWeek }
+        : {}),
+      ...(row.funding_mode !== null
+        ? {
+            fundingMode: requiredText(
+              row,
+              'funding_mode',
+            ) as RecurringFundingMode,
+          }
+        : {}),
+      ...(row.day_of_month !== null
+        ? { dayOfMonth: integer(row, 'day_of_month') }
+        : {}),
+      ...(row.target_date !== null
+        ? { targetDate: requiredText(row, 'target_date') }
+        : {}),
+      ...(row.custom_funding_mode !== null
+        ? {
+            customFundingMode: requiredText(
+              row,
+              'custom_funding_mode',
+            ) as CustomFundingMode,
+          }
+        : {}),
+      createdAt: requiredText(row, 'created_at'),
+      updatedAt: requiredText(row, 'updated_at'),
+    });
+  }
 }
 
 function assertPassword(password: string): string {
@@ -213,7 +433,16 @@ async function shareFile(file: File, mimeType: string): Promise<void> {
   }
 }
 
-export class SQLiteDataProtection implements DataProtection {
+async function checkSQLiteIntegrity(database: SQLiteDatabase): Promise<void> {
+  const result = await database.getFirstAsync<{ integrity_check: string }>(
+    'PRAGMA integrity_check',
+  );
+  if (result?.integrity_check !== 'ok') {
+    throw new Error('SQLite integrity check failed.');
+  }
+}
+
+export class SQLitePlanPortability implements PlanPortability {
   constructor(private readonly database: SQLiteDatabase) {}
 
   async exportData(
@@ -275,7 +504,11 @@ export class SQLiteDataProtection implements DataProtection {
       throw new Error('The selected backup is too large.');
     }
 
-    const raw: unknown = JSON.parse(await new File(asset.uri).text());
+    const selectedFile = new File(asset.uri);
+    if ((selectedFile.size ?? 0) > MAX_BACKUP_BYTES) {
+      throw new Error('The selected backup is too large.');
+    }
+    const raw: unknown = JSON.parse(await selectedFile.text());
     if (
       !isRecord(raw) ||
       raw.format !== BACKUP_FORMAT ||
@@ -307,6 +540,7 @@ export class SQLiteDataProtection implements DataProtection {
       JSON.parse(new TextDecoder().decode(decrypted)),
     );
     await this.restore(snapshot);
+    await checkSQLiteIntegrity(this.database);
     return {
       restored: true,
       ...(snapshot.preferences !== undefined
@@ -319,11 +553,13 @@ export class SQLiteDataProtection implements DataProtection {
     preferences?: Readonly<Record<string, unknown>>,
   ): Promise<PlanSnapshot> {
     const data = {} as Record<TableName, readonly DataRow[]>;
-    for (const table of tables) {
-      data[table.name] = await this.database.getAllAsync<DataRow>(
-        `SELECT ${table.columns.join(', ')} FROM ${table.name}`,
-      );
-    }
+    await this.database.withExclusiveTransactionAsync(async (transaction) => {
+      for (const table of tables) {
+        data[table.name] = await transaction.getAllAsync<DataRow>(
+          `SELECT ${table.columns.join(', ')} FROM ${table.name}`,
+        );
+      }
+    });
     return {
       format: BACKUP_FORMAT,
       version: BACKUP_VERSION,

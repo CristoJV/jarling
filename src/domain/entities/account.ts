@@ -5,11 +5,24 @@ export const ACCOUNT_TYPES = [
   'savings',
   'cash',
   'credit_card',
+  'line_of_credit',
   'tracking',
   'loan',
 ] as const;
 
 export type AccountType = (typeof ACCOUNT_TYPES)[number];
+
+export type AccountClass = 'cash' | 'credit' | 'tracking';
+
+export function accountClassFor(type: AccountType): AccountClass {
+  if (type === 'credit_card' || type === 'line_of_credit') return 'credit';
+  if (type === 'tracking' || type === 'loan') return 'tracking';
+  return 'cash';
+}
+
+export function isCreditAccountType(type: AccountType): boolean {
+  return accountClassFor(type) === 'credit';
+}
 
 export type Account = Readonly<{
   id: string;
@@ -35,12 +48,11 @@ export function createAccount(properties: CreateAccountProperties): Account {
   return {
     ...properties,
     name,
-    onBudget:
-      properties.type === 'credit_card'
-        ? true
-        : properties.type === 'tracking' || properties.type === 'loan'
-          ? false
-          : properties.onBudget,
+    onBudget: isCreditAccountType(properties.type)
+      ? true
+      : properties.type === 'tracking' || properties.type === 'loan'
+        ? false
+        : properties.onBudget,
     closed: false,
   };
 }

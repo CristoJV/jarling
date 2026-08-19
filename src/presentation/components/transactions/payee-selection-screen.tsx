@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import {
+  FlatList,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -76,31 +76,45 @@ export function PayeeSelectionScreen({
             value={search}
           />
         </View>
-        <ScrollView
+        <FlatList
           contentContainerStyle={styles.content}
+          data={visible}
           keyboardShouldPersistTaps="handled"
-        >
-          {query && !exactMatch ? (
-            <Pressable onPress={() => choose(query)} style={styles.createRow}>
-              <View style={styles.createIcon}>
-                <Text style={styles.createIconText}>+</Text>
-              </View>
-              <View style={styles.rowCopy}>
-                <Text style={styles.createLabel}>
-                  {t('payees.create', { name: query })}
-                </Text>
-                <Text style={styles.description}>{t('payees.createHint')}</Text>
-              </View>
-            </Pressable>
-          ) : null}
-          <Text style={styles.sectionTitle}>
-            {query ? t('payees.matching') : t('payees.all')}
-          </Text>
-          {visible.map((payee) => {
+          keyExtractor={(payee) => payee.toLocaleLowerCase(language)}
+          ListEmptyComponent={
+            !query ? (
+              <Text style={styles.empty}>{t('payees.emptyHint')}</Text>
+            ) : null
+          }
+          ListHeaderComponent={
+            <>
+              {query && !exactMatch ? (
+                <Pressable
+                  onPress={() => choose(query)}
+                  style={styles.createRow}
+                >
+                  <View style={styles.createIcon}>
+                    <Text style={styles.createIconText}>+</Text>
+                  </View>
+                  <View style={styles.rowCopy}>
+                    <Text style={styles.createLabel}>
+                      {t('payees.create', { name: query })}
+                    </Text>
+                    <Text style={styles.description}>
+                      {t('payees.createHint')}
+                    </Text>
+                  </View>
+                </Pressable>
+              ) : null}
+              <Text style={styles.sectionTitle}>
+                {query ? t('payees.matching') : t('payees.all')}
+              </Text>
+            </>
+          }
+          renderItem={({ item: payee }) => {
             const selected = payee === selectedPayee;
             return (
               <Pressable
-                key={payee}
                 onPress={() => choose(payee)}
                 style={[styles.row, selected && styles.selectedRow]}
               >
@@ -113,11 +127,9 @@ export function PayeeSelectionScreen({
                 <Text style={styles.check}>{selected ? '✓' : ''}</Text>
               </Pressable>
             );
-          })}
-          {visible.length === 0 && !query ? (
-            <Text style={styles.empty}>{t('payees.emptyHint')}</Text>
-          ) : null}
-        </ScrollView>
+          }}
+          style={styles.list}
+        />
       </SafeAreaView>
     </FullScreenModal>
   );
@@ -165,12 +177,10 @@ const createStyles = (theme: AppTheme) =>
       fontSize: 16,
     },
     content: {
-      width: '100%',
-      maxWidth: 680,
       paddingHorizontal: 20,
       paddingBottom: 36,
-      alignSelf: 'center',
     },
+    list: { width: '100%', maxWidth: 680, alignSelf: 'center' },
     createRow: {
       minHeight: 76,
       paddingHorizontal: 16,

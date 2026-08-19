@@ -15,6 +15,7 @@ export type GetTransactionsInput = Pick<
   | 'memo'
   | 'transactionGroupId'
   | 'limit'
+  | 'before'
   | 'offset'
 >;
 

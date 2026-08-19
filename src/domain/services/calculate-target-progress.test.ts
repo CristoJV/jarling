@@ -131,9 +131,70 @@ describe('calculateTargetProgress', () => {
     expect(calculate(target, 10_000, 10_000).recommended).toEqual(
       Money.fromCents(6_667),
     );
-    expect(calculate(target, 10_000, 0, '2026-11').recommended).toEqual(
-      Money.fromCents(3_334),
-    );
+    expect(
+      calculateTargetProgress({
+        target,
+        assigned: Money.zero(),
+        assignedSinceTargetStarted: Money.fromCents(10_000),
+        available: Money.fromCents(10_000),
+        spent: Money.zero(),
+        month: '2026-11',
+        today: '2026-11-18',
+      }).recommended,
+    ).toEqual(Money.fromCents(3_334));
+  });
+
+  it('honors yearly set-aside and refill strategies', () => {
+    const common: CategoryTarget = {
+      ...base,
+      kind: 'yearly',
+      amount: Money.fromCents(100_000),
+      targetDate: '2026-09-30',
+      fundingMode: 'set_aside',
+    };
+    const setAside = calculateTargetProgress({
+      target: common,
+      assigned: Money.fromCents(10_000),
+      assignedSinceTargetStarted: Money.fromCents(40_000),
+      available: Money.fromCents(20_000),
+      spent: Money.fromCents(5_000),
+      spentSinceTargetStarted: Money.fromCents(15_000),
+      month: '2026-08',
+      today: '2026-08-18',
+    });
+    const refill = calculateTargetProgress({
+      target: { ...common, fundingMode: 'refill_up_to' },
+      assigned: Money.fromCents(10_000),
+      assignedSinceTargetStarted: Money.fromCents(40_000),
+      available: Money.fromCents(20_000),
+      spent: Money.fromCents(5_000),
+      spentSinceTargetStarted: Money.fromCents(15_000),
+      month: '2026-08',
+      today: '2026-08-18',
+    });
+
+    expect(setAside.funded).toEqual(Money.fromCents(40_000));
+    expect(refill.funded).toEqual(Money.fromCents(35_000));
+  });
+
+  it('clamps a leap-day yearly target in non-leap years', () => {
+    const target: CategoryTarget = {
+      ...base,
+      kind: 'yearly',
+      amount: Money.fromCents(10_000),
+      targetDate: '2028-02-29',
+      fundingMode: 'set_aside',
+    };
+    expect(
+      calculateTargetProgress({
+        target,
+        assigned: Money.zero(),
+        available: Money.zero(),
+        spent: Money.zero(),
+        month: '2027-02',
+        today: '2027-03-01',
+      }).status,
+    ).toBe('overdue');
   });
 
   it('does not ask for funding before a target exists', () => {
@@ -200,6 +261,28 @@ describe('calculateTargetProgress', () => {
     expect(calculate(balance, 25_000, 5_000).recommended).toEqual(
       Money.fromCents(5_000),
     );
+  });
+
+  it('keeps a custom fill-up goal on track after earlier spending', () => {
+    const target: CategoryTarget = {
+      ...base,
+      kind: 'custom',
+      customFundingMode: 'fill_up_to',
+      targetDate: '2026-09-30',
+    };
+    const result = calculateTargetProgress({
+      target,
+      assigned: Money.zero(),
+      assignedSinceTargetStarted: Money.fromCents(50_000),
+      available: Money.fromCents(30_000),
+      spent: Money.zero(),
+      spentSinceTargetStarted: Money.fromCents(20_000),
+      month: '2026-08',
+      today: '2026-08-18',
+    });
+
+    expect(result.funded).toEqual(Money.fromCents(50_000));
+    expect(result.recommended).toEqual(Money.zero());
   });
 
   it('marks a missed monthly deadline overdue and clamps progress', () => {

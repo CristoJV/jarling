@@ -6,6 +6,7 @@ import {
 } from '@/domain/entities/transaction';
 import { CannotModifyReconciledTransactionError } from '@/domain/errors/cannot-modify-reconciled-transaction-error';
 import { TransactionNotFoundError } from '@/domain/errors/transaction-not-found-error';
+import { ProtectedTransactionError } from '@/domain/errors/protected-transaction-error';
 import type { AccountRepository } from '@/domain/repositories/account-repository';
 import type { CategoryRepository } from '@/domain/repositories/category-repository';
 import type { TransactionRepository } from '@/domain/repositories/transaction-repository';
@@ -36,6 +37,9 @@ export class UpdateTransaction {
 
     if (current.status === 'reconciled') {
       throw new CannotModifyReconciledTransactionError();
+    }
+    if (current.kind !== 'standard') {
+      throw new ProtectedTransactionError(current.kind);
     }
 
     const prepared = await prepareTransactionInput(

@@ -19,8 +19,17 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: npx expo install --check
       - run: npm run format:check
       - run: npm run typecheck
       - run: npm run lint
-      - run: npm test -- --runInBand
+      - run: npm run test:coverage
+      - run: npm audit --omit=dev --audit-level=critical
       - run: npx expo export --platform web
+
+  dependency-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4

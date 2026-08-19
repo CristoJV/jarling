@@ -23,6 +23,9 @@ import { DeleteTransaction } from '@/application/use-cases/transactions/delete-t
 import { GetTransactions } from '@/application/use-cases/transactions/get-transactions';
 import { GetPayees } from '@/application/use-cases/transactions/get-payees';
 import { UpdateTransaction } from '@/application/use-cases/transactions/update-transaction';
+import { CreateTransactionLink } from '@/application/use-cases/transactions/create-transaction-link';
+import { DeleteTransactionLink } from '@/application/use-cases/transactions/delete-transaction-link';
+import { GetTransactionLinks } from '@/application/use-cases/transactions/get-transaction-links';
 import { PopulateSampleData } from '@/application/use-cases/samples/populate-sample-data';
 import { DeleteCategoryTarget } from '@/application/use-cases/targets/delete-category-target';
 import { GetCategoryTargets } from '@/application/use-cases/targets/get-category-targets';
@@ -39,9 +42,10 @@ import { SQLiteCategoryGroupRepository } from '@/infrastructure/persistence/sqli
 import { SQLiteCategoryRepository } from '@/infrastructure/persistence/sqlite/repositories/sqlite-category-repository';
 import { SQLiteCategoryTargetRepository } from '@/infrastructure/persistence/sqlite/repositories/sqlite-category-target-repository';
 import { SQLiteTransactionRepository } from '@/infrastructure/persistence/sqlite/repositories/sqlite-transaction-repository';
+import { SQLiteTransactionLinkRepository } from '@/infrastructure/persistence/sqlite/repositories/sqlite-transaction-link-repository';
 import { ExpoIdGenerator } from '@/infrastructure/system/expo-id-generator';
 import { SystemClock } from '@/infrastructure/system/system-clock';
-import { SQLiteDataProtection } from '@/infrastructure/security/sqlite-data-protection';
+import { SQLitePlanPortability } from '@/infrastructure/portability/sqlite-plan-portability';
 
 export function createApplication(
   database: SQLiteDatabase,
@@ -51,6 +55,7 @@ export function createApplication(
   const categories = new SQLiteCategoryRepository(database);
   const allocations = new SQLiteBudgetAllocationRepository(database);
   const transactions = new SQLiteTransactionRepository(database);
+  const transactionLinks = new SQLiteTransactionLinkRepository(database);
   const targets = new SQLiteCategoryTargetRepository(database);
   const unitOfWork = new SQLiteUnitOfWork(database);
   const clock = new SystemClock();
@@ -81,7 +86,13 @@ export function createApplication(
         clock,
       ),
       getAll: new GetAccounts(accounts, transactions),
-      close: new CloseAccount(accounts, categories, unitOfWork, clock),
+      close: new CloseAccount(
+        accounts,
+        categories,
+        transactions,
+        unitOfWork,
+        clock,
+      ),
       getReconciliation: new GetReconciliation(accounts, transactions, clock),
       reconcile: new ReconcileAccount(
         accounts,
@@ -136,6 +147,15 @@ export function createApplication(
       delete: new DeleteTransaction(transactions, unitOfWork),
       getAll: new GetTransactions(transactions, accounts, categories),
       getPayees: new GetPayees(transactions),
+      createLink: new CreateTransactionLink(
+        transactions,
+        transactionLinks,
+        unitOfWork,
+        ids,
+        clock,
+      ),
+      getLinks: new GetTransactionLinks(transactionLinks),
+      deleteLink: new DeleteTransactionLink(transactionLinks, unitOfWork),
     },
     budget: {
       getMonth: getBudgetMonth,
@@ -194,8 +214,12 @@ export function createApplication(
       ),
     },
     plan: {
-      delete: new DeletePlan(new SQLitePlanDataStore(database), ensureDefaults),
+      delete: new DeletePlan(
+        new SQLitePlanDataStore(database),
+        ensureDefaults,
+        unitOfWork,
+      ),
     },
-    dataProtection: new SQLiteDataProtection(database),
+    planPortability: new SQLitePlanPortability(database),
   };
 }

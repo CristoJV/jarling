@@ -15,7 +15,6 @@
     "expo-local-authentication": "~57.0.2",
     "expo-localization": "~57.0.1",
     "expo-router": "~57.0.14",
-    "expo-secure-store": "~57.0.1",
     "expo-sharing": "~57.0.13",
     "expo-splash-screen": "~57.0.7",
     "expo-sqlite": "~57.0.1",
@@ -49,12 +48,27 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "jest --runInBand",
+    "test:coverage": "jest --runInBand --coverage",
     "test:watch": "jest --watch",
     "test:e2e": "maestro test .maestro",
     "typecheck": "tsc --noEmit"
   },
   "jest": {
     "preset": "jest-expo",
+    "collectCoverageFrom": [
+      "src/domain/**/*.{ts,tsx}",
+      "src/application/**/*.{ts,tsx}",
+      "!src/**/*.test.{ts,tsx}",
+      "!src/application/application-services.ts"
+    ],
+    "coverageThreshold": {
+      "global": {
+        "branches": 60,
+        "functions": 75,
+        "lines": 75,
+        "statements": 75
+      }
+    },
     "testPathIgnorePatterns": [
       "<rootDir>/node_modules/",
       "<rootDir>/android/"

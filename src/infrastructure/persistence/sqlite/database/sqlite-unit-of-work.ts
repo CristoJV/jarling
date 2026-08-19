@@ -11,7 +11,7 @@ export class SQLiteUnitOfWork implements UnitOfWork {
     const operation = this.pending.then(async () => {
       let result: T | undefined;
 
-      await this.database.withTransactionAsync(async () => {
+      await this.database.withExclusiveTransactionAsync(async () => {
         result = await task();
       });
 

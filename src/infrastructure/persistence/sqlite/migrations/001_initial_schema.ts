@@ -8,7 +8,8 @@ export const initialSchemaMigration: Migration = {
       id TEXT PRIMARY KEY NOT NULL,
       name TEXT NOT NULL CHECK (length(trim(name)) > 0),
       type TEXT NOT NULL CHECK (type IN (
-        'checking', 'savings', 'cash', 'credit_card', 'tracking', 'loan'
+        'checking', 'savings', 'cash', 'credit_card', 'line_of_credit',
+        'tracking', 'loan'
       )),
       on_budget INTEGER NOT NULL CHECK (on_budget IN (0, 1)),
       closed INTEGER NOT NULL CHECK (closed IN (0, 1)),
@@ -53,7 +54,23 @@ export const initialSchemaMigration: Migration = {
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE RESTRICT,
-      FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE RESTRICT
+      FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE RESTRICT,
+      CHECK (
+        (kind = 'transfer' AND transaction_group_id IS NOT NULL)
+        OR (kind <> 'transfer' AND transaction_group_id IS NULL)
+      )
+    );
+
+    CREATE TABLE transaction_links (
+      id TEXT PRIMARY KEY NOT NULL,
+      source_transaction_id TEXT NOT NULL,
+      target_transaction_id TEXT NOT NULL,
+      link_type TEXT NOT NULL CHECK (link_type IN ('related', 'bizum')),
+      created_at TEXT NOT NULL,
+      CHECK (source_transaction_id <> target_transaction_id),
+      UNIQUE (source_transaction_id, target_transaction_id, link_type),
+      FOREIGN KEY (source_transaction_id) REFERENCES transactions(id) ON DELETE CASCADE,
+      FOREIGN KEY (target_transaction_id) REFERENCES transactions(id) ON DELETE CASCADE
     );
 
     CREATE TABLE budget_allocations (
@@ -111,6 +128,11 @@ export const initialSchemaMigration: Migration = {
     CREATE INDEX transactions_date_idx ON transactions(date);
     CREATE INDEX transactions_group_id_idx ON transactions(transaction_group_id);
     CREATE INDEX transactions_kind_idx ON transactions(kind);
+    CREATE UNIQUE INDEX transactions_group_account_unique_idx
+      ON transactions(transaction_group_id, account_id)
+      WHERE transaction_group_id IS NOT NULL;
+    CREATE INDEX transaction_links_source_idx ON transaction_links(source_transaction_id);
+    CREATE INDEX transaction_links_target_idx ON transaction_links(target_transaction_id);
     CREATE INDEX budget_allocations_month_idx ON budget_allocations(month);
     CREATE INDEX category_targets_kind_idx ON category_targets(kind);
   `,

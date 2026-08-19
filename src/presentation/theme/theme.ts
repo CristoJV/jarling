@@ -27,7 +27,27 @@ export type AppTheme = Readonly<{
     scrim: string;
     navigation: string;
   }>;
+  spacing: Readonly<{ xs: 4; sm: 8; md: 12; lg: 16; xl: 24; xxl: 32 }>;
+  radii: Readonly<{ sm: 8; md: 12; lg: 18; xl: 24; pill: 999 }>;
+  typography: Readonly<{
+    caption: 12;
+    body: 15;
+    title: 21;
+    display: 32;
+  }>;
+  elevation: Readonly<{
+    card: 2;
+    floating: 7;
+    modal: 12;
+  }>;
 }>;
+
+const sharedTokens = {
+  spacing: { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 },
+  radii: { sm: 8, md: 12, lg: 18, xl: 24, pill: 999 },
+  typography: { caption: 12, body: 15, title: 21, display: 32 },
+  elevation: { card: 2, floating: 7, modal: 12 },
+} as const;
 
 export const lightTheme: AppTheme = {
   mode: 'light',
@@ -56,6 +76,7 @@ export const lightTheme: AppTheme = {
     scrim: 'rgba(18, 24, 20, 0.42)',
     navigation: '#ffffff',
   },
+  ...sharedTokens,
 };
 
 export const darkTheme: AppTheme = {
@@ -85,4 +106,5 @@ export const darkTheme: AppTheme = {
     scrim: 'rgba(0, 0, 0, 0.62)',
     navigation: '#111512',
   },
+  ...sharedTokens,
 };

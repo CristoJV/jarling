@@ -2,7 +2,10 @@ import type { Account } from '@/domain/entities/account';
 import type { BudgetAllocation } from '@/domain/entities/budget-allocation';
 import type { Category } from '@/domain/entities/category';
 import type { CategoryGroup } from '@/domain/entities/category-group';
-import type { Transaction } from '@/domain/entities/transaction';
+import {
+  createTransaction,
+  type Transaction,
+} from '@/domain/entities/transaction';
 import { Money } from '@/domain/value-objects/money';
 
 import { calculateBudgetMonth } from './calculate-budget-month';
@@ -84,6 +87,23 @@ function transaction(
     createdAt: instant,
     updatedAt: instant,
   };
+}
+
+function openingTransaction(
+  id: string,
+  amountCents: number,
+  accountId = onBudgetAccount.id,
+): Transaction {
+  return createTransaction({
+    id,
+    accountId,
+    amount: Money.fromCents(amountCents),
+    date: '2026-08-01',
+    status: 'cleared',
+    kind: 'opening_balance',
+    createdAt: instant,
+    updatedAt: instant,
+  });
 }
 
 function allocation(
@@ -238,20 +258,8 @@ describe('calculateBudgetMonth', () => {
       categories: [groceries, paymentCategory],
       allocations: [allocation('food', groceries.id, '2026-08', 20_000)],
       transactions: [
-        {
-          ...transaction('cash', 100_000, '2026-08-01'),
-          kind: 'opening_balance',
-        },
-        {
-          ...transaction(
-            'debt',
-            -50_000,
-            '2026-08-01',
-            undefined,
-            creditCard.id,
-          ),
-          kind: 'opening_balance',
-        },
+        openingTransaction('cash', 100_000),
+        openingTransaction('debt', -50_000, creditCard.id),
         transaction(
           'card-spend',
           -10_000,
@@ -298,6 +306,21 @@ describe('calculateBudgetMonth', () => {
     );
   });
 
+  it('treats a positive credit balance as budgetable cash', () => {
+    const result = calculateBudgetMonth({
+      month: '2026-08',
+      accounts: [creditCard],
+      groups: [paymentGroup],
+      categories: [paymentCategory],
+      allocations: [],
+      transactions: [
+        openingTransaction('positive-card-opening', 10_000, creditCard.id),
+      ],
+    });
+
+    expect(result.readyToAssign).toEqual(Money.fromCents(10_000));
+  });
+
   it('moves only the funded portion of overspending into a card payment', () => {
     const result = calculateBudgetMonth({
       month: '2026-08',
@@ -324,6 +347,39 @@ describe('calculateBudgetMonth', () => {
         activity: Money.fromCents(5_000),
         available: Money.fromCents(5_000),
       }),
+    );
+  });
+
+  it('preserves the accounting identity across cash, debt and envelopes', () => {
+    const result = calculateBudgetMonth({
+      month: '2026-08',
+      accounts: [onBudgetAccount, creditCard],
+      groups: [group, paymentGroup],
+      categories: [groceries, restaurants, paymentCategory],
+      allocations: [
+        allocation('food', groceries.id, '2026-08', 30_000),
+        allocation('restaurants', restaurants.id, '2026-08', 10_000),
+      ],
+      transactions: [
+        openingTransaction('cash', 100_000),
+        openingTransaction('debt', -20_000, creditCard.id),
+        transaction(
+          'card-food',
+          -12_000,
+          '2026-08-10',
+          groceries.id,
+          creditCard.id,
+        ),
+        transaction('cash-food', -3_000, '2026-08-11', groceries.id),
+      ],
+    });
+    const representedCents = result.groups
+      .flatMap(({ categories }) => categories)
+      .reduce((sum, values) => sum + values.available.cents, 0);
+    const budgetableCashCents = 97_000;
+
+    expect(result.readyToAssign.cents + representedCents).toBe(
+      budgetableCashCents,
     );
   });
 });

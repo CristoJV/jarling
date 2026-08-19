@@ -51,7 +51,11 @@ facturas periódicas y metas a largo plazo.
 - Transacciones, transferencias, beneficiarios, notas y búsqueda refinable.
 - Saldos y reconciliación de cuentas con el saldo real.
 - Informes de ingresos, gastos y patrimonio neto.
-- Almacenamiento SQLite local sin necesidad de crear una cuenta.
+- Almacenamiento SQLite local en el directorio privado de la aplicación, sin
+  necesidad de crear una cuenta.
+- Copias `.jarling` portátiles y cifradas de forma independiente con la
+  contraseña elegida al exportarlas.
+- Exportación JSON legible y restauración transaccional de copias.
 - Protección opcional mediante las credenciales del dispositivo.
 - Temas claro, oscuro y según el sistema.
 - Interfaz en español e inglés según el idioma del dispositivo.
@@ -70,11 +74,11 @@ facturas periódicas y metas a largo plazo.
 Necesitas Node.js 22.13 o posterior y npm. Las compilaciones nativas requieren
 además Android Studio o, en macOS, Xcode.
 
-Instala las dependencias e inicia Expo:
+Instala las dependencias e inicia la plataforma que quieras utilizar:
 
 ```bash
 npm install
-npx expo start
+npm run android
 ```
 
 Ejecuta una plataforma concreta:
@@ -93,7 +97,8 @@ Ejecuta todas las comprobaciones antes de considerar terminado un cambio:
 npm run format:check
 npm run typecheck
 npm run lint
-npm test
+npm run test:coverage
+npm run test:e2e # requiere Maestro y un emulador con build nativo
 ```
 
 Jarling está en desarrollo activo. Consulta el

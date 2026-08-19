@@ -2,9 +2,9 @@ import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  FlatList,
   Pressable,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -12,7 +12,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { BudgetCategoryValues } from '@/domain/services/calculate-budget-month';
-import { calculateTargetProgress } from '@/domain/services/calculate-target-progress';
+import {
+  calculateTargetProgress,
+  targetFundingPeriodStartMonth,
+} from '@/domain/services/calculate-target-progress';
 import { Money } from '@/domain/value-objects/money';
 import { categoryDisplayName } from '@/presentation/utils/category-name';
 import { CategoryBudgetModal } from '@/presentation/components/budget/category-budget-modal';
@@ -107,6 +110,9 @@ export function BudgetScreen() {
   const [moveTarget, setMoveTarget] = useState<BudgetCategoryValues | null>(
     null,
   );
+  const [collapsedGroupIds, setCollapsedGroupIds] = useState(
+    () => new Set<string>(),
+  );
   const monthLabel = useMemo(
     () => formatMonth(month, language),
     [language, month],
@@ -133,6 +139,9 @@ export function BudgetScreen() {
       new Map(
         budgetCategories.flatMap((values) => {
           const target = targetsByCategoryId.get(values.category.id);
+          const fundingStart = target
+            ? targetFundingPeriodStartMonth(target, month)
+            : month;
           return target
             ? [
                 [
@@ -140,12 +149,28 @@ export function BudgetScreen() {
                   calculateTargetProgress({
                     target,
                     assigned: values.assigned,
+                    assignedSinceTargetStarted: Money.fromCents(
+                      (values.assignedHistory ?? [])
+                        .filter(
+                          ({ month: assignedMonth }) =>
+                            assignedMonth >= fundingStart,
+                        )
+                        .reduce((sum, { amount }) => sum + amount.cents, 0),
+                    ),
                     available: values.available,
                     spent: Money.fromCents(
                       values.spendingTransactions.reduce(
                         (sum, amount) => sum + amount.cents,
                         0,
                       ),
+                    ),
+                    spentSinceTargetStarted: Money.fromCents(
+                      (values.spendingHistory ?? [])
+                        .filter(
+                          ({ month: spendingMonth }) =>
+                            spendingMonth >= fundingStart,
+                        )
+                        .reduce((sum, { amount }) => sum + amount.cents, 0),
                     ),
                     month,
                     today: todayKey(),
@@ -217,8 +242,77 @@ export function BudgetScreen() {
         </View>
       </View>
 
-      <ScrollView
+      <FlatList
         contentContainerStyle={styles.content}
+        data={groups ?? []}
+        keyExtractor={(summary) => summary.group.id}
+        ListEmptyComponent={
+          groups?.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyTitle}>
+                {t('budget.createFirstGroup')}
+              </Text>
+              <Text style={styles.emptyDescription}>
+                {t('budget.createFirstGroupHint')}
+              </Text>
+              <Pressable
+                onPress={() => setNameEditor({ kind: 'create-group' })}
+                style={styles.emptyAction}
+              >
+                <Text style={styles.emptyActionText}>
+                  {t('budget.createGroup')}
+                </Text>
+              </Pressable>
+            </View>
+          ) : null
+        }
+        ListHeaderComponent={
+          <>
+            {budget ? (
+              <View
+                style={[
+                  styles.rtaCard,
+                  budget.readyToAssign.cents < 0 && styles.rtaCardNegative,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.rtaValue,
+                    budget.readyToAssign.cents < 0 && styles.rtaNegative,
+                  ]}
+                >
+                  {formatMoney(budget.readyToAssign)}
+                </Text>
+                <Text style={styles.rtaLabel}>{t('budget.readyToAssign')}</Text>
+              </View>
+            ) : null}
+
+            <View style={styles.sectionHeading}>
+              <View>
+                <Text style={styles.sectionTitle}>
+                  {t('budget.categories')}
+                </Text>
+                <Text style={styles.sectionDescription}>
+                  {t('budget.categoryHint')}
+                </Text>
+              </View>
+            </View>
+
+            {categoryError || budgetError || targetError ? (
+              <Text accessibilityLiveRegion="polite" style={styles.error}>
+                {categoryError ?? budgetError ?? targetError}
+              </Text>
+            ) : null}
+
+            {(categoriesLoading || budgetLoading || targetsLoading) &&
+            !groups ? (
+              <ActivityIndicator
+                accessibilityLabel={t('common.loading')}
+                color={theme.colors.primary}
+              />
+            ) : null}
+          </>
+        }
         refreshControl={
           <RefreshControl
             onRefresh={() => void refreshAll()}
@@ -228,78 +322,25 @@ export function BudgetScreen() {
             }
           />
         }
-      >
-        {budget ? (
-          <View
-            style={[
-              styles.rtaCard,
-              budget.readyToAssign.cents < 0 && styles.rtaCardNegative,
-            ]}
-          >
-            <Text
-              style={[
-                styles.rtaValue,
-                budget.readyToAssign.cents < 0 && styles.rtaNegative,
-              ]}
-            >
-              {formatMoney(budget.readyToAssign)}
-            </Text>
-            <Text style={styles.rtaLabel}>{t('budget.readyToAssign')}</Text>
-          </View>
-        ) : null}
-
-        <View style={styles.sectionHeading}>
-          <View>
-            <Text style={styles.sectionTitle}>{t('budget.categories')}</Text>
-            <Text style={styles.sectionDescription}>
-              {t('budget.categoryHint')}
-            </Text>
-          </View>
-        </View>
-
-        {categoryError || budgetError || targetError ? (
-          <Text accessibilityLiveRegion="polite" style={styles.error}>
-            {categoryError ?? budgetError ?? targetError}
-          </Text>
-        ) : null}
-
-        {(categoriesLoading || budgetLoading || targetsLoading) && !groups ? (
-          <ActivityIndicator
-            accessibilityLabel={t('common.loading')}
-            color={theme.colors.primary}
-          />
-        ) : null}
-
-        {groups?.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyTitle}>
-              {t('budget.createFirstGroup')}
-            </Text>
-            <Text style={styles.emptyDescription}>
-              {t('budget.createFirstGroupHint')}
-            </Text>
-            <Pressable
-              onPress={() => setNameEditor({ kind: 'create-group' })}
-              style={styles.emptyAction}
-            >
-              <Text style={styles.emptyActionText}>
-                {t('budget.createGroup')}
-              </Text>
-            </Pressable>
-          </View>
-        ) : null}
-
-        {groups?.map((summary) => (
+        renderItem={({ item: summary }) => (
           <CategoryGroupCard
-            key={summary.group.id}
+            expanded={!collapsedGroupIds.has(summary.group.id)}
+            onToggleExpanded={() =>
+              setCollapsedGroupIds((current) => {
+                const next = new Set(current);
+                if (next.has(summary.group.id)) next.delete(summary.group.id);
+                else next.add(summary.group.id);
+                return next;
+              })
+            }
             onSelectCategory={setCategoryEditor}
             progressByCategoryId={progressByCategoryId}
             summary={summary}
             targetsByCategoryId={targetsByCategoryId}
             valuesByCategoryId={valuesByCategoryId}
           />
-        ))}
-      </ScrollView>
+        )}
+      />
 
       <Pressable
         accessibilityLabel={t('transactions.add')}
@@ -585,7 +626,7 @@ const createStyles = (theme: AppTheme) =>
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.2,
       shadowRadius: 8,
-      elevation: 7,
+      elevation: theme.elevation.floating,
       alignItems: 'center',
       justifyContent: 'center',
     },

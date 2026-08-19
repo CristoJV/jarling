@@ -20,6 +20,9 @@ import type { DeleteTransaction } from '@/application/use-cases/transactions/del
 import type { GetTransactions } from '@/application/use-cases/transactions/get-transactions';
 import type { GetPayees } from '@/application/use-cases/transactions/get-payees';
 import type { UpdateTransaction } from '@/application/use-cases/transactions/update-transaction';
+import type { CreateTransactionLink } from '@/application/use-cases/transactions/create-transaction-link';
+import type { DeleteTransactionLink } from '@/application/use-cases/transactions/delete-transaction-link';
+import type { GetTransactionLinks } from '@/application/use-cases/transactions/get-transaction-links';
 import type { PopulateSampleData } from '@/application/use-cases/samples/populate-sample-data';
 import type { DeleteCategoryTarget } from '@/application/use-cases/targets/delete-category-target';
 import type { GetCategoryTargets } from '@/application/use-cases/targets/get-category-targets';
@@ -28,7 +31,7 @@ import type { CreateTransfer } from '@/application/use-cases/transfers/create-tr
 import type { UpdateTransfer } from '@/application/use-cases/transfers/update-transfer';
 import type { GetReports } from '@/application/use-cases/reports/get-reports';
 import type { DeletePlan } from '@/application/use-cases/plan/delete-plan';
-import type { DataProtection } from '@/application/ports/data-protection';
+import type { PlanPortability } from '@/application/ports/plan-portability';
 
 export type ApplicationServices = Readonly<{
   accounts: Readonly<{
@@ -55,6 +58,9 @@ export type ApplicationServices = Readonly<{
     delete: Pick<DeleteTransaction, 'execute'>;
     getAll: Pick<GetTransactions, 'execute'>;
     getPayees: Pick<GetPayees, 'execute'>;
+    createLink: Pick<CreateTransactionLink, 'execute'>;
+    getLinks: Pick<GetTransactionLinks, 'execute'>;
+    deleteLink: Pick<DeleteTransactionLink, 'execute'>;
   }>;
   budget: Readonly<{
     getMonth: Pick<GetBudgetMonth, 'execute'>;
@@ -79,5 +85,5 @@ export type ApplicationServices = Readonly<{
   plan: Readonly<{
     delete: Pick<DeletePlan, 'execute'>;
   }>;
-  dataProtection: DataProtection;
+  planPortability: PlanPortability;
 }>;

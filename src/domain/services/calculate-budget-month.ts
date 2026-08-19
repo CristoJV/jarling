@@ -1,10 +1,11 @@
-import type { Account } from '@/domain/entities/account';
+import { isCreditAccountType, type Account } from '@/domain/entities/account';
 import type { BudgetAllocation } from '@/domain/entities/budget-allocation';
 import { assertValidBudgetMonth } from '@/domain/entities/budget-allocation';
 import type { Category } from '@/domain/entities/category';
 import type { CategoryGroup } from '@/domain/entities/category-group';
 import type { Transaction } from '@/domain/entities/transaction';
 import { Money } from '@/domain/value-objects/money';
+import { calculateCreditCardPaymentState } from '@/domain/services/calculate-credit-card-payment-state';
 
 export type BudgetCategoryValues = Readonly<{
   category: Category;
@@ -12,6 +13,8 @@ export type BudgetCategoryValues = Readonly<{
   activity: Money;
   available: Money;
   spendingTransactions: readonly Money[];
+  assignedHistory?: readonly Readonly<{ month: string; amount: Money }>[];
+  spendingHistory?: readonly Readonly<{ month: string; amount: Money }>[];
 }>;
 
 export type BudgetGroupValues = Readonly<{
@@ -34,132 +37,6 @@ export type CalculateBudgetMonthInput = Readonly<{
   transactions: readonly Transaction[];
 }>;
 
-type CreditFunding = Readonly<{
-  totalByAccount: ReadonlyMap<string, number>;
-  currentByAccount: ReadonlyMap<string, number>;
-}>;
-
-function creditFunding(input: CalculateBudgetMonthInput): CreditFunding {
-  const accountById = new Map(
-    input.accounts.map((account) => [account.id, account] as const),
-  );
-  const paymentCategoryIds = new Set(
-    input.categories
-      .filter(({ linkedAccountId }) => linkedAccountId !== undefined)
-      .map(({ id }) => id),
-  );
-  const totalByAccount = new Map<string, number>();
-  const currentByAccount = new Map<string, number>();
-
-  for (const category of input.categories.filter(
-    ({ id, linkedAccountId }) =>
-      linkedAccountId === undefined && !paymentCategoryIds.has(id),
-  )) {
-    const events = [
-      ...input.allocations
-        .filter(
-          (allocation) =>
-            allocation.categoryId === category.id &&
-            allocation.month <= input.month,
-        )
-        .map((allocation) => ({
-          order: `${allocation.month}-00:${allocation.createdAt}`,
-          month: allocation.month,
-          amount: allocation.amount.cents,
-          accountId: undefined,
-        })),
-      ...input.transactions
-        .filter(
-          (transaction) =>
-            transaction.categoryId === category.id &&
-            transaction.kind === 'standard' &&
-            transaction.date.slice(0, 7) <= input.month,
-        )
-        .map((transaction) => ({
-          order: `${transaction.date}:${transaction.createdAt}`,
-          month: transaction.date.slice(0, 7),
-          amount: transaction.amount.cents,
-          accountId: transaction.accountId,
-        })),
-    ].sort((left, right) => left.order.localeCompare(right.order));
-    let available = 0;
-    const fundedByAccount = new Map<string, number>();
-    const debtByAccount = new Map<string, number>();
-
-    const addFunding = (accountId: string, cents: number, month: string) => {
-      totalByAccount.set(
-        accountId,
-        (totalByAccount.get(accountId) ?? 0) + cents,
-      );
-      if (month === input.month) {
-        currentByAccount.set(
-          accountId,
-          (currentByAccount.get(accountId) ?? 0) + cents,
-        );
-      }
-    };
-
-    for (const event of events) {
-      if (!event.accountId) {
-        let remaining = Math.max(0, event.amount);
-        for (const [accountId, debt] of debtByAccount) {
-          const covered = Math.min(debt, remaining);
-          if (covered <= 0) continue;
-          debtByAccount.set(accountId, debt - covered);
-          fundedByAccount.set(
-            accountId,
-            (fundedByAccount.get(accountId) ?? 0) + covered,
-          );
-          addFunding(accountId, covered, event.month);
-          remaining -= covered;
-        }
-        available += event.amount;
-        continue;
-      }
-
-      const account = accountById.get(event.accountId);
-      if (account?.type !== 'credit_card') {
-        available += event.amount;
-        continue;
-      }
-
-      if (event.amount < 0) {
-        const expense = Math.abs(event.amount);
-        const covered = Math.min(expense, Math.max(0, available));
-        const uncovered = expense - covered;
-        if (covered > 0) {
-          fundedByAccount.set(
-            account.id,
-            (fundedByAccount.get(account.id) ?? 0) + covered,
-          );
-          addFunding(account.id, covered, event.month);
-        }
-        if (uncovered > 0) {
-          debtByAccount.set(
-            account.id,
-            (debtByAccount.get(account.id) ?? 0) + uncovered,
-          );
-        }
-      } else if (event.amount > 0) {
-        let refund = event.amount;
-        const debt = debtByAccount.get(account.id) ?? 0;
-        const debtReduction = Math.min(debt, refund);
-        debtByAccount.set(account.id, debt - debtReduction);
-        refund -= debtReduction;
-        const funded = fundedByAccount.get(account.id) ?? 0;
-        const fundingReduction = Math.min(funded, refund);
-        if (fundingReduction > 0) {
-          fundedByAccount.set(account.id, funded - fundingReduction);
-          addFunding(account.id, -fundingReduction, event.month);
-        }
-      }
-      available += event.amount;
-    }
-  }
-
-  return { totalByAccount, currentByAccount };
-}
-
 export function calculateBudgetMonth(
   input: CalculateBudgetMonthInput,
 ): BudgetMonthValues {
@@ -169,9 +46,6 @@ export function calculateBudgetMonth(
       .filter((account) => account.onBudget)
       .map((account) => account.id),
   );
-  const accountById = new Map(
-    input.accounts.map((account) => [account.id, account] as const),
-  );
   const transactions = input.transactions.filter(
     (transaction) =>
       transaction.date.slice(0, 7) <= input.month &&
@@ -180,83 +54,126 @@ export function calculateBudgetMonth(
   const allocations = input.allocations.filter(
     (allocation) => allocation.month <= input.month,
   );
-  const cardFunding = creditFunding(input);
-  const assignedTotal = allocations.reduce(
-    (sum, allocation) => sum + allocation.amount.cents,
+  const cardFunding = calculateCreditCardPaymentState(input);
+  const allocationsByCategory = new Map<string, BudgetAllocation[]>();
+  for (const allocation of allocations) {
+    const values = allocationsByCategory.get(allocation.categoryId) ?? [];
+    values.push(allocation);
+    allocationsByCategory.set(allocation.categoryId, values);
+  }
+  const transactionsByCategory = new Map<string, Transaction[]>();
+  for (const transaction of transactions) {
+    if (!transaction.categoryId) continue;
+    const values = transactionsByCategory.get(transaction.categoryId) ?? [];
+    values.push(transaction);
+    transactionsByCategory.set(transaction.categoryId, values);
+  }
+  const categoriesByGroup = new Map<string, Category[]>();
+  for (const category of input.categories) {
+    const values = categoriesByGroup.get(category.groupId) ?? [];
+    values.push(category);
+    categoriesByGroup.set(category.groupId, values);
+  }
+
+  const groups = [...input.groups]
+    .sort((left, right) => left.sortOrder - right.sortOrder)
+    .map((group) => ({
+      group,
+      categories: [...(categoriesByGroup.get(group.id) ?? [])]
+        .sort((left, right) => left.sortOrder - right.sortOrder)
+        .map((category) => {
+          const categoryAllocations =
+            allocationsByCategory.get(category.id) ?? [];
+          const categoryTransactions =
+            transactionsByCategory.get(category.id) ?? [];
+          const currentMonthTransactions = categoryTransactions.filter(
+            (transaction) => transaction.date.slice(0, 7) === input.month,
+          );
+          const creditCardActivity = category.linkedAccountId
+            ? (cardFunding.totalByAccount.get(category.linkedAccountId) ?? 0)
+            : 0;
+          const currentCreditCardActivity = category.linkedAccountId
+            ? (cardFunding.currentByAccount.get(category.linkedAccountId) ?? 0)
+            : 0;
+
+          return {
+            category,
+            assigned: Money.fromCents(
+              categoryAllocations
+                .filter((allocation) => allocation.month === input.month)
+                .reduce((sum, allocation) => sum + allocation.amount.cents, 0),
+            ),
+            activity: Money.fromCents(
+              currentMonthTransactions.reduce(
+                (sum, transaction) => sum + transaction.amount.cents,
+                0,
+              ) + currentCreditCardActivity,
+            ),
+            available: Money.fromCents(
+              categoryAllocations.reduce(
+                (sum, allocation) => sum + allocation.amount.cents,
+                0,
+              ) +
+                categoryTransactions.reduce(
+                  (sum, transaction) => sum + transaction.amount.cents,
+                  0,
+                ) +
+                creditCardActivity,
+            ),
+            spendingTransactions: category.linkedAccountId
+              ? []
+              : currentMonthTransactions
+                  .filter((transaction) => transaction.amount.cents < 0)
+                  .map((transaction) =>
+                    Money.fromCents(Math.abs(transaction.amount.cents)),
+                  ),
+            assignedHistory: categoryAllocations.map((allocation) => ({
+              month: allocation.month,
+              amount: allocation.amount,
+            })),
+            spendingHistory: categoryTransactions
+              .filter((transaction) => transaction.amount.cents < 0)
+              .map((transaction) => ({
+                month: transaction.date.slice(0, 7),
+                amount: Money.fromCents(Math.abs(transaction.amount.cents)),
+              })),
+          };
+        }),
+    }));
+
+  // Ready to Assign is the residual of the accounting identity. A credit
+  // account contributes only when it has a positive balance (money owed to the
+  // user); debt never creates budgetable cash.
+  const balanceByAccount = new Map<string, number>();
+  for (const transaction of transactions) {
+    balanceByAccount.set(
+      transaction.accountId,
+      (balanceByAccount.get(transaction.accountId) ?? 0) +
+        transaction.amount.cents,
+    );
+  }
+  const budgetableCash = input.accounts
+    .filter(({ onBudget }) => onBudget)
+    .reduce((sum, account) => {
+      const balance = balanceByAccount.get(account.id) ?? 0;
+      return (
+        sum +
+        (isCreditAccountType(account.type) ? Math.max(0, balance) : balance)
+      );
+    }, 0);
+  const envelopeBalances = groups.reduce(
+    (groupSum, group) =>
+      groupSum +
+      group.categories.reduce(
+        (categorySum, category) => categorySum + category.available.cents,
+        0,
+      ),
     0,
   );
-  const unassignedCash = transactions
-    .filter(
-      (transaction) =>
-        !transaction.categoryId &&
-        accountById.get(transaction.accountId)?.type !== 'credit_card',
-    )
-    .reduce((sum, transaction) => sum + transaction.amount.cents, 0);
 
   return {
     month: input.month,
-    readyToAssign: Money.fromCents(unassignedCash - assignedTotal),
-    groups: [...input.groups]
-      .sort((left, right) => left.sortOrder - right.sortOrder)
-      .map((group) => ({
-        group,
-        categories: input.categories
-          .filter((category) => category.groupId === group.id)
-          .sort((left, right) => left.sortOrder - right.sortOrder)
-          .map((category) => {
-            const categoryAllocations = allocations.filter(
-              (allocation) => allocation.categoryId === category.id,
-            );
-            const categoryTransactions = transactions.filter(
-              (transaction) => transaction.categoryId === category.id,
-            );
-            const currentMonthTransactions = categoryTransactions.filter(
-              (transaction) => transaction.date.slice(0, 7) === input.month,
-            );
-            const creditCardActivity = category.linkedAccountId
-              ? (cardFunding.totalByAccount.get(category.linkedAccountId) ?? 0)
-              : 0;
-            const currentCreditCardActivity = category.linkedAccountId
-              ? (cardFunding.currentByAccount.get(category.linkedAccountId) ??
-                0)
-              : 0;
-
-            return {
-              category,
-              assigned: Money.fromCents(
-                categoryAllocations
-                  .filter((allocation) => allocation.month === input.month)
-                  .reduce(
-                    (sum, allocation) => sum + allocation.amount.cents,
-                    0,
-                  ),
-              ),
-              activity: Money.fromCents(
-                currentMonthTransactions.reduce(
-                  (sum, transaction) => sum + transaction.amount.cents,
-                  0,
-                ) + currentCreditCardActivity,
-              ),
-              available: Money.fromCents(
-                categoryAllocations.reduce(
-                  (sum, allocation) => sum + allocation.amount.cents,
-                  0,
-                ) +
-                  categoryTransactions.reduce(
-                    (sum, transaction) => sum + transaction.amount.cents,
-                    0,
-                  ) +
-                  creditCardActivity,
-              ),
-              spendingTransactions: category.linkedAccountId
-                ? []
-                : currentMonthTransactions
-                    .filter((transaction) => transaction.amount.cents < 0)
-                    .map((transaction) =>
-                      Money.fromCents(Math.abs(transaction.amount.cents)),
-                    ),
-            };
-          }),
-      })),
+    readyToAssign: Money.fromCents(budgetableCash - envelopeBalances),
+    groups,
   };
 }

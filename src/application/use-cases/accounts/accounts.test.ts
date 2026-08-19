@@ -4,6 +4,7 @@ import type { UnitOfWork } from '@/application/ports/unit-of-work';
 import { AccountNotFoundError } from '@/domain/errors/account-not-found-error';
 import { InvalidAccountNameError } from '@/domain/errors/invalid-account-name-error';
 import { InvalidMoneyError } from '@/domain/errors/invalid-money-error';
+import { AccountBalanceNotZeroError } from '@/domain/errors/account-balance-not-zero-error';
 import { Money } from '@/domain/value-objects/money';
 import { ImmediateUnitOfWork } from '@/infrastructure/persistence/in-memory/immediate-unit-of-work';
 import { InMemoryAccountRepository } from '@/infrastructure/persistence/in-memory/in-memory-account-repository';
@@ -188,7 +189,7 @@ describe('account use cases', () => {
     });
   });
 
-  it('closes an account without deleting its history', async () => {
+  it('closes a zero-balance account without deleting its history', async () => {
     const { accounts, categories, transactions, clock, createAccount } =
       setup();
     const account = await createAccount.execute({
@@ -197,17 +198,48 @@ describe('account use cases', () => {
       onBudget: true,
       openingBalanceCents: 200_000,
     });
+    await transactions.save({
+      id: 'closing-transfer',
+      accountId: account.id,
+      amount: Money.fromCents(-200_000),
+      date: '2026-08-18',
+      status: 'cleared',
+      kind: 'standard',
+      createdAt: '2026-08-18T12:00:00.000Z',
+      updatedAt: '2026-08-18T12:00:00.000Z',
+    });
 
     const closed = await new CloseAccount(
       accounts,
       categories,
+      transactions,
       new ImmediateUnitOfWork(),
       clock,
     ).execute(account.id);
 
     expect(closed.closed).toBe(true);
     expect(await accounts.findById(account.id)).toEqual(closed);
-    expect(await transactions.findByAccount(account.id)).toHaveLength(1);
+    expect(await transactions.findByAccount(account.id)).toHaveLength(2);
+  });
+
+  it('rejects closing an account that still has a balance', async () => {
+    const { accounts, categories, transactions, clock, createAccount } =
+      setup();
+    const account = await createAccount.execute({
+      name: 'Cash',
+      type: 'cash',
+      onBudget: true,
+      openingBalanceCents: 100,
+    });
+    await expect(
+      new CloseAccount(
+        accounts,
+        categories,
+        transactions,
+        new ImmediateUnitOfWork(),
+        clock,
+      ).execute(account.id),
+    ).rejects.toThrow(AccountBalanceNotZeroError);
   });
 
   it('fails explicitly when closing an unknown account', async () => {
@@ -217,6 +249,7 @@ describe('account use cases', () => {
       new CloseAccount(
         accounts,
         new InMemoryCategoryRepository(),
+        new InMemoryTransactionRepository(),
         new ImmediateUnitOfWork(),
         new FixedClock(),
       ).execute('missing'),

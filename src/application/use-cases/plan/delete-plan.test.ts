@@ -5,12 +5,22 @@ describe('DeletePlan', () => {
     const events: string[] = [];
     const useCase = new DeletePlan(
       { deleteAll: async () => void events.push('delete') },
-      { execute: async () => void events.push('defaults') },
+      {
+        executeInCurrentTransaction: async () => void events.push('defaults'),
+      },
+      {
+        run: async (task) => {
+          events.push('begin');
+          const result = await task();
+          events.push('commit');
+          return result;
+        },
+      },
     );
 
     await useCase.execute();
 
-    expect(events).toEqual(['delete', 'defaults']);
+    expect(events).toEqual(['begin', 'delete', 'defaults', 'commit']);
   });
 
   it('does not recreate defaults when deletion fails', async () => {
@@ -21,7 +31,8 @@ describe('DeletePlan', () => {
           throw new Error('delete failed');
         },
       },
-      { execute: ensureDefaults },
+      { executeInCurrentTransaction: ensureDefaults },
+      { run: (task) => task() },
     );
 
     await expect(useCase.execute()).rejects.toThrow('delete failed');

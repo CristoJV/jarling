@@ -51,10 +51,10 @@ long-term goals.
 - Transactions, account transfers, payees, memos, and refinable search.
 - Account balances and reconciliation against the real-world balance.
 - Income, spending, and net-worth reports.
-- Local SQLite storage with no account required.
-- SQLCipher encryption on Android and iOS, with the key held in the device
-  secure store.
-- Readable JSON exports and portable, password-encrypted backups/restoration.
+- Local SQLite storage in the application's private directory, with no account
+  required.
+- Readable JSON exports and portable, independently password-encrypted
+  `.jarling` backups.
 - Optional protection with the device credentials.
 - Light, dark, and system themes.
 - English and Spanish interfaces selected from the device language.
@@ -73,8 +73,7 @@ long-term goals.
 You need Node.js 22.13 or newer and npm. Native builds additionally require
 Android Studio or, on macOS, Xcode.
 
-Install the dependencies. SQLCipher requires a native development build and is
-not available in Expo Go:
+Install the dependencies and start the platform you want to use:
 
 ```bash
 npm install
@@ -97,7 +96,7 @@ Run the complete quality gate before considering a change finished:
 npm run format:check
 npm run typecheck
 npm run lint
-npm test
+npm run test:coverage
 npm run test:e2e # requires Maestro and a native build/emulator
 ```
 

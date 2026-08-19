@@ -79,7 +79,7 @@ export function SettingsScreen() {
   async function exportData() {
     setExporting(true);
     try {
-      await application.dataProtection.exportData(preferences);
+      await application.planPortability.exportData(preferences);
     } catch {
       Alert.alert(t('settings.dataError'));
     } finally {
@@ -88,12 +88,12 @@ export function SettingsScreen() {
   }
 
   async function createBackup(password: string) {
-    await application.dataProtection.createBackup(password, preferences);
+    await application.planPortability.createBackup(password, preferences);
     Alert.alert(t('settings.backupCreated'));
   }
 
   async function restoreBackup(password: string) {
-    const result = await application.dataProtection.restoreBackup(password);
+    const result = await application.planPortability.restoreBackup(password);
     if (!result.restored) return;
     if (result.preferences !== undefined) {
       await updatePreferences(
@@ -360,8 +360,10 @@ export function SettingsScreen() {
 
         <Text style={styles.sectionLabel}>{t('settings.dataSection')}</Text>
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>{t('settings.dataProtection')}</Text>
-          <Text style={styles.help}>{t('settings.encryptionDescription')}</Text>
+          <Text style={styles.cardTitle}>{t('settings.dataPortability')}</Text>
+          <Text style={styles.help}>
+            {t('settings.portabilityDescription')}
+          </Text>
           <SettingsRow
             label={exporting ? t('settings.exporting') : t('settings.export')}
             onPress={requestExport}

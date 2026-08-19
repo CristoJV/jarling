@@ -31,6 +31,8 @@ type CategoryGroupCardProps = Readonly<{
   targetsByCategoryId: ReadonlyMap<string, CategoryTarget>;
   progressByCategoryId: ReadonlyMap<string, TargetProgress>;
   onSelectCategory: (values: BudgetCategoryValues) => void;
+  expanded?: boolean;
+  onToggleExpanded?: () => void;
 }>;
 
 export function CategoryGroupCard({
@@ -39,11 +41,14 @@ export function CategoryGroupCard({
   targetsByCategoryId,
   progressByCategoryId,
   onSelectCategory,
+  expanded: controlledExpanded,
+  onToggleExpanded,
 }: CategoryGroupCardProps) {
   const { t } = useTranslation();
   const theme = useAppTheme();
   const styles = useThemedStyles(createStyles);
-  const [expanded, setExpanded] = useState(true);
+  const [localExpanded, setLocalExpanded] = useState(true);
+  const expanded = controlledExpanded ?? localExpanded;
   const visibleCategories = summary.categories.filter(
     (category) => !category.hidden,
   );
@@ -71,7 +76,11 @@ export function CategoryGroupCard({
       <Pressable
         accessibilityRole="button"
         accessibilityState={{ expanded }}
-        onPress={() => setExpanded((current) => !current)}
+        onPress={() =>
+          onToggleExpanded
+            ? onToggleExpanded()
+            : setLocalExpanded((current) => !current)
+        }
         style={[
           styles.groupHeader,
           { backgroundColor: theme.colors.surfaceMuted },

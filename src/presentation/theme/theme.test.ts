@@ -7,6 +7,7 @@ describe('application themes', () => {
     expect(Object.keys(darkTheme.colors).sort()).toEqual(
       Object.keys(lightTheme.colors).sort(),
     );
+    expect(darkTheme.elevation).toEqual(lightTheme.elevation);
     expect(darkTheme.colors.background).not.toBe(lightTheme.colors.background);
   });
 });

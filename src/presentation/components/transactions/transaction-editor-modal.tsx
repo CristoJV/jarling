@@ -1,5 +1,4 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import type { ComponentProps } from 'react';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import {
@@ -15,6 +14,7 @@ import type { TransferInput } from '@/application/use-cases/transfers/transfer-i
 import { Money } from '@/domain/value-objects/money';
 import { MoneyKeypad } from '@/presentation/components/common/money-keypad';
 import { FullScreenModal } from '@/presentation/components/common/full-screen-modal';
+import { FormRow } from '@/presentation/components/common/form-row';
 import { NameInputModal } from '@/presentation/components/common/name-input-modal';
 import { NativeDatePicker } from '@/presentation/components/common/native-date-picker';
 import { SelectionModal } from '@/presentation/components/common/selection-modal';
@@ -272,7 +272,7 @@ export function TransactionEditorModal({
 
           <View style={styles.formCard}>
             {kind !== 'transfer' ? (
-              <FieldRow
+              <FormRow
                 icon="currency-eur"
                 label={payee || t('transactions.choosePayee')}
                 muted={!payee}
@@ -280,14 +280,14 @@ export function TransactionEditorModal({
               />
             ) : null}
             {kind === 'expense' ? (
-              <FieldRow
+              <FormRow
                 icon="shape-outline"
                 label={categoryName ?? t('transactions.chooseCategory')}
                 muted={!categoryName}
                 onPress={() => openEditor('category')}
               />
             ) : null}
-            <FieldRow
+            <FormRow
               icon="cash"
               label={accountName}
               muted={!accountId}
@@ -299,7 +299,7 @@ export function TransactionEditorModal({
               }
             />
             {kind === 'transfer' ? (
-              <FieldRow
+              <FormRow
                 icon="bank-transfer-in"
                 label={destinationAccountName}
                 muted={!destinationAccountId}
@@ -307,7 +307,7 @@ export function TransactionEditorModal({
                 overline={t('transactions.toAccount')}
               />
             ) : null}
-            <FieldRow
+            <FormRow
               icon="calendar-outline"
               label={formatDate(date, language)}
               onPress={() => openEditor('date')}
@@ -315,14 +315,14 @@ export function TransactionEditorModal({
             />
             {showMore ? (
               <>
-                <FieldRow
+                <FormRow
                   icon="note-text-outline"
                   label={memo || t('transactions.addMemo')}
                   muted={!memo}
                   onPress={() => openEditor('memo')}
                   overline={memo ? t('transactions.memo') : undefined}
                 />
-                <FieldRow
+                <FormRow
                   icon={cleared ? 'check-circle' : 'circle-outline'}
                   label={
                     cleared
@@ -520,41 +520,6 @@ export function TransactionEditorModal({
   );
 }
 
-function FieldRow({
-  icon,
-  label,
-  muted = false,
-  overline,
-  onPress,
-}: Readonly<{
-  icon: ComponentProps<typeof MaterialCommunityIcons>['name'];
-  label: string;
-  muted?: boolean;
-  overline?: string;
-  onPress: () => void;
-}>) {
-  const theme = useAppTheme();
-  const styles = useThemedStyles(createStyles);
-  return (
-    <Pressable onPress={onPress} style={styles.fieldRow}>
-      <View style={styles.fieldIcon}>
-        <MaterialCommunityIcons
-          color={theme.colors.textMuted}
-          name={icon}
-          size={23}
-        />
-      </View>
-      <View style={styles.fieldCopy}>
-        {overline ? <Text style={styles.overline}>{overline}</Text> : null}
-        <Text style={[styles.fieldLabel, muted && styles.fieldMuted]}>
-          {label}
-        </Text>
-      </View>
-      <Text style={styles.rowChevron}>›</Text>
-    </Pressable>
-  );
-}
-
 const createStyles = (theme: AppTheme) =>
   StyleSheet.create({
     safeArea: { flex: 1, backgroundColor: theme.colors.background },
@@ -623,27 +588,8 @@ const createStyles = (theme: AppTheme) =>
       shadowOffset: { width: 0, height: 5 },
       shadowOpacity: 0.06,
       shadowRadius: 18,
-      elevation: 2,
+      elevation: theme.elevation.card,
     },
-    fieldRow: {
-      minHeight: 58,
-      paddingHorizontal: 20,
-      borderBottomColor: theme.colors.border,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    fieldIcon: { width: 36, alignItems: 'center', justifyContent: 'center' },
-    fieldCopy: { flex: 1, paddingHorizontal: 12 },
-    overline: {
-      marginBottom: 2,
-      color: theme.colors.textMuted,
-      fontSize: 12,
-      fontWeight: '600',
-    },
-    fieldLabel: { color: theme.colors.text, fontSize: 17, fontWeight: '600' },
-    fieldMuted: { color: theme.colors.textMuted, fontWeight: '500' },
-    rowChevron: { color: theme.colors.textMuted, fontSize: 25 },
     error: {
       width: '100%',
       padding: 12,
@@ -675,7 +621,7 @@ const createStyles = (theme: AppTheme) =>
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.2,
       shadowRadius: 8,
-      elevation: 7,
+      elevation: theme.elevation.floating,
       alignItems: 'center',
       justifyContent: 'center',
     },

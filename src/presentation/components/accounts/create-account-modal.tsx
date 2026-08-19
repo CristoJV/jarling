@@ -10,10 +10,10 @@ import {
 } from 'react-native';
 
 import type { CreateAccountInput } from '@/application/use-cases/accounts/create-account';
-import { ACCOUNT_TYPES, type AccountType } from '@/domain/entities/account';
+import type { AccountType } from '@/domain/entities/account';
+import { AccountTypeScreen } from '@/presentation/components/accounts/account-type-screen';
 import { MoneyKeypad } from '@/presentation/components/common/money-keypad';
 import { AnimatedBottomSheetModal } from '@/presentation/components/common/animated-bottom-sheet-modal';
-import { SelectionModal } from '@/presentation/components/common/selection-modal';
 import { SafeBottomSheet } from '@/presentation/components/common/safe-bottom-sheet';
 import { Money } from '@/domain/value-objects/money';
 import { formatMoney } from '@/presentation/utils/money';
@@ -43,6 +43,7 @@ export function CreateAccountModal({
     savings: t('accounts.savings'),
     cash: t('accounts.cash'),
     credit_card: t('accounts.creditCard'),
+    line_of_credit: t('accounts.lineOfCredit'),
     tracking: t('accounts.tracking'),
     loan: t('accounts.loan'),
   };
@@ -157,7 +158,10 @@ export function CreateAccountModal({
             </View>
             <Switch
               disabled={
-                type === 'tracking' || type === 'loan' || type === 'credit_card'
+                type === 'tracking' ||
+                type === 'loan' ||
+                type === 'credit_card' ||
+                type === 'line_of_credit'
               }
               onValueChange={setOnBudget}
               value={onBudget}
@@ -184,27 +188,16 @@ export function CreateAccountModal({
         </ScrollView>
       </SafeBottomSheet>
       {selectingType ? (
-        <SelectionModal
+        <AccountTypeScreen
           onDismiss={() => setSelectingType(false)}
           onSelect={(value) => {
             setType(value);
             if (value === 'tracking' || value === 'loan') setOnBudget(false);
-            if (value === 'credit_card') setOnBudget(true);
+            if (value === 'credit_card' || value === 'line_of_credit') {
+              setOnBudget(true);
+            }
           }}
-          options={ACCOUNT_TYPES.map((value) => ({
-            value,
-            label: typeLabels[value],
-            description:
-              value === 'tracking'
-                ? t('accounts.trackingDescription')
-                : value === 'loan'
-                  ? t('accounts.loanDescription')
-                  : value === 'credit_card'
-                    ? t('accounts.creditCardDescription')
-                    : t('accounts.budgetAccountDescription'),
-          }))}
-          selectedValue={type}
-          title={t('accounts.type')}
+          selected={type}
         />
       ) : null}
     </AnimatedBottomSheetModal>

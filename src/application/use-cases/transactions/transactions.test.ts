@@ -9,6 +9,7 @@ import { CategoryNotFoundError } from '@/domain/errors/category-not-found-error'
 import { InvalidTransactionAmountError } from '@/domain/errors/invalid-transaction-amount-error';
 import { InvalidTransactionDateError } from '@/domain/errors/invalid-transaction-date-error';
 import { TransactionNotFoundError } from '@/domain/errors/transaction-not-found-error';
+import { ProtectedTransactionError } from '@/domain/errors/protected-transaction-error';
 import { Money } from '@/domain/value-objects/money';
 import { InMemoryAccountRepository } from '@/infrastructure/persistence/in-memory/in-memory-account-repository';
 import { InMemoryCategoryRepository } from '@/infrastructure/persistence/in-memory/in-memory-category-repository';
@@ -304,6 +305,63 @@ describe('transaction use cases', () => {
     await expect(
       new DeleteTransaction(transactions, unitOfWork).execute(reconciled.id),
     ).rejects.toThrow(CannotModifyReconciledTransactionError);
+  });
+
+  it('protects technical transactions from the generic editor', async () => {
+    const { accounts, categories, transactions, unitOfWork, clock } =
+      await setup();
+    const opening: Transaction = {
+      id: 'opening',
+      accountId: account.id,
+      amount: Money.fromCents(100),
+      date: '2026-08-18',
+      status: 'cleared',
+      kind: 'opening_balance',
+      createdAt: '2026-08-18T10:00:00.000Z',
+      updatedAt: '2026-08-18T10:00:00.000Z',
+    };
+    await transactions.save(opening);
+    await expect(
+      new UpdateTransaction(
+        accounts,
+        categories,
+        transactions,
+        unitOfWork,
+        clock,
+      ).execute({
+        id: opening.id,
+        kind: 'income',
+        accountId: account.id,
+        amountCents: 200,
+        date: '2026-08-18',
+        status: 'cleared',
+      }),
+    ).rejects.toThrow(ProtectedTransactionError);
+    await expect(
+      new DeleteTransaction(transactions, unitOfWork).execute(opening.id),
+    ).rejects.toThrow(ProtectedTransactionError);
+  });
+
+  it('deletes only the selected standard transaction', async () => {
+    const { transactions, unitOfWork } = await setup();
+    const first: Transaction = {
+      id: 'related-1',
+      accountId: account.id,
+      amount: Money.fromCents(-100),
+      date: '2026-08-18',
+      status: 'cleared',
+      kind: 'standard',
+      createdAt: '2026-08-18T10:00:00.000Z',
+      updatedAt: '2026-08-18T10:00:00.000Z',
+    };
+    const second = { ...first, id: 'related-2', amount: Money.fromCents(100) };
+    await transactions.save(first);
+    await transactions.save(second);
+
+    await new DeleteTransaction(transactions, unitOfWork).execute(first.id);
+
+    expect(await transactions.findById(first.id)).toBeNull();
+    expect(await transactions.findById(second.id)).toEqual(second);
   });
 
   it('fails explicitly when deleting an unknown transaction', async () => {

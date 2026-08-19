@@ -1,12 +1,6 @@
-import {
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AnimatedBottomSheetModal } from '@/presentation/components/common/animated-bottom-sheet-modal';
+import { AnimatedCenteredModal } from '@/presentation/components/common/animated-centered-modal';
 import { SafeBottomSheet } from '@/presentation/components/common/safe-bottom-sheet';
 import { useTranslation } from '@/presentation/localization/localization-provider';
 import type { AppTheme } from '@/presentation/theme/theme';
@@ -40,7 +34,7 @@ export function SelectionModal<Value extends string>({
   const centered = placement === 'center';
   const sheet = (
     <Pressable style={[styles.sheet, centered && styles.sheetCentered]}>
-      <SafeBottomSheet>
+      <SafeBottomSheet respectBottomInset={!centered}>
         {centered ? null : <View style={styles.handle} />}
         <View style={styles.header}>
           <Text style={styles.title}>{title}</Text>
@@ -88,23 +82,12 @@ export function SelectionModal<Value extends string>({
   }
 
   return (
-    <Modal animationType="fade" onRequestClose={onDismiss} transparent visible>
-      <Pressable onPress={onDismiss} style={styles.backdropCentered}>
-        {sheet}
-      </Pressable>
-    </Modal>
+    <AnimatedCenteredModal onDismiss={onDismiss}>{sheet}</AnimatedCenteredModal>
   );
 }
 
 const createStyles = (theme: AppTheme) =>
   StyleSheet.create({
-    backdropCentered: {
-      flex: 1,
-      padding: 24,
-      backgroundColor: theme.colors.scrim,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
     sheet: {
       width: '100%',
       maxHeight: '82%',

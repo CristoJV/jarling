@@ -1,7 +1,6 @@
 import type { Account } from '@/domain/entities/account';
 import type { AccountRepository } from '@/domain/repositories/account-repository';
 import type { TransactionRepository } from '@/domain/repositories/transaction-repository';
-import { calculateAccountBalance } from '@/domain/services/calculate-account-balance';
 import { Money } from '@/domain/value-objects/money';
 
 export type AccountSummary = Readonly<{
@@ -21,16 +20,14 @@ export class GetAccounts {
   ) {}
 
   async execute(): Promise<AccountsOverview> {
-    const accounts = await this.accounts.findAll();
-    const summaries = await Promise.all(
-      accounts.map(async (account) => {
-        const transactions = await this.transactions.findByAccount(account.id);
-        return {
-          account,
-          balance: calculateAccountBalance(transactions),
-        };
-      }),
-    );
+    const [accounts, balances] = await Promise.all([
+      this.accounts.findAll(),
+      this.transactions.findBalancesByAccount(),
+    ]);
+    const summaries = accounts.map((account) => ({
+      account,
+      balance: balances.get(account.id) ?? Money.zero(),
+    }));
 
     const onBudgetTotal = summaries.reduce(
       (total, summary) =>

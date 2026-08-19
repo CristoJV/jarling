@@ -166,7 +166,7 @@ describe('budget use cases', () => {
   it('allows reducing an allocation when persisted data already has negative RTA', async () => {
     const { assign, allocations, getBudget } = await setup();
     await allocations.save({
-      id: 'legacy-allocation',
+      id: 'overallocated-budget',
       categoryId: category.id,
       month: '2026-08',
       amount: Money.fromCents(210_000),

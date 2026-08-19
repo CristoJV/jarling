@@ -3,6 +3,7 @@ export const english = {
   'common.close': 'Close',
   'common.delete': 'Delete',
   'common.done': 'Done',
+  'common.retry': 'Try again',
   'common.edit': 'Edit',
   'common.save': 'Save',
   'common.settings': 'Settings',
@@ -13,6 +14,9 @@ export const english = {
   'common.previousYear': 'Previous year',
   'common.nextYear': 'Next year',
   'common.dateFormat': 'Date (YYYY-MM-DD)',
+  'databaseError.title': 'Jarling could not start',
+  'databaseError.description':
+    'The local database could not be initialized. The connection was closed safely. Try again or restart the application.',
   'tabs.budget': 'Budget',
   'tabs.accounts': 'Accounts',
   'tabs.transactions': 'Transactions',
@@ -68,9 +72,9 @@ export const english = {
   'settings.unlock': 'Unlock',
   'settings.locked': 'Jarling is locked',
   'settings.dataSection': 'DATA & PRIVACY',
-  'settings.dataProtection': 'Data protection',
-  'settings.encryptionDescription':
-    'Financial data is encrypted on this device with SQLCipher. Encrypted backups use a password known only to you.',
+  'settings.dataPortability': 'Data and backups',
+  'settings.portabilityDescription':
+    'Your plan stays in the private app storage. Portable backups can be protected with a password known only to you.',
   'settings.export': 'Export data',
   'settings.exporting': 'Exporting…',
   'settings.exportFormat': 'Readable JSON',
@@ -186,6 +190,16 @@ export const english = {
   'accounts.savings': 'Savings',
   'accounts.cash': 'Cash',
   'accounts.creditCard': 'Credit card',
+  'accounts.lineOfCredit': 'Line of credit',
+  'accounts.cashAccounts': 'Cash Accounts',
+  'accounts.cashAccountsDescription':
+    'A cash account holds funds you already own and can spend immediately.',
+  'accounts.creditAccounts': 'Credit Accounts',
+  'accounts.creditAccountsDescription':
+    'A credit account lets you spend borrowed money that you will need to repay later, often with interest.',
+  'accounts.trackingAccounts': 'Tracking Accounts',
+  'accounts.trackingAccountsDescription':
+    'Track assets and debts without including them in your budget.',
   'accounts.tracking': 'Tracking',
   'accounts.loan': 'Loan',
   'accounts.onBudget': 'On-budget',
@@ -342,6 +356,10 @@ export const english = {
   'form.saving': 'Saving…',
   'form.comingSoon': 'Coming soon',
   'errors.invalidAccountName': 'Enter an account name.',
+  'errors.accountBalanceNotZero':
+    'Move or adjust the remaining balance before closing this account.',
+  'errors.protectedTransaction':
+    'Use the dedicated transfer or reconciliation workflow for this transaction.',
   'errors.invalidMoney': 'The balance can have at most two decimal places.',
   'errors.accountNotFound': 'The account no longer exists.',
   'errors.invalidCategoryName': 'Enter a category name.',
@@ -378,6 +396,7 @@ export const spanish: TranslationDictionary = {
   'common.close': 'Cerrar',
   'common.delete': 'Eliminar',
   'common.done': 'Hecho',
+  'common.retry': 'Intentar de nuevo',
   'common.edit': 'Editar',
   'common.save': 'Guardar',
   'common.settings': 'Ajustes',
@@ -388,6 +407,9 @@ export const spanish: TranslationDictionary = {
   'common.previousYear': 'Año anterior',
   'common.nextYear': 'Año siguiente',
   'common.dateFormat': 'Fecha (AAAA-MM-DD)',
+  'databaseError.title': 'Jarling no ha podido iniciarse',
+  'databaseError.description':
+    'No se ha podido inicializar la base de datos local. La conexión se ha cerrado de forma segura. Inténtalo de nuevo o reinicia la aplicación.',
   'tabs.budget': 'Presupuesto',
   'tabs.accounts': 'Cuentas',
   'tabs.transactions': 'Transacciones',
@@ -444,9 +466,9 @@ export const spanish: TranslationDictionary = {
   'settings.unlock': 'Desbloquear',
   'settings.locked': 'Jarling está bloqueado',
   'settings.dataSection': 'DATOS Y PRIVACIDAD',
-  'settings.dataProtection': 'Protección de datos',
-  'settings.encryptionDescription':
-    'Los datos financieros están cifrados en este dispositivo con SQLCipher. Las copias cifradas usan una contraseña que sólo tú conoces.',
+  'settings.dataPortability': 'Datos y copias',
+  'settings.portabilityDescription':
+    'Tu plan permanece en el almacenamiento privado de la aplicación. Las copias portátiles pueden protegerse con una contraseña que sólo tú conoces.',
   'settings.export': 'Exportar datos',
   'settings.exporting': 'Exportando…',
   'settings.exportFormat': 'JSON legible',
@@ -564,6 +586,16 @@ export const spanish: TranslationDictionary = {
   'accounts.savings': 'Ahorro',
   'accounts.cash': 'Efectivo',
   'accounts.creditCard': 'Tarjeta de crédito',
+  'accounts.lineOfCredit': 'Línea de crédito',
+  'accounts.cashAccounts': 'Cuentas de efectivo',
+  'accounts.cashAccountsDescription':
+    'Una cuenta de efectivo contiene fondos que ya posees y puedes gastar inmediatamente.',
+  'accounts.creditAccounts': 'Cuentas de crédito',
+  'accounts.creditAccountsDescription':
+    'Una cuenta de crédito permite gastar dinero prestado que tendrás que devolver, normalmente con intereses.',
+  'accounts.trackingAccounts': 'Cuentas de seguimiento',
+  'accounts.trackingAccountsDescription':
+    'Controla activos y deudas sin incluirlos en tu presupuesto.',
   'accounts.tracking': 'Seguimiento',
   'accounts.loan': 'Préstamo',
   'accounts.onBudget': 'En presupuesto',
@@ -725,6 +757,10 @@ export const spanish: TranslationDictionary = {
   'form.saving': 'Guardando…',
   'form.comingSoon': 'Próximamente',
   'errors.invalidAccountName': 'Introduce un nombre para la cuenta.',
+  'errors.accountBalanceNotZero':
+    'Mueve o ajusta el saldo restante antes de cerrar esta cuenta.',
+  'errors.protectedTransaction':
+    'Usa el flujo específico de transferencia o conciliación para esta transacción.',
   'errors.invalidMoney': 'El saldo debe tener como máximo dos decimales.',
   'errors.accountNotFound': 'La cuenta ya no existe.',
   'errors.invalidCategoryName': 'Introduce un nombre para la categoría.',

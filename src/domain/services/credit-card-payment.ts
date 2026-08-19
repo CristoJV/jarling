@@ -1,4 +1,4 @@
-import type { Account } from '@/domain/entities/account';
+import { isCreditAccountType, type Account } from '@/domain/entities/account';
 import type { Category } from '@/domain/entities/category';
 
 export const CREDIT_CARD_PAYMENT_GROUP_ID = 'system-group-credit-card-payments';
@@ -9,7 +9,7 @@ export function creditCardPaymentCategoryId(accountId: string): string {
 }
 
 export function isCreditCard(account: Account): boolean {
-  return account.type === 'credit_card';
+  return isCreditAccountType(account.type);
 }
 
 export function paymentCategoryForAccount(

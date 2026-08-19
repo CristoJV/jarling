@@ -1,4 +1,4 @@
-export interface DataProtection {
+export interface PlanPortability {
   exportData(preferences?: Readonly<Record<string, unknown>>): Promise<void>;
   createBackup(
     password: string,

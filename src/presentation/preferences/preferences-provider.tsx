@@ -1,5 +1,4 @@
 import Storage from 'expo-sqlite/kv-store';
-import * as SecureStore from 'expo-secure-store';
 import type { PropsWithChildren } from 'react';
 import {
   createContext,
@@ -9,7 +8,6 @@ import {
   useMemo,
   useState,
 } from 'react';
-import { Platform } from 'react-native';
 
 import {
   DEFAULT_PREFERENCES,
@@ -19,32 +17,12 @@ import {
 } from './preferences';
 import { configureFormatting } from '@/presentation/utils/money';
 
-const STORAGE_KEY = 'jarling.preferences.v2';
-const LEGACY_STORAGE_KEY = 'jarling.preferences.v1';
+const STORAGE_KEY = 'jarling.preferences';
 
-async function getStoredPreferences(): Promise<string | null> {
-  if (Platform.OS === 'web') return Storage.getItem(STORAGE_KEY);
-  const secure = await SecureStore.getItemAsync(STORAGE_KEY);
-  if (secure) return secure;
-  const legacy = await Storage.getItem(LEGACY_STORAGE_KEY);
-  if (legacy) {
-    await SecureStore.setItemAsync(STORAGE_KEY, legacy, {
-      keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
-    });
-    await Storage.removeItem(LEGACY_STORAGE_KEY);
-  }
-  return legacy;
-}
+const getStoredPreferences = () => Storage.getItem(STORAGE_KEY);
 
-async function setStoredPreferences(value: string): Promise<void> {
-  if (Platform.OS === 'web') {
-    await Storage.setItem(STORAGE_KEY, value);
-    return;
-  }
-  await SecureStore.setItemAsync(STORAGE_KEY, value, {
-    keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
-  });
-}
+const setStoredPreferences = (value: string) =>
+  Storage.setItem(STORAGE_KEY, value);
 
 type PreferencesContextValue = Readonly<{
   preferences: AppPreferences;

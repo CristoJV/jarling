@@ -36,8 +36,8 @@ seleccionar.
 
 - Expo SDK 57, React Native 0.86, React 19 y TypeScript estricto.
 - Expo Router bajo `src/app/`.
-- SQLite local cifrado con SQLCipher en Android/iOS, baseline consolidado y
-  runner de migraciones conservado para el futuro.
+- SQLite local en el directorio privado de la aplicación, baseline consolidado
+  y runner de migraciones conservado para el futuro.
 - Clean Architecture pragmática:
 
 ```text
@@ -48,14 +48,13 @@ Presentation → Application → Domain ← Infrastructure
 
 - `ApplicationServices` y `createApplication` son los puntos de composición.
 - Repositorios in-memory para tests de casos de uso y SQLite para runtime.
-- Clave SQLite aleatoria de 256 bits y preferencias persistidas en SecureStore.
-- Exportación JSON legible y backup/restauración `.jarling` cifrado con
-  contraseña mediante PBKDF2-HMAC-SHA256 y AES-256-GCM.
+- Exportación JSON legible y backup/restauración `.jarling` cifrado de forma
+  independiente mediante PBKDF2-HMAC-SHA256 y AES-256-GCM.
 - Temas light/dark/system, formatos configurables y bloqueo mediante las
   credenciales del dispositivo con Expo Local Authentication.
 - Typecheck, lint, tests unitarios/integración y smoke E2E con IDs estables.
-- El export web pasa. Android genera el proyecto nativo con SQLCipher y queda
-  sujeto al build del entorno Android; iOS nativo requiere un entorno macOS.
+- El export web pasa. Android queda sujeto al build del entorno Android; iOS
+  nativo requiere un entorno macOS.
 
 ### Mapa rápido del código
 
@@ -70,8 +69,7 @@ src/app/                    rutas Expo Router sin lógica de negocio
 
 No crear capas nuevas ni estados globales salvo una necesidad demostrable. Las
 dependencias nativas se limitan a capacidades concretas: fecha, autenticación
-local, almacenamiento seguro, SQLite/SQLCipher, selección y compartición de
-archivos e iconos Expo.
+local, SQLite, selección y compartición de archivos e iconos Expo.
 
 ## 4. Comportamiento financiero existente
 
@@ -159,7 +157,7 @@ repone solo lo gastado. Custom aplica la misma distinción entre `set_aside`,
 `category_targets` contiene `day_of_week`, `funding_mode`,
 `day_of_month`, `target_date` y `custom_funding_mode`, con una restricción SQL
 que impide combinar campos de tipos distintos. La base activa es
-`jarling-secure-v1.db`; el runner de migraciones se conserva para el
+`jarling.db`; el runner de migraciones se conserva para el
 futuro, pero no se migra información de desarrollo anterior.
 
 Los casos de uso son `GetCategoryTargets`, `SetCategoryTarget` y
@@ -204,8 +202,8 @@ repositorio ofrece `findAll`, `findByCategory`, `save` y `deleteByCategory`.
   redondeo en céntimos, estrategias y progress `0..1`.
 - Tests de integración garantizan que los targets no modifican RTA ni Budget.
 - Demo es idempotente y solo referencia categorías predeterminadas.
-- Typecheck, lint, 171 tests y export web pasan. El build Android debe
-  verificarse además en un entorno con la versión de NDK requerida completa.
+- Typecheck, lint, 197 tests, cobertura y export web pasan. El build Android
+  arm64 también pasa con NDK 27.1.12297006.
 - Queda únicamente el smoke test visual en un dispositivo Android real.
 
 ### 5.7 Payees
@@ -221,8 +219,8 @@ repositorio ofrece `findAll`, `findByCategory`, `save` y `deleteByCategory`.
 Estado: completada y validada automáticamente. Pendiente únicamente del smoke
 test de interacción en un dispositivo Android real.
 
-- Una transferencia se representa con dos transacciones de signos opuestos y
-  unidas por el mismo `transactionGroupId` genérico. Normalmente no tienen
+- Una transferencia se representa como una unión discriminada con dos patas de
+  signos opuestos unidas por un `transactionGroupId` exclusivo. Normalmente no tienen
   categoría; al pagar una tarjeta de crédito, la parte de origen usa su
   categoría de pago enlazada para reflejar el movimiento entre sobres.
 - Crear, actualizar y eliminar opera sobre ambas partes dentro de un único
@@ -237,9 +235,13 @@ test de interacción en un dispositivo Android real.
 - Las filas enlazadas se identifican como Transfer; los payees técnicos
   generados para cada parte no aparecen en la lista de Payees.
 - Una parte reconciliada protege la pareja completa frente a edición o borrado.
+- El parser de pareja exige dos cuentas distintas, importes opuestos exactos y
+  el mismo grupo; las escrituras SQLite tienen guards adicionales.
 
-La columna SQLite `transaction_group_id` ya formaba parte del baseline, por lo
-que la fase no requiere migración ni una tabla adicional.
+Las relaciones no propietarias usan `transaction_links` con tipo `related` o
+`bizum`. Sus extremos se normalizan para evitar duplicados y borrar una
+transacción elimina sus vínculos mediante foreign keys, nunca la otra
+transacción.
 
 ## 7. Fase 7 — Reconciliation
 
@@ -279,7 +281,7 @@ fuente alternativa de verdad.
 - Los cálculos viven en Domain, la carga en Application y las gráficas se
   dibujan con componentes nativos, sin una dependencia de charts.
 
-## 9. Settings y seguridad local
+## 9. Settings, privacidad y portabilidad
 
 - Budget Settings permite editar nombre, moneda, separadores numéricos,
   posición del símbolo y formato de fecha. Save persiste las preferencias y
@@ -288,6 +290,13 @@ fuente alternativa de verdad.
 - App Lock solo puede activarse después de una autenticación válida y vuelve a
   bloquear la interfaz al abandonar la aplicación. Se admite el fallback a las
   credenciales del dispositivo ofrecido por el sistema.
+- La base SQLite se guarda como `jarling.db` en el almacenamiento privado de la
+  aplicación. No contiene cifrado ni compatibilidad con bases anteriores.
+- Cada copia `.jarling` solicita y confirma su propia contraseña. La copia
+  contiene únicamente el snapshot cifrado y conserva esa contraseña aunque se
+  creen posteriormente otras copias con una distinta.
+- La restauración limita tamaño, filas y textos, valida semántica, claves
+  foráneas, pares de transferencia e integridad SQLite.
 - Delete Plan exige confirmación, borra los datos financieros dentro de una
   transacción SQLite y recrea únicamente las categorías predeterminadas. Las
   preferencias de aplicación se mantienen; las de presupuesto vuelven a sus

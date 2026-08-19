@@ -4,6 +4,7 @@ import { DeleteTransaction } from '@/application/use-cases/transactions/delete-t
 import { createAccount } from '@/domain/entities/account';
 import { createCategory } from '@/domain/entities/category';
 import { InvalidTransferError } from '@/domain/errors/invalid-transfer-error';
+import { ProtectedTransactionError } from '@/domain/errors/protected-transaction-error';
 import { calculateBudgetMonth } from '@/domain/services/calculate-budget-month';
 import { Money } from '@/domain/value-objects/money';
 import { ImmediateUnitOfWork } from '@/infrastructure/persistence/in-memory/immediate-unit-of-work';
@@ -185,6 +186,30 @@ describe('transfers', () => {
       groups: [],
     });
     expect(budget.readyToAssign).toEqual(Money.zero());
+  });
+
+  it('refuses to mutate an already corrupted transfer pair', async () => {
+    const { transactions, create, remove } = await setup();
+    const pair = await create.execute({
+      kind: 'transfer',
+      sourceAccountId: 'source',
+      destinationAccountId: 'destination',
+      amountCents: 25_000,
+      date: '2026-08-18',
+      status: 'cleared',
+    });
+    await transactions.save({
+      ...pair.destination,
+      amount: Money.fromCents(24_999),
+    });
+
+    await expect(remove.execute(pair.source.id)).rejects.toThrow(
+      ProtectedTransactionError,
+    );
+    expect(pair.source.transactionGroupId).toBeDefined();
+    expect(
+      await transactions.findByGroup(pair.source.transactionGroupId!),
+    ).toHaveLength(2);
   });
 
   it('removes money from Ready to Assign when transferring to tracking', async () => {
