@@ -41,6 +41,7 @@ function ThemedRoot() {
         <Stack.Screen name="(tabs)" options={{ animation: 'none' }} />
         <Stack.Screen name="transaction" />
         <Stack.Screen name="account" />
+        <Stack.Screen name="category" />
         <Stack.Screen name="settings" />
       </Stack>
     </>

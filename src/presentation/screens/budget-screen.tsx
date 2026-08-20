@@ -13,21 +13,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { BudgetCategoryValues } from '@/domain/services/calculate-budget-month';
-import {
-  calculateTargetProgress,
-  targetFundingPeriodStartMonth,
-} from '@/domain/services/calculate-target-progress';
-import { Money } from '@/domain/value-objects/money';
-import { categoryDisplayName } from '@/presentation/utils/category-name';
+import { calculateBudgetCategoryTargetProgress } from '@/domain/services/calculate-target-progress';
 import { CategoryBudgetModal } from '@/presentation/components/budget/category-budget-modal';
 import { EditBudgetModal } from '@/presentation/components/budget/edit-budget-modal';
 import { MoveBudgetModal } from '@/presentation/components/budget/move-budget-modal';
-import { CategoryDetailsModal } from '@/presentation/components/categories/category-details-modal';
 import { CategoryGroupCard } from '@/presentation/components/categories/category-group-card';
 import { MonthYearPickerModal } from '@/presentation/components/common/month-year-picker-modal';
 import { NameInputModal } from '@/presentation/components/common/name-input-modal';
 import { OverflowMenu } from '@/presentation/components/common/overflow-menu';
-import { TargetEditorModal } from '@/presentation/components/targets/target-editor-modal';
 import { useBudget } from '@/presentation/hooks/use-budget';
 import { useCategories } from '@/presentation/hooks/use-categories';
 import { useTargets } from '@/presentation/hooks/use-targets';
@@ -44,8 +37,7 @@ import { formatMoney } from '@/presentation/utils/money';
 type NameEditor =
   | Readonly<{ kind: 'create-group' }>
   | Readonly<{ kind: 'create-category'; groupId: string }>
-  | Readonly<{ kind: 'rename-group'; id: string; name: string }>
-  | Readonly<{ kind: 'rename-category'; id: string; name: string }>;
+  | Readonly<{ kind: 'rename-group'; id: string; name: string }>;
 
 function monthKey(date = new Date()): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -79,8 +71,6 @@ export function BudgetScreen() {
     createGroup,
     createCategory,
     renameGroup,
-    renameCategory,
-    setCategoryHidden,
   } = useCategories();
   const {
     budget,
@@ -95,19 +85,12 @@ export function BudgetScreen() {
     error: targetError,
     loading: targetsLoading,
     refresh: refreshTargets,
-    setTarget,
-    deleteTarget,
   } = useTargets();
   const [editingBudget, setEditingBudget] = useState(false);
   const [selectingMonth, setSelectingMonth] = useState(false);
   const [nameEditor, setNameEditor] = useState<NameEditor | null>(null);
   const [categoryEditor, setCategoryEditor] =
     useState<BudgetCategoryValues | null>(null);
-  const [categoryDetails, setCategoryDetails] =
-    useState<BudgetCategoryValues | null>(null);
-  const [targetEditor, setTargetEditor] = useState<BudgetCategoryValues | null>(
-    null,
-  );
   const [moveTarget, setMoveTarget] = useState<BudgetCategoryValues | null>(
     null,
   );
@@ -140,39 +123,13 @@ export function BudgetScreen() {
       new Map(
         budgetCategories.flatMap((values) => {
           const target = targetsByCategoryId.get(values.category.id);
-          const fundingStart = target
-            ? targetFundingPeriodStartMonth(target, month)
-            : month;
           return target
             ? [
                 [
                   values.category.id,
-                  calculateTargetProgress({
+                  calculateBudgetCategoryTargetProgress({
                     target,
-                    assigned: values.assigned,
-                    assignedSinceTargetStarted: Money.fromCents(
-                      (values.assignedHistory ?? [])
-                        .filter(
-                          ({ month: assignedMonth }) =>
-                            assignedMonth >= fundingStart,
-                        )
-                        .reduce((sum, { amount }) => sum + amount.cents, 0),
-                    ),
-                    available: values.available,
-                    spent: Money.fromCents(
-                      values.spendingTransactions.reduce(
-                        (sum, amount) => sum + amount.cents,
-                        0,
-                      ),
-                    ),
-                    spentSinceTargetStarted: Money.fromCents(
-                      (values.spendingHistory ?? [])
-                        .filter(
-                          ({ month: spendingMonth }) =>
-                            spendingMonth >= fundingStart,
-                        )
-                        .reduce((sum, { amount }) => sum + amount.cents, 0),
-                    ),
+                    values,
                     month,
                     today: todayKey(),
                   }),
@@ -201,11 +158,21 @@ export function BudgetScreen() {
       case 'rename-group':
         await renameGroup(nameEditor.id, name);
         break;
-      case 'rename-category':
-        await renameCategory(nameEditor.id, name);
-        break;
     }
     await refreshBudget();
+  }
+
+  function openCategoryDetails(
+    values: BudgetCategoryValues,
+    dismissOverlay?: () => void,
+  ) {
+    dismissOverlay?.();
+    requestAnimationFrame(() => {
+      router.push({
+        pathname: '/category',
+        params: { id: values.category.id, month },
+      });
+    });
   }
 
   return (
@@ -368,11 +335,7 @@ export function BudgetScreen() {
             setNameEditor({ kind: 'rename-group', id, name })
           }
           onSelectCategory={(values) => {
-            if (targetsByCategoryId.has(values.category.id)) {
-              setCategoryDetails(values);
-            } else {
-              setTargetEditor(values);
-            }
+            openCategoryDetails(values, () => setEditingBudget(false));
           }}
           progressByCategoryId={progressByCategoryId}
           targetsByCategoryId={targetsByCategoryId}
@@ -383,10 +346,7 @@ export function BudgetScreen() {
       {nameEditor ? (
         <NameInputModal
           initialValue={
-            nameEditor.kind === 'rename-group' ||
-            nameEditor.kind === 'rename-category'
-              ? nameEditor.name
-              : undefined
+            nameEditor.kind === 'rename-group' ? nameEditor.name : undefined
           }
           label={
             nameEditor.kind.includes('group')
@@ -404,50 +364,13 @@ export function BudgetScreen() {
         />
       ) : null}
 
-      {categoryDetails ? (
-        <CategoryDetailsModal
-          onDismiss={() => setCategoryDetails(null)}
-          onEditTarget={() => {
-            setTargetEditor(categoryDetails);
-            setCategoryDetails(null);
-          }}
-          onRename={() => {
-            setCategoryDetails(null);
-            setNameEditor({
-              kind: 'rename-category',
-              id: categoryDetails.category.id,
-              name: categoryDisplayName(categoryDetails.category, t),
-            });
-          }}
-          onToggleHidden={() => {
-            void setCategoryHidden(
-              categoryDetails.category.id,
-              !categoryDetails.category.hidden,
-            ).then(async () => {
-              await refreshBudget();
-              setCategoryDetails(null);
-            });
-          }}
-          target={targetsByCategoryId.get(categoryDetails.category.id)}
-          values={categoryDetails}
-        />
-      ) : null}
-
-      {targetEditor ? (
-        <TargetEditorModal
-          categoryId={targetEditor.category.id}
-          categoryName={categoryDisplayName(targetEditor.category, t)}
-          onDelete={deleteTarget}
-          onDismiss={() => setTargetEditor(null)}
-          onSave={setTarget}
-          target={targetsByCategoryId.get(targetEditor.category.id)}
-        />
-      ) : null}
-
       {categoryEditor ? (
         <CategoryBudgetModal
           values={categoryEditor}
           monthLabel={monthLabel}
+          onDetails={() =>
+            openCategoryDetails(categoryEditor, () => setCategoryEditor(null))
+          }
           onDismiss={() => setCategoryEditor(null)}
           onMoveMoney={() => {
             setMoveTarget(categoryEditor);
@@ -488,8 +411,6 @@ function editorTitleKey(editor: NameEditor): TranslationKey {
       return 'budget.newCategory';
     case 'rename-group':
       return 'budget.renameGroup';
-    case 'rename-category':
-      return 'budget.renameCategory';
   }
 }
 

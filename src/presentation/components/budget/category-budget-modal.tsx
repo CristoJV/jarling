@@ -16,6 +16,7 @@ type CategoryBudgetModalProps = Readonly<{
   values: BudgetCategoryValues;
   monthLabel: string;
   onDismiss: () => void;
+  onDetails: () => void;
   onMoveMoney: () => void;
   onSave: (amountCents: number) => Promise<void>;
 }>;
@@ -24,13 +25,13 @@ export function CategoryBudgetModal({
   values,
   monthLabel,
   onDismiss,
+  onDetails,
   onMoveMoney,
   onSave,
 }: CategoryBudgetModalProps) {
   const { t } = useTranslation();
   const styles = useThemedStyles(createStyles);
   const [amountCents, setAmountCents] = useState(values.assigned.cents);
-  const [showDetails, setShowDetails] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -74,31 +75,11 @@ export function CategoryBudgetModal({
               <Text style={styles.actionIcon}>→</Text>
               <Text style={styles.actionText}>{t('budget.moveMoney')}</Text>
             </Pressable>
-            <Pressable
-              onPress={() => setShowDetails((current) => !current)}
-              style={styles.action}
-            >
+            <Pressable onPress={onDetails} style={styles.action}>
               <Text style={styles.actionIcon}>•••</Text>
               <Text style={styles.actionText}>{t('budget.details')}</Text>
             </Pressable>
           </View>
-
-          {showDetails ? (
-            <View style={styles.details}>
-              <Detail
-                label={t('budget.assigned')}
-                value={formatMoney(values.assigned)}
-              />
-              <Detail
-                label={t('budget.activity')}
-                value={formatMoney(values.activity)}
-              />
-              <Detail
-                label={t('budget.available')}
-                value={formatMoney(values.available)}
-              />
-            </View>
-          ) : null}
 
           <MoneyKeypad onChange={setAmountCents} valueCents={amountCents} />
           {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -114,16 +95,6 @@ export function CategoryBudgetModal({
         </ScrollView>
       </SafeBottomSheet>
     </AnimatedBottomSheetModal>
-  );
-}
-
-function Detail({ label, value }: Readonly<{ label: string; value: string }>) {
-  const styles = useThemedStyles(createStyles);
-  return (
-    <View style={styles.detail}>
-      <Text style={styles.detailLabel}>{label}</Text>
-      <Text style={styles.detailValue}>{value}</Text>
-    </View>
   );
 }
 
@@ -186,27 +157,6 @@ const createStyles = (theme: AppTheme) =>
       marginTop: 2,
       color: theme.colors.textSecondary,
       fontSize: 12,
-      fontWeight: '700',
-    },
-    details: {
-      width: '100%',
-      padding: 15,
-      marginTop: 12,
-      backgroundColor: theme.colors.surface,
-      borderRadius: 16,
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-    },
-    detail: { alignItems: 'center', gap: 3 },
-    detailLabel: {
-      color: theme.colors.textMuted,
-      fontSize: 10,
-      fontWeight: '700',
-    },
-    detailValue: {
-      color: theme.colors.text,
-      fontSize: 13,
-      fontVariant: ['tabular-nums'],
       fontWeight: '700',
     },
     error: {

@@ -15,6 +15,7 @@ import { RenameCategory } from './rename-category';
 import { ReorderCategories } from './reorder-categories';
 import { ReorderCategoryGroups } from './reorder-category-groups';
 import { SetCategoryHidden } from './set-category-hidden';
+import { UpdateCategoryNotes } from './update-category-notes';
 
 class FixedClock implements Clock {
   now() {
@@ -210,6 +211,25 @@ describe('category use cases', () => {
       category,
     );
     expect(await categories.findById(category.id)).toEqual(category);
+  });
+
+  it('persists category notes without changing its identity', async () => {
+    const { categories, unitOfWork, clock, createGroup, createCategory } =
+      setup();
+    const group = await createGroup.execute('Needs');
+    const category = await createCategory.execute({
+      groupId: group.id,
+      name: 'Rent',
+    });
+
+    const updated = await new UpdateCategoryNotes(
+      categories,
+      unitOfWork,
+      clock,
+    ).execute(category.id, '  Review annually  ');
+
+    expect(updated).toEqual({ ...category, notes: 'Review annually' });
+    expect(await categories.findById(category.id)).toEqual(updated);
   });
 
   it('reorders groups and categories by swapping adjacent positions', async () => {

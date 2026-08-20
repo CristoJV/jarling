@@ -46,6 +46,7 @@ export const currentSchema: Migration = {
       id TEXT PRIMARY KEY NOT NULL,
       group_id TEXT NOT NULL,
       name TEXT NOT NULL CHECK (length(trim(name)) > 0),
+      notes TEXT CHECK (notes IS NULL OR length(notes) <= 4000),
       hidden INTEGER NOT NULL CHECK (hidden IN (0, 1)),
       linked_account_id TEXT UNIQUE,
       sort_order INTEGER NOT NULL CHECK (typeof(sort_order) = 'integer'),

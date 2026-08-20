@@ -12,6 +12,7 @@ import { InsufficientCategoryAvailableError } from '@/domain/errors/insufficient
 import { InvalidBudgetMoveError } from '@/domain/errors/invalid-budget-move-error';
 import { InvalidAccountNameError } from '@/domain/errors/invalid-account-name-error';
 import { InvalidCategoryNameError } from '@/domain/errors/invalid-category-name-error';
+import { InvalidCategoryNotesError } from '@/domain/errors/invalid-category-notes-error';
 import { InvalidCategoryTargetError } from '@/domain/errors/invalid-category-target-error';
 import { InvalidMoneyError } from '@/domain/errors/invalid-money-error';
 import { InvalidReconciliationError } from '@/domain/errors/invalid-reconciliation-error';
@@ -42,6 +43,10 @@ export function domainErrorMessage(error: unknown, t: Translate): string {
 
   if (error instanceof InvalidCategoryNameError) {
     return t('errors.invalidCategoryName');
+  }
+
+  if (error instanceof InvalidCategoryNotesError) {
+    return t('errors.invalidCategoryNotes');
   }
 
   if (error instanceof InvalidCategoryTargetError) {

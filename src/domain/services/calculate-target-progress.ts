@@ -2,6 +2,7 @@ import type { CategoryTarget } from '@/domain/entities/category-target';
 import { assertValidBudgetMonth } from '@/domain/entities/budget-allocation';
 import { InvalidCategoryTargetError } from '@/domain/errors/invalid-category-target-error';
 import { Money } from '@/domain/value-objects/money';
+import type { BudgetCategoryValues } from '@/domain/services/calculate-budget-month';
 
 export type TargetProgressStatus = 'underfunded' | 'complete' | 'overdue';
 
@@ -216,6 +217,46 @@ export function calculateTargetProgress({
     progress: Math.min(1, Math.max(0, rawProgress)),
     status: complete ? 'complete' : overdue ? 'overdue' : 'underfunded',
   };
+}
+
+export function calculateBudgetCategoryTargetProgress({
+  target,
+  values,
+  month,
+  today,
+}: Readonly<{
+  target: CategoryTarget;
+  values: BudgetCategoryValues;
+  month: string;
+  today: string;
+}>): TargetProgress {
+  const fundingStart = targetFundingPeriodStartMonth(target, month);
+  const assignedSinceTargetStarted = Money.fromCents(
+    (values.assignedHistory ?? [])
+      .filter(({ month: assignedMonth }) => assignedMonth >= fundingStart)
+      .reduce((sum, { amount }) => sum + amount.cents, 0),
+  );
+  const spentSinceTargetStarted = Money.fromCents(
+    (values.spendingHistory ?? [])
+      .filter(({ month: spendingMonth }) => spendingMonth >= fundingStart)
+      .reduce((sum, { amount }) => sum + amount.cents, 0),
+  );
+
+  return calculateTargetProgress({
+    target,
+    assigned: values.assigned,
+    assignedSinceTargetStarted,
+    available: values.available,
+    spent: Money.fromCents(
+      values.spendingTransactions.reduce(
+        (sum, amount) => sum + amount.cents,
+        0,
+      ),
+    ),
+    spentSinceTargetStarted,
+    month,
+    today,
+  });
 }
 
 function yearlyContributionNeeded(

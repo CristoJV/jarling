@@ -156,6 +156,29 @@ export const english = {
   'budget.moving': 'Moving…',
   'budget.moveValidation':
     'Choose two different categories and a positive amount.',
+  'categoryDetails.title': 'Category details',
+  'categoryDetails.balance': 'Balance',
+  'categoryDetails.target': 'Target',
+  'categoryDetails.question': 'How much do you need for {{name}}?',
+  'categoryDetails.targetIntro':
+    "When you create a target, we'll let you know how much money to set aside to stay on track over time.",
+  'categoryDetails.createTarget': 'Create Target',
+  'categoryDetails.assignMore':
+    'Assign {{amount}} more this month to stay on track.',
+  'categoryDetails.onTrack': 'You are on track this month.',
+  'categoryDetails.assign': 'Assign',
+  'categoryDetails.totalToAssignBy': 'Total to assign by {{date}}',
+  'categoryDetails.assignedSoFar': 'Assigned so far',
+  'categoryDetails.toGo': 'To go',
+  'categoryDetails.editTarget': 'Edit Target',
+  'categoryDetails.notes': 'Notes',
+  'categoryDetails.notesPlaceholder':
+    'Add context, reminders or anything useful about this category…',
+  'categoryDetails.saveNotes': 'Save Notes',
+  'categoryDetails.notesSaved': 'Notes saved.',
+  'categoryDetails.every': 'Every {{date}}',
+  'categoryDetails.by': 'By {{date}}',
+  'categoryDetails.ongoing': 'Ongoing',
   'reports.title': 'Reports',
   'reports.lastSixMonths': 'Last 6 months',
   'reports.spending': 'Spending',
@@ -364,6 +387,8 @@ export const english = {
   'errors.invalidMoney': 'The balance can have at most two decimal places.',
   'errors.accountNotFound': 'The account no longer exists.',
   'errors.invalidCategoryName': 'Enter a category name.',
+  'errors.invalidCategoryNotes':
+    'Category notes cannot contain more than 4,000 characters.',
   'errors.invalidTarget': 'Check the target amount, frequency and date.',
   'errors.groupNotFound': 'The category group no longer exists.',
   'errors.categoryNotFound': 'The category no longer exists.',
@@ -551,6 +576,29 @@ export const spanish: TranslationDictionary = {
   'budget.moving': 'Moviendo…',
   'budget.moveValidation':
     'Elige dos categorías distintas y un importe positivo.',
+  'categoryDetails.title': 'Detalles de la categoría',
+  'categoryDetails.balance': 'Saldo',
+  'categoryDetails.target': 'Objetivo',
+  'categoryDetails.question': '¿Cuánto necesitas para {{name}}?',
+  'categoryDetails.targetIntro':
+    'Cuando crees un objetivo, te indicaremos cuánto dinero debes apartar para mantener el ritmo a lo largo del tiempo.',
+  'categoryDetails.createTarget': 'Crear objetivo',
+  'categoryDetails.assignMore':
+    'Asigna {{amount}} más este mes para mantener el ritmo.',
+  'categoryDetails.onTrack': 'Vas al día este mes.',
+  'categoryDetails.assign': 'Asignar',
+  'categoryDetails.totalToAssignBy': 'Total a asignar antes de {{date}}',
+  'categoryDetails.assignedSoFar': 'Asignado hasta ahora',
+  'categoryDetails.toGo': 'Pendiente',
+  'categoryDetails.editTarget': 'Editar objetivo',
+  'categoryDetails.notes': 'Notas',
+  'categoryDetails.notesPlaceholder':
+    'Añade contexto, recordatorios o cualquier dato útil sobre esta categoría…',
+  'categoryDetails.saveNotes': 'Guardar notas',
+  'categoryDetails.notesSaved': 'Notas guardadas.',
+  'categoryDetails.every': 'Cada {{date}}',
+  'categoryDetails.by': 'Antes de {{date}}',
+  'categoryDetails.ongoing': 'Continuo',
   'reports.title': 'Informes',
   'reports.lastSixMonths': 'Últimos 6 meses',
   'reports.spending': 'Gastos',
@@ -766,6 +814,8 @@ export const spanish: TranslationDictionary = {
   'errors.invalidMoney': 'El saldo debe tener como máximo dos decimales.',
   'errors.accountNotFound': 'La cuenta ya no existe.',
   'errors.invalidCategoryName': 'Introduce un nombre para la categoría.',
+  'errors.invalidCategoryNotes':
+    'Las notas de la categoría no pueden superar los 4.000 caracteres.',
   'errors.invalidTarget':
     'Revisa el importe, la frecuencia y la fecha del objetivo.',
   'errors.groupNotFound': 'El grupo de categorías ya no existe.',

@@ -7,11 +7,13 @@ import type { CreateCategoryGroup } from '@/application/use-cases/categories/cre
 import type { CreateCategory } from '@/application/use-cases/categories/create-category';
 import type { EnsureDefaultCategories } from '@/application/use-cases/categories/ensure-default-categories';
 import type { GetCategoryGroups } from '@/application/use-cases/categories/get-category-groups';
+import type { GetCategoryDetails } from '@/application/use-cases/categories/get-category-details';
 import type { RenameCategoryGroup } from '@/application/use-cases/categories/rename-category-group';
 import type { RenameCategory } from '@/application/use-cases/categories/rename-category';
 import type { ReorderCategories } from '@/application/use-cases/categories/reorder-categories';
 import type { ReorderCategoryGroups } from '@/application/use-cases/categories/reorder-category-groups';
 import type { SetCategoryHidden } from '@/application/use-cases/categories/set-category-hidden';
+import type { UpdateCategoryNotes } from '@/application/use-cases/categories/update-category-notes';
 import type { AssignBudget } from '@/application/use-cases/budget/assign-budget';
 import type { GetBudgetMonth } from '@/application/use-cases/budget/get-budget-month';
 import type { MoveBudgetBetweenCategories } from '@/application/use-cases/budget/move-budget-between-categories';
@@ -47,8 +49,10 @@ export type ApplicationServices = Readonly<{
     createGroup: Pick<CreateCategoryGroup, 'execute'>;
     create: Pick<CreateCategory, 'execute'>;
     getGroups: Pick<GetCategoryGroups, 'execute'>;
+    getDetails: Pick<GetCategoryDetails, 'execute'>;
     renameGroup: Pick<RenameCategoryGroup, 'execute'>;
     rename: Pick<RenameCategory, 'execute'>;
+    updateNotes: Pick<UpdateCategoryNotes, 'execute'>;
     reorderGroups: Pick<ReorderCategoryGroups, 'execute'>;
     reorder: Pick<ReorderCategories, 'execute'>;
     setHidden: Pick<SetCategoryHidden, 'execute'>;

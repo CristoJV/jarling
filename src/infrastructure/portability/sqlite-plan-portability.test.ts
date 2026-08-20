@@ -119,6 +119,39 @@ describe('Jarling plan snapshots', () => {
     ).toThrow('unbalanced transfer');
   });
 
+  it('rejects category notes above the domain limit', () => {
+    expect(() =>
+      parsePlanSnapshot({
+        ...emptySnapshot,
+        tables: {
+          ...emptySnapshot.tables,
+          category_groups: [
+            {
+              id: 'group-1',
+              name: 'Bills',
+              sort_order: 0,
+              created_at: '2026-08-19T10:00:00.000Z',
+              updated_at: '2026-08-19T10:00:00.000Z',
+            },
+          ],
+          categories: [
+            {
+              id: 'category-1',
+              group_id: 'group-1',
+              name: 'Rent',
+              notes: 'x'.repeat(4_001),
+              hidden: 0,
+              linked_account_id: null,
+              sort_order: 0,
+              created_at: '2026-08-19T10:00:00.000Z',
+              updated_at: '2026-08-19T10:00:00.000Z',
+            },
+          ],
+        },
+      }),
+    ).toThrow('invalid category notes');
+  });
+
   it('rejects an expense without a category', () => {
     expect(() =>
       parsePlanSnapshot({

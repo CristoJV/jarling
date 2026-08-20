@@ -16,6 +16,7 @@ import type { SQLiteBindValue, SQLiteDatabase } from 'expo-sqlite';
 import type { PlanPortability } from '@/application/ports/plan-portability';
 import { ACCOUNT_TYPES } from '@/domain/entities/account';
 import { isValidBudgetMonth } from '@/domain/entities/budget-allocation';
+import { CATEGORY_NOTES_MAX_LENGTH } from '@/domain/entities/category';
 import {
   createCategoryTarget,
   TARGET_KINDS,
@@ -62,6 +63,7 @@ const tables = [
       'id',
       'group_id',
       'name',
+      'notes',
       'hidden',
       'linked_account_id',
       'sort_order',
@@ -186,7 +188,12 @@ export function parsePlanSnapshot(value: unknown): PlanSnapshot {
       if (!isRecord(row)) throw new Error(`Invalid row in ${table.name}.`);
       const parsed: Record<string, SQLiteBindValue> = {};
       for (const column of table.columns) {
-        const field = row[column];
+        const hasField = Object.prototype.hasOwnProperty.call(row, column);
+        const field = hasField
+          ? row[column]
+          : table.name === 'categories' && column === 'notes'
+            ? null
+            : undefined;
         if (!isBindValue(field)) {
           throw new Error(`Invalid ${table.name}.${column} value.`);
         }
@@ -261,6 +268,7 @@ function validateSnapshotSemantics(snapshot: PlanSnapshot): void {
   for (const row of snapshot.tables.categories) {
     const id = requiredText(row, 'id');
     const groupId = requiredText(row, 'group_id');
+    const notes = nullableString(row, 'notes');
     const linkedAccountId = nullableString(row, 'linked_account_id');
     if (categoryIds.has(id) || !groupIds.has(groupId)) {
       throw new Error('The backup contains an invalid category relationship.');
@@ -275,6 +283,9 @@ function validateSnapshotSemantics(snapshot: PlanSnapshot): void {
     }
     if (![0, 1].includes(integer(row, 'hidden'))) {
       throw new Error('The backup contains an invalid category state.');
+    }
+    if (notes && notes.trim().length > CATEGORY_NOTES_MAX_LENGTH) {
+      throw new Error('The backup contains invalid category notes.');
     }
     categoryIds.add(id);
   }

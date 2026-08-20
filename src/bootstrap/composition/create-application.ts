@@ -10,11 +10,13 @@ import { CreateCategoryGroup } from '@/application/use-cases/categories/create-c
 import { CreateCategory } from '@/application/use-cases/categories/create-category';
 import { EnsureDefaultCategories } from '@/application/use-cases/categories/ensure-default-categories';
 import { GetCategoryGroups } from '@/application/use-cases/categories/get-category-groups';
+import { GetCategoryDetails } from '@/application/use-cases/categories/get-category-details';
 import { RenameCategoryGroup } from '@/application/use-cases/categories/rename-category-group';
 import { RenameCategory } from '@/application/use-cases/categories/rename-category';
 import { ReorderCategories } from '@/application/use-cases/categories/reorder-categories';
 import { ReorderCategoryGroups } from '@/application/use-cases/categories/reorder-category-groups';
 import { SetCategoryHidden } from '@/application/use-cases/categories/set-category-hidden';
+import { UpdateCategoryNotes } from '@/application/use-cases/categories/update-category-notes';
 import { AssignBudget } from '@/application/use-cases/budget/assign-budget';
 import { GetBudgetMonth } from '@/application/use-cases/budget/get-budget-month';
 import { MoveBudgetBetweenCategories } from '@/application/use-cases/budget/move-budget-between-categories';
@@ -120,8 +122,10 @@ export function createApplication(
         clock,
       ),
       getGroups: new GetCategoryGroups(categoryGroups, categories),
+      getDetails: new GetCategoryDetails(getBudgetMonth, targets, clock),
       renameGroup: new RenameCategoryGroup(categoryGroups, unitOfWork, clock),
       rename: new RenameCategory(categories, unitOfWork, clock),
+      updateNotes: new UpdateCategoryNotes(categories, unitOfWork, clock),
       reorderGroups: new ReorderCategoryGroups(
         categoryGroups,
         unitOfWork,

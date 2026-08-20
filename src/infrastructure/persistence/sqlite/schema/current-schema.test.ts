@@ -44,6 +44,9 @@ describe('current database schema', () => {
     expect(currentSchema.up).toContain('UNIQUE (category_id, month)');
     expect(currentSchema.up).toContain('category_id TEXT NOT NULL UNIQUE');
     expect(currentSchema.up).toContain(
+      'notes TEXT CHECK (notes IS NULL OR length(notes) <= 4000)',
+    );
+    expect(currentSchema.up).toContain(
       'CHECK (source_transaction_id < target_transaction_id)',
     );
     expect(currentSchema.up).toContain(
