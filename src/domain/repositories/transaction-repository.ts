@@ -12,8 +12,6 @@ export type TransactionFilters = Readonly<{
   transactionGroupId?: string;
   limit?: number;
   before?: Readonly<{ date: string; createdAt: string; id: string }>;
-  /** @deprecated Prefer the stable `before` cursor for paginated screens. */
-  offset?: number;
 }>;
 
 export interface TransactionRepository {

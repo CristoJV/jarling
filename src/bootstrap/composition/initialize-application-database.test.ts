@@ -21,7 +21,7 @@ import { initializeApplicationDatabase } from './initialize-application-database
 describe('initializeApplicationDatabase', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it('migrates plain SQLite before ensuring the default categories', async () => {
+  it('initializes SQLite before ensuring the default categories', async () => {
     const database = {};
     mockInitializeDatabase.mockResolvedValue(undefined);
     mockEnsureDefaults.mockResolvedValue(undefined);
@@ -36,11 +36,13 @@ describe('initializeApplicationDatabase', () => {
     );
   });
 
-  it('does not compose the application when migrations fail', async () => {
-    mockInitializeDatabase.mockRejectedValue(new Error('Migration failed.'));
+  it('does not compose the application when database initialization fails', async () => {
+    mockInitializeDatabase.mockRejectedValue(
+      new Error('Database initialization failed.'),
+    );
 
     await expect(initializeApplicationDatabase({} as never)).rejects.toThrow(
-      'Migration failed.',
+      'Database initialization failed.',
     );
 
     expect(mockCreateApplication).not.toHaveBeenCalled();

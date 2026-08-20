@@ -16,7 +16,6 @@ export type GetTransactionsInput = Pick<
   | 'transactionGroupId'
   | 'limit'
   | 'before'
-  | 'offset'
 >;
 
 export type TransactionSummary = Readonly<{

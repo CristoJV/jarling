@@ -1,11 +1,12 @@
 # Plan de ejecución de Jarling
 
-> Documento operativo. Debe mantenerse corto y orientado a la siguiente
-> entrega. El código y los tests son la referencia para las fases completadas.
+> Contrato funcional y técnico de la primera release. El código, los tests, los
+> [ADR](adr/README.md) y el [checklist de release](release-checklist.md) son la
+> referencia ejecutable.
 
 ## 1. Estado y orden de ejecución
 
-Última actualización: 19 de agosto de 2026.
+Última actualización: 20 de agosto de 2026.
 
 | Orden | Fase                                                                | Estado      |
 | ----- | ------------------------------------------------------------------- | ----------- |
@@ -15,9 +16,10 @@
 | 7     | Reconciliation                                                      | Completada  |
 | 8     | Reports                                                             | Completada  |
 
-Scheduled Transactions, Payees como entidad persistida, sincronización y cloud
-quedan fuera de alcance. La siguiente fase está deliberadamente sin
-seleccionar.
+Importación CSV/QIF/OFX/CAMT, conexión bancaria, Scheduled Transactions, Payees
+como entidad persistida, sincronización y cloud quedan fuera de la primera
+release. La implementación CSV se conserva únicamente en
+`feature/csv-import`; no hay código dormido ni tablas CSV en el artefacto 1.0.
 
 ## 2. Reglas que no pueden romperse
 
@@ -36,8 +38,10 @@ seleccionar.
 
 - Expo SDK 57, React Native 0.86, React 19 y TypeScript estricto.
 - Expo Router bajo `src/app/`.
-- SQLite local en el directorio privado de la aplicación, baseline consolidado
-  y runner de migraciones conservado para el futuro.
+- SQLite local en el directorio privado de la aplicación. Una instalación nueva
+  crea directamente el baseline completo de la release 1; no reproduce
+  migraciones de desarrollo. El runner forward-only se conserva vacío para que
+  el primer cambio publicado sea la versión 2.
 - Clean Architecture pragmática:
 
 ```text
@@ -52,7 +56,8 @@ Presentation → Application → Domain ← Infrastructure
   independiente mediante PBKDF2-HMAC-SHA256 y AES-256-GCM.
 - Temas light/dark/system, formatos configurables y bloqueo mediante las
   credenciales del dispositivo con Expo Local Authentication.
-- Typecheck, lint, tests unitarios/integración y smoke E2E con IDs estables.
+- Typecheck, lint, tests unitarios/integración, Expo Doctor, bundles Android/web
+  y smoke E2E con IDs estables.
 - El export web pasa. Android queda sujeto al build del entorno Android; iOS
   nativo requiere un entorno macOS.
 
@@ -101,8 +106,8 @@ Casos de control:
 
 ## 5. Fase 9 — Targets
 
-Estado: completada y validada automáticamente. Pendiente únicamente de smoke
-test visual en dispositivo real.
+Estado: implementada y validada automáticamente. La aceptación manual forma
+parte del checklist de la release.
 
 ### 5.1 Objetivo
 
@@ -156,9 +161,10 @@ repone solo lo gastado. Custom aplica la misma distinción entre `set_aside`,
 
 `category_targets` contiene `day_of_week`, `funding_mode`,
 `day_of_month`, `target_date` y `custom_funding_mode`, con una restricción SQL
-que impide combinar campos de tipos distintos. La base activa es
-`jarling.db`; el runner de migraciones se conserva para el
-futuro, pero no se migra información de desarrollo anterior.
+que impide combinar campos de tipos distintos. La base activa es `jarling.db` y
+la tabla forma parte del baseline directo de la release. El runner de
+migraciones se conserva para cambios posteriores, pero las bases de desarrollo
+anteriores a 1.0 no forman parte del contrato de compatibilidad.
 
 Los casos de uso son `GetCategoryTargets`, `SetCategoryTarget` y
 `DeleteCategoryTarget`, expuestos en `ApplicationServices.targets`. El
@@ -202,9 +208,9 @@ repositorio ofrece `findAll`, `findByCategory`, `save` y `deleteByCategory`.
   redondeo en céntimos, estrategias y progress `0..1`.
 - Tests de integración garantizan que los targets no modifican RTA ni Budget.
 - Demo es idempotente y solo referencia categorías predeterminadas.
-- Typecheck, lint, 197 tests, cobertura y export web pasan. El build Android
-  arm64 también pasa con NDK 27.1.12297006.
-- Queda únicamente el smoke test visual en un dispositivo Android real.
+- La matriz automatizada se ejecuta en CI sin fijar aquí un recuento de tests
+  que quedaría obsoleto. La aceptación manual y los builds de tienda se siguen
+  en `release-checklist.md`.
 
 ### 5.7 Payees
 
@@ -216,8 +222,8 @@ repositorio ofrece `findAll`, `findByCategory`, `save` y `deleteByCategory`.
 
 ## 6. Fase 6 — Transfers
 
-Estado: completada y validada automáticamente. Pendiente únicamente del smoke
-test de interacción en un dispositivo Android real.
+Estado: implementada y validada automáticamente. La aceptación manual forma
+parte del checklist de la release.
 
 - Una transferencia se representa como una unión discriminada con dos patas de
   signos opuestos unidas por un `transactionGroupId` exclusivo. Normalmente no tienen
@@ -245,8 +251,8 @@ transacción.
 
 ## 7. Fase 7 — Reconciliation
 
-Estado: completada y validada automáticamente. Pendiente únicamente del smoke
-test de interacción en un dispositivo Android real.
+Estado: implementada y validada automáticamente. La aceptación manual forma
+parte del checklist de la release.
 
 Conciliar significa comparar el saldo que Jarling calcula para una cuenta con el
 saldo confirmado por el banco en una fecha de corte. Si coinciden, las
@@ -263,12 +269,12 @@ con importes incorrectos; no mueve dinero ni cambia por sí sola el presupuesto.
   `Reconciliation Balance Adjustment`. El ajuste queda reconciliado y modifica
   el saldo/RTA de forma visible; nunca se corrige dinero silenciosamente.
 - Las operaciones ya reconciliadas permanecen inmutables. No se necesita una
-  migración porque el estado ya existía en el baseline SQLite.
+  migración en la primera release porque el estado forma parte de su baseline.
 
 ## 8. Fase 8 — Reports
 
-Estado: completada y validada automáticamente. Pendiente únicamente del smoke
-test de interacción en un dispositivo Android real.
+Estado: implementada y validada automáticamente. La aceptación manual forma
+parte del checklist de la release.
 
 Informes derivados de transacciones y presupuesto, sin persistir agregados como
 fuente alternativa de verdad.
@@ -291,7 +297,8 @@ fuente alternativa de verdad.
   bloquear la interfaz al abandonar la aplicación. Se admite el fallback a las
   credenciales del dispositivo ofrecido por el sistema.
 - La base SQLite se guarda como `jarling.db` en el almacenamiento privado de la
-  aplicación. No contiene cifrado ni compatibilidad con bases anteriores.
+  aplicación. No contiene cifrado gestionado por Jarling. Su baseline es la
+  primera base pública compatible y queda gobernado por ADR 0003.
 - Cada copia `.jarling` solicita y confirma su propia contraseña. La copia
   contiene únicamente el snapshot cifrado y conserva esa contraseña aunque se
   creen posteriormente otras copias con una distinta.
@@ -310,7 +317,8 @@ Este protocolo sustituye la planificación extensa por turno.
 
 ### Antes de editar
 
-1. Leer solo las secciones 1–7 de este documento.
+1. Leer la sección relevante y los ADR aplicables, sin cargar contexto ajeno al
+   cambio.
 2. Ejecutar `rg` sobre las interfaces y patrones directamente relacionados.
 3. Confirmar que el árbol de trabajo no contiene cambios solapados.
 4. Usar la especificación cerrada de la fase; no rediseñarla salvo
@@ -332,9 +340,9 @@ Este protocolo sustituye la planificación extensa por turno.
 npm run format:check
 npm run typecheck
 npm run lint
-npm test
-npx expo export --platform web
-npx expo export --platform android
+npm run test:coverage
+npm run export:web
+npm run export:android
 ```
 
 Los exports se ejecutan una vez al final, no después de cada cambio visual.
@@ -356,7 +364,7 @@ Entregar únicamente:
 - No guardar resultados derivados como fuente de verdad.
 - No ejecutar `npm audit fix --force`.
 - No añadir dependencias sin justificar una necesidad concreta.
-- No borrar datos o regenerar la base activa sin aplicar primero el cambio de
-  nombre de la base de desarrollo previsto para Targets.
+- No modificar una migración publicada ni recrear una base de usuario para
+  evitar escribir una migración nueva.
 - No marcar una fase como completada sin tests automatizados y validación de
   empaquetado.

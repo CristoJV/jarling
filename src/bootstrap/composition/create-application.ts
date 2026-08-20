@@ -50,14 +50,15 @@ import { SQLitePlanPortability } from '@/infrastructure/portability/sqlite-plan-
 export function createApplication(
   database: SQLiteDatabase,
 ): ApplicationServices {
-  const accounts = new SQLiteAccountRepository(database);
-  const categoryGroups = new SQLiteCategoryGroupRepository(database);
-  const categories = new SQLiteCategoryRepository(database);
-  const allocations = new SQLiteBudgetAllocationRepository(database);
-  const transactions = new SQLiteTransactionRepository(database);
-  const transactionLinks = new SQLiteTransactionLinkRepository(database);
-  const targets = new SQLiteCategoryTargetRepository(database);
   const unitOfWork = new SQLiteUnitOfWork(database);
+  const connection = unitOfWork.connection;
+  const accounts = new SQLiteAccountRepository(connection);
+  const categoryGroups = new SQLiteCategoryGroupRepository(connection);
+  const categories = new SQLiteCategoryRepository(connection);
+  const allocations = new SQLiteBudgetAllocationRepository(connection);
+  const transactions = new SQLiteTransactionRepository(connection);
+  const transactionLinks = new SQLiteTransactionLinkRepository(connection);
+  const targets = new SQLiteCategoryTargetRepository(connection);
   const clock = new SystemClock();
   const ids = new ExpoIdGenerator();
   const ensureDefaults = new EnsureDefaultCategories(
@@ -215,7 +216,7 @@ export function createApplication(
     },
     plan: {
       delete: new DeletePlan(
-        new SQLitePlanDataStore(database),
+        new SQLitePlanDataStore(connection),
         ensureDefaults,
         unitOfWork,
       ),

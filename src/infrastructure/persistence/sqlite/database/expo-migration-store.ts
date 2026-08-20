@@ -7,12 +7,20 @@ type MigrationRow = {
 };
 
 export class ExpoMigrationStore implements MigrationStore {
+  private activeTransaction: SQLiteDatabase | null = null;
+
   constructor(private readonly database: SQLiteDatabase) {}
+
+  private get connection(): SQLiteDatabase {
+    return this.activeTransaction ?? this.database;
+  }
 
   async prepare(): Promise<void> {
     await this.database.execAsync(`
       PRAGMA journal_mode = WAL;
       PRAGMA foreign_keys = ON;
+      PRAGMA busy_timeout = 5000;
+      PRAGMA synchronous = NORMAL;
       CREATE TABLE IF NOT EXISTS schema_migrations (
         version INTEGER PRIMARY KEY NOT NULL,
         name TEXT NOT NULL,
@@ -30,11 +38,11 @@ export class ExpoMigrationStore implements MigrationStore {
   }
 
   async execute(sql: string): Promise<void> {
-    await this.database.execAsync(sql);
+    await this.connection.execAsync(sql);
   }
 
   async record(migration: Migration): Promise<void> {
-    await this.database.runAsync(
+    await this.connection.runAsync(
       `INSERT INTO schema_migrations (version, name, applied_at)
        VALUES (?, ?, ?)`,
       migration.version,
@@ -44,6 +52,13 @@ export class ExpoMigrationStore implements MigrationStore {
   }
 
   async transaction(task: () => Promise<void>): Promise<void> {
-    await this.database.withExclusiveTransactionAsync(task);
+    await this.database.withExclusiveTransactionAsync(async (transaction) => {
+      this.activeTransaction = transaction;
+      try {
+        await task();
+      } finally {
+        this.activeTransaction = null;
+      }
+    });
   }
 }

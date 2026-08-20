@@ -67,9 +67,8 @@ export class InMemoryTransactionRepository implements TransactionRepository {
           right.createdAt.localeCompare(left.createdAt) ||
           right.id.localeCompare(left.id),
       );
-    const offset = Math.max(0, Math.trunc(filters.offset ?? 0));
     return filters.limit
-      ? matching.slice(offset, offset + Math.max(1, Math.trunc(filters.limit)))
+      ? matching.slice(0, Math.max(1, Math.trunc(filters.limit)))
       : matching;
   }
 

@@ -14,10 +14,12 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/CristoJV/jarling/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/CristoJV/jarling/actions/workflows/ci.yml/badge.svg" /></a>
   <img alt="Expo" src="https://img.shields.io/badge/Expo-57-000020?logo=expo" />
   <img alt="React Native" src="https://img.shields.io/badge/React%20Native-0.86-61DAFB?logo=react" />
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript" />
   <img alt="Local first" src="https://img.shields.io/badge/data-local--first-167D6C" />
+  <img alt="Licencia" src="https://img.shields.io/badge/license-MIT-blue" />
 </p>
 
 Jarling es una aplicación de presupuesto personal local-first para Android,
@@ -71,13 +73,14 @@ facturas periódicas y metas a largo plazo.
 
 ## Puesta en marcha
 
-Necesitas Node.js 22.13 o posterior y npm. Las compilaciones nativas requieren
-además Android Studio o, en macOS, Xcode.
+Necesitas Node.js 22.13–24 y npm. Las compilaciones nativas requieren además
+Android Studio con JDK 17 y NDK 27.1.12297006 o, en macOS, una versión
+compatible de Xcode.
 
 Instala las dependencias e inicia la plataforma que quieras utilizar:
 
 ```bash
-npm install
+npm ci
 npm run android
 ```
 
@@ -94,13 +97,32 @@ npm run web
 Ejecuta todas las comprobaciones antes de considerar terminado un cambio:
 
 ```bash
+npm run doctor
 npm run format:check
 npm run typecheck
 npm run lint
 npm run test:coverage
+npm run export:web
+npm run export:android
+npm run export:ios
 npm run test:e2e # requiere Maestro y un emulador con build nativo
 ```
 
-Jarling está en desarrollo activo. Consulta el
-[plan de la aplicación](application-plan.md) para ver el roadmap, las decisiones
-de producto y los criterios de aceptación.
+## Arquitectura y estado de la release
+
+Jarling usa una arquitectura limpia pragmática y un baseline SQLite directo
+para la versión 1. Las instalaciones nuevas crean el esquema actual sin
+reproducir migraciones de desarrollo; el runner conservado se utilizará a
+partir del primer cambio de esquema posterior a la publicación. La primera
+release excluye deliberadamente importación CSV, conexión bancaria,
+sincronización cloud y transacciones programadas.
+
+- [Plan de la aplicación](application-plan.md)
+- [Decisiones de arquitectura](adr/README.md)
+- [Checklist de la primera release](release-checklist.md)
+- [Privacidad y protección de datos](privacy.md)
+- [Changelog](../CHANGELOG.md)
+
+## Licencia
+
+Jarling se distribuye bajo la [licencia MIT](../LICENSE).

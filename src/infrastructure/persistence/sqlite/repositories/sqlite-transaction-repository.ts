@@ -131,9 +131,8 @@ export class SQLiteTransactionRepository implements TransactionRepository {
     const limit = filters.limit
       ? Math.min(200, Math.max(1, Math.trunc(filters.limit)))
       : undefined;
-    const offset = Math.max(0, Math.trunc(filters.offset ?? 0));
-    const pagination = limit !== undefined ? 'LIMIT ? OFFSET ?' : '';
-    if (limit !== undefined) values.push(limit, offset);
+    const pagination = limit !== undefined ? 'LIMIT ?' : '';
+    if (limit !== undefined) values.push(limit);
     const rows = await this.database.getAllAsync<TransactionRow>(
       `SELECT
          id, account_id, category_id, payee, amount, date, notes, status,

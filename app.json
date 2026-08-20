@@ -1,17 +1,21 @@
 {
   "expo": {
-    "name": "jarling",
+    "name": "Jarling",
     "slug": "jarling",
     "version": "1.0.0",
+    "description": "Private, local-first envelope budgeting.",
     "orientation": "portrait",
-    "icon": "./assets/images/jarling-icon.png",
+    "icon": "./assets/images/jarling-app-icon.png",
     "scheme": "jarling",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/images/jarling-icon.png",
+      "icon": "./assets/images/jarling-app-icon.png",
+      "buildNumber": "1",
+      "supportsTablet": false,
       "bundleIdentifier": "com.cristojv.jarling"
     },
     "android": {
+      "icon": "./assets/images/jarling-app-icon.png",
       "adaptiveIcon": {
         "backgroundColor": "#082F2C",
         "foregroundImage": "./assets/images/jarling-icon.png"
@@ -19,6 +23,7 @@
       "predictiveBackGestureEnabled": false,
       "softwareKeyboardLayoutMode": "resize",
       "allowBackup": false,
+      "versionCode": 1,
       "package": "com.cristojv.jarling"
     },
     "web": {
@@ -63,7 +68,8 @@
           }
         }
       ],
-      "expo-sharing"
+      "expo-sharing",
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true,

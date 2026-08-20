@@ -1,8 +1,25 @@
-import type { Migration } from './migration';
+import type { Migration } from '../migrations/migration';
 
-export const initialSchemaMigration: Migration = {
-  version: 1,
-  name: 'initial_schema',
+/**
+ * Version of the first public database contract. Future migrations start at 2.
+ */
+export const FIRST_RELEASE_SCHEMA_VERSION = 1;
+
+/**
+ * Version represented by `currentSchema`. Increment this together with the
+ * baseline SQL whenever a forward migration is added. Fresh installations can
+ * then start at the latest version without replaying historical migrations.
+ */
+export const CURRENT_SCHEMA_VERSION = 1;
+
+/**
+ * Fresh installations create this schema directly instead of replaying the
+ * migration history. When the schema evolves, update this baseline and add a
+ * forward migration for databases already carrying the previous version.
+ */
+export const currentSchema: Migration = {
+  version: CURRENT_SCHEMA_VERSION,
+  name: `schema_v${CURRENT_SCHEMA_VERSION}`,
   up: `
     CREATE TABLE accounts (
       id TEXT PRIMARY KEY NOT NULL,
@@ -67,7 +84,7 @@ export const initialSchemaMigration: Migration = {
       target_transaction_id TEXT NOT NULL,
       link_type TEXT NOT NULL CHECK (link_type IN ('related', 'bizum')),
       created_at TEXT NOT NULL,
-      CHECK (source_transaction_id <> target_transaction_id),
+      CHECK (source_transaction_id < target_transaction_id),
       UNIQUE (source_transaction_id, target_transaction_id, link_type),
       FOREIGN KEY (source_transaction_id) REFERENCES transactions(id) ON DELETE CASCADE,
       FOREIGN KEY (target_transaction_id) REFERENCES transactions(id) ON DELETE CASCADE
@@ -123,8 +140,10 @@ export const initialSchemaMigration: Migration = {
     CREATE INDEX category_groups_sort_order_idx ON category_groups(sort_order);
     CREATE INDEX categories_group_sort_order_idx ON categories(group_id, sort_order);
     CREATE INDEX categories_hidden_idx ON categories(hidden);
-    CREATE INDEX transactions_account_id_idx ON transactions(account_id);
-    CREATE INDEX transactions_category_id_idx ON transactions(category_id);
+    CREATE INDEX transactions_account_date_idx
+      ON transactions(account_id, date DESC, created_at DESC, id DESC);
+    CREATE INDEX transactions_category_date_idx
+      ON transactions(category_id, date DESC);
     CREATE INDEX transactions_date_idx ON transactions(date);
     CREATE INDEX transactions_group_id_idx ON transactions(transaction_group_id);
     CREATE INDEX transactions_kind_idx ON transactions(kind);

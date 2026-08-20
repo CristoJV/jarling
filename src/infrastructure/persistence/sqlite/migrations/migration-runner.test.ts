@@ -79,11 +79,50 @@ describe('runMigrations', () => {
     expect(store.events).toEqual([]);
   });
 
+  it('rejects a migration plan with a missing version', async () => {
+    const store = new InMemoryMigrationStore();
+
+    await expect(runMigrations(store, [secondMigration])).rejects.toThrow(
+      'Expected migration version 1, received 2.',
+    );
+    expect(store.events).toEqual([]);
+  });
+
   it('refuses to open a database with an unknown migration', async () => {
     const store = new InMemoryMigrationStore([3]);
 
     await expect(
       runMigrations(store, [firstMigration, secondMigration]),
     ).rejects.toThrow('Database contains unknown migration version 3.');
+  });
+
+  it('refuses a non-contiguous applied history', async () => {
+    const store = new InMemoryMigrationStore([1, 3]);
+    const thirdMigration: Migration = {
+      version: 3,
+      name: 'third',
+      up: 'CREATE TABLE third_table (id INTEGER PRIMARY KEY);',
+    };
+
+    await expect(
+      runMigrations(store, [firstMigration, secondMigration, thirdMigration]),
+    ).rejects.toThrow('Database migration history is not contiguous.');
+  });
+
+  it('does not replay migrations older than a directly installed baseline', async () => {
+    const store = new InMemoryMigrationStore([2]);
+    const thirdMigration: Migration = {
+      version: 3,
+      name: 'third',
+      up: 'CREATE TABLE third_table (id INTEGER PRIMARY KEY);',
+    };
+
+    await runMigrations(store, [secondMigration, thirdMigration], {
+      firstSchemaVersion: 1,
+      knownVersions: [1],
+    });
+
+    expect(store.events).not.toContain(`execute:${secondMigration.up}`);
+    expect(store.events).toContain(`execute:${thirdMigration.up}`);
   });
 });

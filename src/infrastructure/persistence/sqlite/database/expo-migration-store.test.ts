@@ -5,6 +5,7 @@ import type { Migration } from '../migrations/migration';
 
 function createDatabaseMock(appliedVersions: readonly number[] = []) {
   const execAsync = jest.fn(async (_sql: string) => undefined);
+  const transactionExecAsync = jest.fn(async (_sql: string) => undefined);
   const getAllAsync = jest.fn(async (_sql: string) =>
     appliedVersions.map((version) => ({ version })),
   );
@@ -12,8 +13,17 @@ function createDatabaseMock(appliedVersions: readonly number[] = []) {
     changes: 1,
     lastInsertRowId: 1,
   }));
+  const transactionRunAsync = jest.fn(async (..._args: readonly unknown[]) => ({
+    changes: 1,
+    lastInsertRowId: 1,
+  }));
+  const transaction = {
+    execAsync: transactionExecAsync,
+    runAsync: transactionRunAsync,
+  } as unknown as SQLiteDatabase;
   const withExclusiveTransactionAsync = jest.fn(
-    async (task: () => Promise<void>) => task(),
+    async (task: (transaction: SQLiteDatabase) => Promise<void>) =>
+      task(transaction),
   );
 
   const database = {
@@ -26,8 +36,10 @@ function createDatabaseMock(appliedVersions: readonly number[] = []) {
   return {
     database,
     execAsync,
+    transactionExecAsync,
     getAllAsync,
     runAsync,
+    transactionRunAsync,
     withExclusiveTransactionAsync,
   };
 }
@@ -42,6 +54,8 @@ describe('ExpoMigrationStore', () => {
     const sql = execAsync.mock.calls[0]?.[0] ?? '';
     expect(sql).toContain('PRAGMA journal_mode = WAL');
     expect(sql).toContain('PRAGMA foreign_keys = ON');
+    expect(sql).toContain('PRAGMA busy_timeout = 5000');
+    expect(sql).toContain('PRAGMA synchronous = NORMAL');
     expect(sql).toContain('CREATE TABLE IF NOT EXISTS schema_migrations');
   });
 
@@ -72,13 +86,22 @@ describe('ExpoMigrationStore', () => {
   });
 
   it('delegates transaction boundaries to SQLite', async () => {
-    const { database, withExclusiveTransactionAsync } = createDatabaseMock();
+    const {
+      database,
+      execAsync,
+      transactionExecAsync,
+      withExclusiveTransactionAsync,
+    } = createDatabaseMock();
     const store = new ExpoMigrationStore(database);
-    const task = jest.fn(async () => undefined);
+    const task = jest.fn(async () => store.execute('CREATE TABLE example'));
 
     await store.transaction(task);
 
-    expect(withExclusiveTransactionAsync).toHaveBeenCalledWith(task);
+    expect(withExclusiveTransactionAsync).toHaveBeenCalledWith(
+      expect.any(Function),
+    );
     expect(task).toHaveBeenCalledTimes(1);
+    expect(transactionExecAsync).toHaveBeenCalledWith('CREATE TABLE example');
+    expect(execAsync).not.toHaveBeenCalled();
   });
 });

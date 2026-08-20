@@ -176,7 +176,6 @@ describe('SQLite repositories', () => {
           id: 'cursor-id',
         },
         limit: 25,
-        offset: 50,
       }),
     ).resolves.toEqual([transactionFromRow(transactionRow)]);
     expect(getAllAsync).toHaveBeenCalledWith(
@@ -197,7 +196,6 @@ describe('SQLite repositories', () => {
       '%mercado%',
       '%weekly%',
       25,
-      50,
     );
     await expect(repository.findById('opening-1')).resolves.toEqual(
       transactionFromRow(transactionRow),

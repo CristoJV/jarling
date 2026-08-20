@@ -3,11 +3,25 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { SQLiteUnitOfWork } from './sqlite-unit-of-work';
 
 function createDatabaseMock() {
+  const runAsync = jest.fn(async () => ({ changes: 1, lastInsertRowId: 1 }));
+  const transactionRunAsync = jest.fn(async () => ({
+    changes: 1,
+    lastInsertRowId: 1,
+  }));
+  const transaction = {
+    runAsync: transactionRunAsync,
+  } as unknown as SQLiteDatabase;
   const withExclusiveTransactionAsync = jest.fn(
-    async (task: () => Promise<void>) => task(),
+    async (task: (transaction: SQLiteDatabase) => Promise<void>) =>
+      task(transaction),
   );
   return {
-    database: { withExclusiveTransactionAsync } as unknown as SQLiteDatabase,
+    database: {
+      runAsync,
+      withExclusiveTransactionAsync,
+    } as unknown as SQLiteDatabase,
+    runAsync,
+    transactionRunAsync,
     withExclusiveTransactionAsync,
   };
 }
@@ -21,6 +35,35 @@ describe('SQLiteUnitOfWork', () => {
       'created',
     );
     expect(withExclusiveTransactionAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('routes repository calls through the exclusive transaction connection', async () => {
+    const { database, runAsync, transactionRunAsync } = createDatabaseMock();
+    const unitOfWork = new SQLiteUnitOfWork(database);
+
+    await unitOfWork.run(async () => {
+      await unitOfWork.connection.runAsync('INSERT INTO example VALUES (?)', 1);
+    });
+
+    expect(transactionRunAsync).toHaveBeenCalledWith(
+      'INSERT INTO example VALUES (?)',
+      1,
+    );
+    expect(runAsync).not.toHaveBeenCalled();
+  });
+
+  it('restores the root connection after a transaction fails', async () => {
+    const { database, runAsync } = createDatabaseMock();
+    const unitOfWork = new SQLiteUnitOfWork(database);
+
+    await expect(
+      unitOfWork.run(async () => {
+        throw new Error('write failed');
+      }),
+    ).rejects.toThrow('write failed');
+
+    await unitOfWork.connection.runAsync('SELECT 1');
+    expect(runAsync).toHaveBeenCalledWith('SELECT 1');
   });
 
   it('continues accepting work after a failed transaction', async () => {

@@ -354,7 +354,6 @@ export const english = {
   'form.enterName': 'Enter a name.',
   'form.couldNotSave': 'Could not save.',
   'form.saving': 'Saving…',
-  'form.comingSoon': 'Coming soon',
   'errors.invalidAccountName': 'Enter an account name.',
   'errors.accountBalanceNotZero':
     'Move or adjust the remaining balance before closing this account.',
@@ -755,7 +754,6 @@ export const spanish: TranslationDictionary = {
   'form.enterName': 'Introduce un nombre.',
   'form.couldNotSave': 'No se pudo guardar.',
   'form.saving': 'Guardando…',
-  'form.comingSoon': 'Próximamente',
   'errors.invalidAccountName': 'Introduce un nombre para la cuenta.',
   'errors.accountBalanceNotZero':
     'Mueve o ajusta el saldo restante antes de cerrar esta cuenta.',

@@ -14,10 +14,12 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/CristoJV/jarling/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/CristoJV/jarling/actions/workflows/ci.yml/badge.svg" /></a>
   <img alt="Expo" src="https://img.shields.io/badge/Expo-57-000020?logo=expo" />
   <img alt="React Native" src="https://img.shields.io/badge/React%20Native-0.86-61DAFB?logo=react" />
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript" />
   <img alt="Local first" src="https://img.shields.io/badge/data-local--first-167D6C" />
+  <img alt="License" src="https://img.shields.io/badge/license-MIT-blue" />
 </p>
 
 Jarling is a local-first personal budgeting app for Android, iOS, and the web.
@@ -70,13 +72,14 @@ long-term goals.
 
 ## Getting started
 
-You need Node.js 22.13 or newer and npm. Native builds additionally require
-Android Studio or, on macOS, Xcode.
+You need Node.js 22.13–24 and npm. Native builds additionally require Android
+Studio with JDK 17 and NDK 27.1.12297006 or, on macOS, a compatible Xcode
+installation.
 
 Install the dependencies and start the platform you want to use:
 
 ```bash
-npm install
+npm ci
 npm run android
 ```
 
@@ -93,14 +96,31 @@ npm run web
 Run the complete quality gate before considering a change finished:
 
 ```bash
+npm run doctor
 npm run format:check
 npm run typecheck
 npm run lint
 npm run test:coverage
+npm run export:web
+npm run export:android
+npm run export:ios
 npm run test:e2e # requires Maestro and a native build/emulator
 ```
 
-Jarling is under active development. Read the
-[application plan](docs/application-plan.md) for the roadmap, product decisions,
-and acceptance criteria. Data handling is documented in the bilingual
-[privacy and data protection note](docs/privacy.md).
+## Architecture and release status
+
+Jarling uses a pragmatic clean architecture and a direct SQLite version-1
+baseline. Fresh installations create the current schema directly; the retained
+migration runner starts with the first post-release schema change. The first
+release deliberately excludes CSV import, bank connectivity, cloud sync, and
+scheduled transactions.
+
+- [Application plan](docs/application-plan.md)
+- [Architecture decisions](docs/adr/README.md)
+- [First-release checklist](docs/release-checklist.md)
+- [Privacy and data protection](docs/privacy.md)
+- [Changelog](CHANGELOG.md)
+
+## License
+
+Jarling is available under the [MIT License](LICENSE).
