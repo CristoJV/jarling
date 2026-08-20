@@ -43,6 +43,13 @@ function ThemedRoot() {
         }}
       >
         <Stack.Screen name="(tabs)" options={{ animation: 'none' }} />
+        <Stack.Screen
+          name="transaction/new"
+          options={{
+            animationDuration: reducedMotion ? 50 : motion.transactionEnter,
+            gestureEnabled: false,
+          }}
+        />
         <Stack.Screen name="settings" />
       </Stack>
     </>

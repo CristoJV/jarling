@@ -1,8 +1,10 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
+  Keyboard,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -66,9 +68,17 @@ export function CategoryDetailsScreen() {
   const [savingNotes, setSavingNotes] = useState(false);
   const [notesSaved, setNotesSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [shortfall, setShortfall] = useState<
-    Readonly<{ requested: Money; available: Money; missing: Money }> | undefined
-  >();
+  const scrollRef = useRef<ScrollView>(null);
+  const notesFocused = useRef(false);
+
+  useEffect(() => {
+    const subscription = Keyboard.addListener('keyboardDidShow', () => {
+      if (notesFocused.current) {
+        scrollRef.current?.scrollToEnd({ animated: true });
+      }
+    });
+    return () => subscription.remove();
+  }, []);
 
   const load = useCallback(
     async (synchronizeNotes = false) => {
@@ -137,7 +147,6 @@ export function CategoryDetailsScreen() {
     if (!details?.progress || details.progress.recommended.cents <= 0) return;
     setAssigning(true);
     setError(null);
-    setShortfall(undefined);
     try {
       await application.budget.assign.execute({
         categoryId,
@@ -148,11 +157,24 @@ export function CategoryDetailsScreen() {
       await load();
     } catch (cause) {
       if (cause instanceof InsufficientReadyToAssignError) {
-        setShortfall({
-          requested: cause.requested,
-          available: cause.available,
-          missing: cause.missing,
-        });
+        Alert.alert(
+          t('categoryDetails.insufficientFundsTitle'),
+          `${t('categoryDetails.insufficientFundsBody', {
+            missing: formatMoney(cause.missing),
+          })}\n\n${t('categoryDetails.insufficientFunds', {
+            requested: formatMoney(cause.requested),
+            available: formatMoney(cause.available),
+            missing: formatMoney(cause.missing),
+          })}`,
+          [
+            { text: t('common.cancel'), style: 'cancel' },
+            {
+              text: t('budget.moveMoney'),
+              onPress: () => router.push(routes.moveBudget(month, categoryId)),
+            },
+          ],
+        );
+        return;
       }
       setError(domainErrorMessage(cause, t));
     } finally {
@@ -228,9 +250,11 @@ export function CategoryDetailsScreen() {
       />
       <KeyboardResponsiveScreen>
         <ScrollView
+          automaticallyAdjustKeyboardInsets
           contentContainerStyle={styles.content}
           keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="handled"
+          ref={scrollRef}
         >
           <Pressable
             disabled={protectedCategory}
@@ -393,6 +417,15 @@ export function CategoryDetailsScreen() {
                   setNotes(value);
                   setNotesSaved(false);
                 }}
+                onBlur={() => {
+                  notesFocused.current = false;
+                }}
+                onFocus={() => {
+                  notesFocused.current = true;
+                  requestAnimationFrame(() =>
+                    scrollRef.current?.scrollToEnd({ animated: true }),
+                  );
+                }}
                 placeholder={t('categoryDetails.notesPlaceholder')}
                 placeholderTextColor={theme.colors.textMuted}
                 style={styles.notesInput}
@@ -428,27 +461,6 @@ export function CategoryDetailsScreen() {
               <Text accessibilityLiveRegion="polite" style={styles.errorText}>
                 {error}
               </Text>
-              {shortfall ? (
-                <>
-                  <Text style={styles.errorDetails}>
-                    {t('categoryDetails.insufficientFunds', {
-                      requested: formatMoney(shortfall.requested),
-                      available: formatMoney(shortfall.available),
-                      missing: formatMoney(shortfall.missing),
-                    })}
-                  </Text>
-                  <Pressable
-                    onPress={() =>
-                      router.push(routes.moveBudget(month, categoryId))
-                    }
-                    style={styles.errorAction}
-                  >
-                    <Text style={styles.errorActionText}>
-                      {t('budget.moveMoney')}
-                    </Text>
-                  </Pressable>
-                </>
-              ) : null}
             </View>
           ) : null}
 
@@ -882,24 +894,6 @@ const createStyles = (theme: AppTheme) =>
       textAlign: 'center',
     },
     errorCard: { gap: 10 },
-    errorDetails: {
-      color: theme.colors.textSecondary,
-      fontSize: 13,
-      lineHeight: 19,
-      textAlign: 'center',
-    },
-    errorAction: {
-      minHeight: 46,
-      backgroundColor: theme.colors.primaryMuted,
-      borderRadius: 14,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    errorActionText: {
-      color: theme.colors.primary,
-      fontSize: 14,
-      fontWeight: '800',
-    },
     hideButton: {
       minHeight: 50,
       marginTop: 4,

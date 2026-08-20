@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   Pressable,
   StyleSheet,
@@ -10,7 +10,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { BudgetCategoryValues } from '@/domain/services/calculate-budget-month';
 import { Money } from '@/domain/value-objects/money';
-import { MoneyKeypad } from '@/presentation/components/common/money-keypad';
+import { BlinkingCursor } from '@/presentation/components/common/blinking-cursor';
+import {
+  MoneyKeypad,
+  type MoneyKeypadHandle,
+} from '@/presentation/components/common/money-keypad';
 import { AnimatedBottomSheetModal } from '@/presentation/components/common/animated-bottom-sheet-modal';
 import { SafeBottomSheet } from '@/presentation/components/common/safe-bottom-sheet';
 import { formatMoney } from '@/presentation/utils/money';
@@ -40,11 +44,13 @@ export function CategoryBudgetModal({
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
+  const keypadRef = useRef<MoneyKeypadHandle>(null);
   const [amountCents, setAmountCents] = useState(values.assigned.cents);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   async function submit(valueCents = amountCents) {
+    if (submitting) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -77,37 +83,44 @@ export function CategoryBudgetModal({
           <Text style={styles.amountLabel}>
             {t('budget.assigned').toUpperCase()}
           </Text>
-          <Text style={styles.amount}>
-            {formatMoney(Money.fromCents(amountCents))}
-          </Text>
+          <View style={styles.amountField}>
+            <Text style={styles.amount}>
+              {formatMoney(Money.fromCents(amountCents))}
+            </Text>
+            <BlinkingCursor height={38} />
+          </View>
 
           <View style={styles.actions}>
-            <Pressable onPress={onMoveMoney} style={styles.action}>
+            <Pressable
+              onPress={() => {
+                keypadRef.current?.resolve();
+                onMoveMoney();
+              }}
+              style={styles.action}
+            >
               <Text style={styles.actionIcon}>→</Text>
               <Text style={styles.actionText}>{t('budget.moveMoney')}</Text>
             </Pressable>
-            <Pressable onPress={onDetails} style={styles.action}>
+            <Pressable
+              onPress={() => {
+                keypadRef.current?.resolve();
+                onDetails();
+              }}
+              style={styles.action}
+            >
               <Text style={styles.actionIcon}>•••</Text>
               <Text style={styles.actionText}>{t('budget.details')}</Text>
             </Pressable>
           </View>
 
+          {error ? <Text style={styles.error}>{error}</Text> : null}
           <MoneyKeypad
             calculator
             onChange={setAmountCents}
             onDone={(value) => void submit(value)}
+            ref={keypadRef}
             valueCents={amountCents}
           />
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-          <Pressable
-            disabled={submitting}
-            onPress={() => void submit()}
-            style={[styles.save, submitting && styles.disabled]}
-          >
-            <Text style={styles.saveText}>
-              {submitting ? t('transactions.saving') : t('common.done')}
-            </Text>
-          </Pressable>
         </View>
       </SafeBottomSheet>
     </AnimatedBottomSheetModal>
@@ -146,15 +159,25 @@ const createStyles = (theme: AppTheme) =>
       fontWeight: '800',
       letterSpacing: 1.1,
     },
-    amount: {
+    amountField: {
+      minHeight: 58,
       marginTop: 5,
       marginBottom: 8,
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    amount: {
       color: theme.colors.text,
       fontSize: 42,
       fontVariant: ['tabular-nums'],
       fontWeight: '800',
     },
-    actions: { width: '100%', flexDirection: 'row', gap: 10 },
+    actions: {
+      width: '100%',
+      marginBottom: 16,
+      flexDirection: 'row',
+      gap: 10,
+    },
     action: {
       flex: 1,
       minHeight: 52,
@@ -176,23 +199,8 @@ const createStyles = (theme: AppTheme) =>
     },
     error: {
       width: '100%',
-      marginTop: 10,
+      marginBottom: 10,
       color: theme.colors.negative,
       fontSize: 13,
     },
-    save: {
-      width: '100%',
-      minHeight: 52,
-      marginTop: 8,
-      backgroundColor: theme.colors.primary,
-      borderRadius: 16,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    saveText: {
-      color: theme.colors.onPrimary,
-      fontSize: 17,
-      fontWeight: '800',
-    },
-    disabled: { opacity: 0.55 },
   });

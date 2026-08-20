@@ -1,6 +1,14 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Alert,
+  BackHandler,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import {
   SafeAreaView,
   useSafeAreaInsets,
@@ -13,7 +21,11 @@ import type { TransactionSummary } from '@/application/use-cases/transactions/ge
 import type { TransactionInput } from '@/application/use-cases/transactions/transaction-input';
 import type { TransferInput } from '@/application/use-cases/transfers/transfer-input';
 import { Money } from '@/domain/value-objects/money';
-import { MoneyKeypad } from '@/presentation/components/common/money-keypad';
+import { BlinkingCursor } from '@/presentation/components/common/blinking-cursor';
+import {
+  MoneyKeypad,
+  type MoneyKeypadHandle,
+} from '@/presentation/components/common/money-keypad';
 import { FullScreenSelectionScreen } from '@/presentation/components/common/full-screen-selection-screen';
 import { FormRow } from '@/presentation/components/common/form-row';
 import { KeyboardResponsiveScreen } from '@/presentation/components/common/keyboard-responsive-screen';
@@ -104,43 +116,60 @@ export function TransactionEditorScreen({
       ),
     [categoryGroups, t],
   );
-  const [kind, setKind] = useState<TransactionKind>(
-    existingTransfer
-      ? 'transfer'
-      : existing && existing.amount.cents >= 0
-        ? 'income'
-        : 'expense',
-  );
-  const [amountCents, setAmountCents] = useState(
-    Math.abs(existing?.amount.cents ?? 0),
-  );
-  const [accountId, setAccountId] = useState(
+  const initialKind: TransactionKind = existingTransfer
+    ? 'transfer'
+    : existing && existing.amount.cents >= 0
+      ? 'income'
+      : 'expense';
+  const initialAmountCents = Math.abs(existing?.amount.cents ?? 0);
+  const initialAccountId =
     sourceLeg?.accountId ??
-      existing?.accountId ??
-      availableAccounts[0]?.account.id ??
-      '',
-  );
-  const [destinationAccountId, setDestinationAccountId] = useState(
+    existing?.accountId ??
+    availableAccounts[0]?.account.id ??
+    '';
+  const initialDestinationAccountId =
     destinationLeg?.accountId ??
-      availableAccounts.find(({ account }) => account.id !== accountId)?.account
-        .id ??
-      '',
-  );
-  const [categoryId, setCategoryId] = useState(
+    availableAccounts.find(({ account }) => account.id !== initialAccountId)
+      ?.account.id ??
+    '';
+  const initialCategoryId =
     existing?.categoryId ??
-      availableCategories.find(
-        ({ category }) => category.id === UNCATEGORIZED_CATEGORY_ID,
-      )?.category.id ??
-      '',
+    availableCategories.find(
+      ({ category }) => category.id === UNCATEGORIZED_CATEGORY_ID,
+    )?.category.id ??
+    '';
+  const initialPayee = existing?.payee ?? '';
+  const initialDate = existing?.date ?? today();
+  const initialMemo = existing?.notes ?? '';
+  const initialCleared = existing?.status !== 'uncleared';
+  const [kind, setKind] = useState<TransactionKind>(initialKind);
+  const [amountCents, setAmountCents] = useState(initialAmountCents);
+  const [accountId, setAccountId] = useState(initialAccountId);
+  const [destinationAccountId, setDestinationAccountId] = useState(
+    initialDestinationAccountId,
   );
-  const [payee, setPayee] = useState(existing?.payee ?? '');
-  const [date, setDate] = useState(existing?.date ?? today());
-  const [memo, setMemo] = useState(existing?.notes ?? '');
-  const [cleared, setCleared] = useState(existing?.status !== 'uncleared');
+  const [categoryId, setCategoryId] = useState(initialCategoryId);
+  const [payee, setPayee] = useState(initialPayee);
+  const [date, setDate] = useState(initialDate);
+  const [memo, setMemo] = useState(initialMemo);
+  const [cleared, setCleared] = useState(initialCleared);
   const [showMore, setShowMore] = useState(false);
   const [keypadVisible, setKeypadVisible] = useState(true);
   const [editor, setEditor] = useState<Editor>(null);
   const restoreKeypad = useRef(false);
+  const keypadRef = useRef<MoneyKeypadHandle>(null);
+  const discardAlertVisible = useRef(false);
+  const [initialValues] = useState(() => ({
+    kind: initialKind,
+    amountCents: initialAmountCents,
+    accountId: initialAccountId,
+    destinationAccountId: initialDestinationAccountId,
+    categoryId: initialCategoryId,
+    payee: initialPayee,
+    date: initialDate,
+    memo: initialMemo,
+    cleared: initialCleared,
+  }));
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -160,9 +189,68 @@ export function TransactionEditorScreen({
   const destinationAccountName =
     availableAccounts.find(({ account }) => account.id === destinationAccountId)
       ?.account.name ?? t('transactions.chooseDestination');
+  const hasUnsavedChanges =
+    kind !== initialValues.kind ||
+    amountCents !== initialValues.amountCents ||
+    accountId !== initialValues.accountId ||
+    destinationAccountId !== initialValues.destinationAccountId ||
+    categoryId !== initialValues.categoryId ||
+    payee !== initialValues.payee ||
+    date !== initialValues.date ||
+    memo !== initialValues.memo ||
+    cleared !== initialValues.cleared;
+
+  const requestDismiss = useCallback(() => {
+    if (existing || !hasUnsavedChanges) {
+      onDismiss();
+      return;
+    }
+    if (discardAlertVisible.current) return;
+    discardAlertVisible.current = true;
+    Alert.alert(
+      t('transactions.discardTitle'),
+      t('transactions.discardBody'),
+      [
+        {
+          text: t('transactions.continueEditing'),
+          style: 'cancel',
+          onPress: () => {
+            discardAlertVisible.current = false;
+          },
+        },
+        {
+          text: t('transactions.discard'),
+          style: 'destructive',
+          onPress: () => {
+            discardAlertVisible.current = false;
+            onDismiss();
+          },
+        },
+      ],
+      {
+        cancelable: true,
+        onDismiss: () => {
+          discardAlertVisible.current = false;
+        },
+      },
+    );
+  }, [existing, hasUnsavedChanges, onDismiss, t]);
+
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener(
+      'hardwareBackPress',
+      () => {
+        if (editor) return false;
+        requestDismiss();
+        return true;
+      },
+    );
+    return () => subscription.remove();
+  }, [editor, requestDismiss]);
 
   function openEditor(value: Exclude<Editor, null>) {
     restoreKeypad.current = keypadVisible;
+    if (keypadVisible) keypadRef.current?.resolve();
     setKeypadVisible(false);
     setEditor(value);
   }
@@ -173,8 +261,11 @@ export function TransactionEditorScreen({
     restoreKeypad.current = false;
   }
 
-  async function submit() {
-    if (amountCents <= 0) {
+  async function submit(resolvedAmountCents?: number) {
+    if (submitting) return;
+    const finalAmountCents =
+      resolvedAmountCents ?? keypadRef.current?.resolve() ?? amountCents;
+    if (finalAmountCents <= 0) {
       setError(t('transactions.amountRequired'));
       return;
     }
@@ -199,7 +290,7 @@ export function TransactionEditorScreen({
     setError(null);
     try {
       const common = {
-        amountCents,
+        amountCents: finalAmountCents,
         date,
         notes: memo.trim() || undefined,
         status: cleared ? 'cleared' : 'uncleared',
@@ -368,7 +459,7 @@ export function TransactionEditorScreen({
             <Pressable
               accessibilityLabel={t('common.close')}
               hitSlop={12}
-              onPress={onDismiss}
+              onPress={requestDismiss}
               style={styles.close}
             >
               <Text style={styles.closeText}>×</Text>
@@ -384,13 +475,17 @@ export function TransactionEditorScreen({
             keyboardDismissMode="interactive"
             keyboardShouldPersistTaps="handled"
           >
-            <Pressable onPress={() => setKeypadVisible(true)}>
+            <Pressable
+              onPress={() => setKeypadVisible(true)}
+              style={styles.amountField}
+            >
               <Text
                 accessibilityLabel={t('transactions.amount')}
                 style={styles.amount}
               >
                 {formatMoney(Money.fromCents(amountCents))}
               </Text>
+              {keypadVisible ? <BlinkingCursor height={38} /> : null}
             </Pressable>
 
             <Pressable
@@ -487,6 +582,7 @@ export function TransactionEditorScreen({
             <Pressable
               accessibilityState={{ expanded: showMore }}
               onPress={() => {
+                keypadRef.current?.resolve();
                 setKeypadVisible(false);
                 setShowMore((current) => !current);
               }}
@@ -530,6 +626,7 @@ export function TransactionEditorScreen({
                 calculator
                 onChange={setAmountCents}
                 onDone={() => setKeypadVisible(false)}
+                ref={keypadRef}
                 valueCents={amountCents}
               />
             ) : null}
@@ -601,12 +698,18 @@ const createStyles = (theme: AppTheme) =>
       alignItems: 'center',
     },
     amount: {
-      marginTop: 4,
       color: theme.colors.text,
       fontSize: 42,
       fontVariant: ['tabular-nums'],
       fontWeight: '700',
       letterSpacing: -1.5,
+    },
+    amountField: {
+      minHeight: 58,
+      marginTop: 4,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     kindPill: {
       minHeight: 46,

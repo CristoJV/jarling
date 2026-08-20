@@ -1,15 +1,18 @@
-import { useState } from 'react';
+import { forwardRef, useImperativeHandle, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { formatMoney, toggleMoneySign } from '@/presentation/utils/money';
 import {
-  appendMoneyDigit,
-  removeMoneyDigit,
-  toggleMoneySign,
-} from '@/presentation/utils/money';
-import {
-  calculateMoneyOperation,
+  appendCalculatorDigit,
+  chooseMoneyOperator,
+  clearMoneyCalculator,
+  createMoneyCalculatorState,
+  removeCalculatorDigit,
+  resolveMoneyCalculator,
+  type MoneyCalculatorTransition,
   type MoneyOperator,
 } from '@/presentation/utils/money-calculator';
+import { Money } from '@/domain/value-objects/money';
 import { useTranslation } from '@/presentation/localization/localization-provider';
 import type { AppTheme } from '@/presentation/theme/theme';
 import { useThemedStyles } from '@/presentation/theme/theme-provider';
@@ -20,155 +23,168 @@ type MoneyKeypadProps = Readonly<{
   allowNegative?: boolean;
   calculator?: boolean;
   onDone?: (valueCents: number) => void;
+  overwriteOnFirstDigit?: boolean;
 }>;
 
-export function MoneyKeypad({
-  valueCents,
-  onChange,
-  allowNegative = false,
-  calculator = false,
-  onDone,
-}: MoneyKeypadProps) {
-  const { t } = useTranslation();
-  const styles = useThemedStyles(createStyles);
-  const [pending, setPending] = useState<
-    Readonly<{ leftCents: number; operator: MoneyOperator }> | undefined
-  >();
+export type MoneyKeypadHandle = Readonly<{
+  resolve: () => number;
+}>;
 
-  function chooseOperator(operator: MoneyOperator) {
-    setPending({ leftCents: valueCents, operator });
-    onChange(0);
-  }
-
-  function evaluate(): number {
-    if (!pending) return valueCents;
-    const calculated = calculateMoneyOperation(
-      pending.leftCents,
+export const MoneyKeypad = forwardRef<MoneyKeypadHandle, MoneyKeypadProps>(
+  function MoneyKeypad(
+    {
       valueCents,
-      pending.operator,
+      onChange,
+      allowNegative = false,
+      calculator = false,
+      onDone,
+      overwriteOnFirstDigit = true,
+    },
+    ref,
+  ) {
+    const { t } = useTranslation();
+    const styles = useThemedStyles(createStyles);
+    const [calculatorState, setCalculatorState] = useState(() =>
+      createMoneyCalculatorState(overwriteOnFirstDigit),
     );
-    const next = allowNegative ? calculated : Math.max(0, calculated);
-    onChange(next);
-    setPending(undefined);
-    return next;
-  }
 
-  function finish() {
-    const finalValue = pending ? evaluate() : valueCents;
-    onDone?.(finalValue);
-  }
+    function commit(transition: MoneyCalculatorTransition): number {
+      const value = allowNegative
+        ? transition.valueCents
+        : Math.max(0, transition.valueCents);
+      const state =
+        transition.state.pending && value !== transition.valueCents
+          ? {
+              ...transition.state,
+              pending: { ...transition.state.pending, leftCents: value },
+            }
+          : transition.state;
+      setCalculatorState(state);
+      onChange(value);
+      return value;
+    }
 
-  if (calculator) {
-    return (
-      <View
-        accessibilityLabel={t('transactions.amount')}
-        style={styles.calculator}
-      >
-        <View style={styles.calculatorStatus}>
-          <Text style={styles.calculatorStatusText}>
-            {pending
-              ? `${formatKeypadAmount(pending.leftCents)} ${pending.operator}`
-              : ' '}
-          </Text>
-        </View>
-        <View style={styles.calculatorBody}>
-          <View style={styles.digitGrid}>
-            {[7, 8, 9, 4, 5, 6, 1, 2, 3].map((digit) => (
+    function chooseOperator(operator: MoneyOperator) {
+      commit(chooseMoneyOperator(calculatorState, valueCents, operator));
+    }
+
+    function resolve(): number {
+      return commit(resolveMoneyCalculator(calculatorState, valueCents));
+    }
+
+    function finish() {
+      const finalValue = resolve();
+      onDone?.(finalValue);
+    }
+
+    function appendDigit(digit: number) {
+      commit(appendCalculatorDigit(calculatorState, valueCents, digit));
+    }
+
+    useImperativeHandle(ref, () => ({ resolve }));
+
+    if (calculator) {
+      const pendingRightCents = calculatorState.overwriteInput ? 0 : valueCents;
+      return (
+        <View
+          accessibilityLabel={t('transactions.amount')}
+          style={styles.calculator}
+        >
+          <View style={styles.calculatorStatus}>
+            <Text numberOfLines={1} style={styles.calculatorStatusText}>
+              {calculatorState.pending
+                ? `${formatMoney(Money.fromCents(calculatorState.pending.leftCents))} ${calculatorState.pending.operator} ${formatMoney(Money.fromCents(pendingRightCents))}`
+                : ' '}
+            </Text>
+          </View>
+          <View style={styles.calculatorBody}>
+            <View style={styles.digitGrid}>
+              {[7, 8, 9, 4, 5, 6, 1, 2, 3].map((digit) => (
+                <Key
+                  third
+                  key={digit}
+                  label={String(digit)}
+                  onPress={() => appendDigit(digit)}
+                />
+              ))}
               <Key
                 third
-                key={digit}
-                label={String(digit)}
-                onPress={() => appendDigit(digit)}
+                label="C"
+                onPress={() => commit(clearMoneyCalculator())}
               />
-            ))}
-            <Key
-              third
-              label="C"
-              onPress={() => {
-                setPending(undefined);
-                onChange(0);
-              }}
-            />
-            <Key third label="0" onPress={() => appendDigit(0)} />
-            <Key
-              third
-              label="⌫"
-              onPress={() => onChange(removeMoneyDigit(valueCents))}
-            />
-          </View>
-          <View style={styles.operationGrid}>
-            <Key
-              emphasized
-              half
-              label="×"
-              onPress={() => chooseOperator('×')}
-            />
-            <Key
-              emphasized
-              half
-              label="÷"
-              onPress={() => chooseOperator('÷')}
-            />
-            <Key
-              emphasized
-              half
-              label="+"
-              onPress={() => chooseOperator('+')}
-            />
-            <Key
-              emphasized
-              half
-              label="−"
-              onPress={() => chooseOperator('-')}
-            />
-            <Key full label="=" onPress={evaluate} />
-            <Key full label={t('common.done')} onPress={finish} primary />
+              <Key third label="0" onPress={() => appendDigit(0)} />
+              <Key
+                third
+                label="⌫"
+                onPress={() =>
+                  commit(removeCalculatorDigit(calculatorState, valueCents))
+                }
+              />
+            </View>
+            <View style={styles.operationGrid}>
+              <Key
+                emphasized
+                half
+                label="×"
+                onPress={() => chooseOperator('×')}
+              />
+              <Key
+                emphasized
+                half
+                label="÷"
+                onPress={() => chooseOperator('÷')}
+              />
+              <Key
+                emphasized
+                half
+                label="+"
+                onPress={() => chooseOperator('+')}
+              />
+              <Key
+                emphasized
+                half
+                label="−"
+                onPress={() => chooseOperator('-')}
+              />
+              <Key full label="=" onPress={resolve} />
+              <Key full label={t('common.done')} onPress={finish} primary />
+            </View>
           </View>
         </View>
+      );
+    }
+
+    return (
+      <View accessibilityLabel={t('transactions.amount')} style={styles.keypad}>
+        {[7, 8, 9, 4, 5, 6, 1, 2, 3].map((digit) => (
+          <Key
+            third
+            key={digit}
+            label={String(digit)}
+            onPress={() => appendDigit(digit)}
+          />
+        ))}
+        {allowNegative ? (
+          <Key
+            third
+            label="±"
+            onPress={() => onChange(toggleMoneySign(valueCents))}
+          />
+        ) : (
+          <Key third label="C" onPress={() => commit(clearMoneyCalculator())} />
+        )}
+        <Key third label="0" onPress={() => appendDigit(0)} />
+        <Key
+          third
+          label="⌫"
+          onPress={() =>
+            commit(removeCalculatorDigit(calculatorState, valueCents))
+          }
+        />
       </View>
     );
-  }
-
-  function appendDigit(digit: number) {
-    onChange(appendMoneyDigit(valueCents, digit));
-  }
-
-  return (
-    <View accessibilityLabel={t('transactions.amount')} style={styles.keypad}>
-      {[7, 8, 9, 4, 5, 6, 1, 2, 3].map((digit) => (
-        <Key
-          third
-          key={digit}
-          label={String(digit)}
-          onPress={() => onChange(appendMoneyDigit(valueCents, digit))}
-        />
-      ))}
-      {allowNegative ? (
-        <Key
-          third
-          label="±"
-          onPress={() => onChange(toggleMoneySign(valueCents))}
-        />
-      ) : (
-        <Key third label="C" onPress={() => onChange(0)} />
-      )}
-      <Key
-        third
-        label="0"
-        onPress={() => onChange(appendMoneyDigit(valueCents, 0))}
-      />
-      <Key
-        third
-        label="⌫"
-        onPress={() => onChange(removeMoneyDigit(valueCents))}
-      />
-    </View>
-  );
-}
-
-function formatKeypadAmount(cents: number): string {
-  return (cents / 100).toFixed(2).replace('.', ',');
-}
+  },
+);
 
 function Key({
   label,
@@ -226,13 +242,14 @@ const createStyles = (theme: AppTheme) =>
       backgroundColor: theme.colors.surfaceElevated,
     },
     calculatorStatus: {
-      height: 20,
+      height: 28,
       paddingHorizontal: 8,
       alignItems: 'flex-end',
     },
     calculatorStatusText: {
       color: theme.colors.textMuted,
-      fontSize: 12,
+      fontSize: 16,
+      fontVariant: ['tabular-nums'],
       fontWeight: '700',
     },
     calculatorBody: { flexDirection: 'row' },

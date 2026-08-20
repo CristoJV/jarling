@@ -8,6 +8,7 @@ import {
   Platform,
   Pressable,
   StyleSheet,
+  useWindowDimensions,
 } from 'react-native';
 
 import { useAppTheme } from '@/presentation/theme/theme-provider';
@@ -31,6 +32,7 @@ export function ModalScaffold({
   keyboardAvoiding = false,
 }: Props) {
   const theme = useAppTheme();
+  const { height } = useWindowDimensions();
   const reducedMotion = useReducedMotion();
   const [progress] = useState(() => new Animated.Value(0));
 
@@ -67,7 +69,11 @@ export function ModalScaffold({
       <Pressable onPress={onDismiss} style={StyleSheet.absoluteFill} />
       <KeyboardAvoidingView
         behavior={
-          keyboardAvoiding && Platform.OS === 'ios' ? 'padding' : undefined
+          keyboardAvoiding
+            ? Platform.OS === 'ios'
+              ? 'padding'
+              : 'height'
+            : undefined
         }
         pointerEvents="box-none"
         style={[
@@ -82,13 +88,13 @@ export function ModalScaffold({
             styles.content,
             placement === 'center' && styles.centerContent,
             {
-              opacity: placement === 'center' ? progress : 1,
+              opacity: progress,
               transform: [
                 placement === 'bottom'
                   ? {
                       translateY: progress.interpolate({
                         inputRange: [0, 1],
-                        outputRange: [72, 0],
+                        outputRange: [Math.max(120, height * 0.45), 0],
                       }),
                     }
                   : {

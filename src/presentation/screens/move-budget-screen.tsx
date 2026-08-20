@@ -1,6 +1,6 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -19,7 +19,10 @@ import type { BudgetMonthValues } from '@/domain/services/calculate-budget-month
 import { Money } from '@/domain/value-objects/money';
 import { FullScreenSelectionScreen } from '@/presentation/components/common/full-screen-selection-screen';
 import { BottomActionLayout } from '@/presentation/components/common/bottom-action-layout';
-import { MoneyKeypad } from '@/presentation/components/common/money-keypad';
+import {
+  MoneyKeypad,
+  type MoneyKeypadHandle,
+} from '@/presentation/components/common/money-keypad';
 import { useApplication } from '@/presentation/contexts/application-context';
 import { useTranslation } from '@/presentation/localization/localization-provider';
 import type { AppTheme } from '@/presentation/theme/theme';
@@ -57,6 +60,7 @@ export function MoveBudgetScreen() {
   const [selecting, setSelecting] = useState<'source' | 'target' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const keypadRef = useRef<MoneyKeypadHandle>(null);
 
   useEffect(() => {
     let active = true;
@@ -133,7 +137,10 @@ export function MoveBudgetScreen() {
       : t('common.choose');
   }
 
-  async function submit(valueCents = amountCents) {
+  async function submit(valueCents?: number) {
+    if (submitting) return;
+    const finalValueCents =
+      valueCents ?? keypadRef.current?.resolve() ?? amountCents;
     setSubmitting(true);
     setError(null);
     try {
@@ -141,7 +148,7 @@ export function MoveBudgetScreen() {
         source,
         target,
         month,
-        amountCents: valueCents,
+        amountCents: finalValueCents,
       });
       router.back();
     } catch (cause) {
@@ -194,6 +201,7 @@ export function MoveBudgetScreen() {
                 calculator
                 onChange={setAmountCents}
                 onDone={(value) => void submit(value)}
+                ref={keypadRef}
                 valueCents={amountCents}
               />
             </View>
@@ -209,7 +217,10 @@ export function MoveBudgetScreen() {
             <View style={styles.transferCard}>
               <LocationRow
                 label={t('budget.from')}
-                onPress={() => setSelecting('source')}
+                onPress={() => {
+                  keypadRef.current?.resolve();
+                  setSelecting('source');
+                }}
                 value={labelFor(source)}
               />
               <Pressable
@@ -229,7 +240,10 @@ export function MoveBudgetScreen() {
               </Pressable>
               <LocationRow
                 label={t('budget.to')}
-                onPress={() => setSelecting('target')}
+                onPress={() => {
+                  keypadRef.current?.resolve();
+                  setSelecting('target');
+                }}
                 value={labelFor(target)}
               />
             </View>

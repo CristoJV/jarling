@@ -188,6 +188,9 @@ export const english = {
   'categoryDetails.activityInMonth': 'Activity in {{month}}',
   'categoryDetails.insufficientFunds':
     'Requested {{requested}} · Available {{available}} · Missing {{missing}}',
+  'categoryDetails.insufficientFundsTitle': 'Not enough money to assign',
+  'categoryDetails.insufficientFundsBody':
+    'Ready to Assign cannot cover this allocation. Move {{missing}} from another category or reduce the target allocation.',
   'reports.title': 'Reports',
   'reports.lastSixMonths': 'Last 6 months',
   'reports.spending': 'Spending',
@@ -342,6 +345,11 @@ export const english = {
   'transactions.destinationRequired': 'Choose a destination account.',
   'transactions.differentAccounts':
     'The source and destination accounts must be different.',
+  'transactions.discardTitle': 'Discard this transaction?',
+  'transactions.discardBody':
+    'Your unsaved changes will be permanently discarded.',
+  'transactions.continueEditing': 'Continue Editing',
+  'transactions.discard': 'Discard',
   'payees.choose': 'Choose Payee',
   'payees.searchOrCreate': 'Search or create a payee',
   'payees.create': 'Create “{{name}}”',
@@ -626,6 +634,10 @@ export const spanish: TranslationDictionary = {
   'categoryDetails.activityInMonth': 'Actividad en {{month}}',
   'categoryDetails.insufficientFunds':
     'Solicitado {{requested}} · Disponible {{available}} · Faltan {{missing}}',
+  'categoryDetails.insufficientFundsTitle':
+    'No hay suficiente dinero para asignar',
+  'categoryDetails.insufficientFundsBody':
+    'Disponible para asignar no puede cubrir esta asignación. Mueve {{missing}} desde otra categoría o reduce la asignación del objetivo.',
   'reports.title': 'Informes',
   'reports.lastSixMonths': 'Últimos 6 meses',
   'reports.spending': 'Gastos',
@@ -786,6 +798,11 @@ export const spanish: TranslationDictionary = {
   'transactions.destinationRequired': 'Selecciona una cuenta de destino.',
   'transactions.differentAccounts':
     'Las cuentas de origen y destino deben ser diferentes.',
+  'transactions.discardTitle': '¿Descartar esta transacción?',
+  'transactions.discardBody':
+    'Los cambios que no hayas guardado se perderán definitivamente.',
+  'transactions.continueEditing': 'Continuar editando',
+  'transactions.discard': 'Descartar',
   'payees.choose': 'Elegir beneficiario',
   'payees.searchOrCreate': 'Buscar o crear un beneficiario',
   'payees.create': 'Crear “{{name}}”',

@@ -73,8 +73,10 @@ export function NameInputModal({
       style={[styles.dialog, placement === 'center' && styles.dialogCentered]}
     >
       <ScrollView
+        automaticallyAdjustKeyboardInsets
         bounces={false}
         contentContainerStyle={styles.bodyContent}
+        keyboardDismissMode="interactive"
         keyboardShouldPersistTaps="handled"
         style={styles.body}
       >

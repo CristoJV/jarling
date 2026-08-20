@@ -4,7 +4,7 @@ import { KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
 export function KeyboardResponsiveScreen({ children }: PropsWithChildren) {
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.screen}
     >
       {children}
