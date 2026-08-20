@@ -37,10 +37,11 @@ describe('EnsureDefaultCategories', () => {
     ]);
     expect((await categories.findAll()).map(({ name }) => name)).toEqual([
       '🏠 Rent/Mortgage',
-      '🛒 Groceries',
+      '❓ Uncategorized',
       '📱 Phone & Internet',
-      '🚗 Transportation',
+      '🛒 Groceries',
       '⚡ Utilities',
+      '🚗 Transportation',
     ]);
   });
 
@@ -69,7 +70,7 @@ describe('EnsureDefaultCategories', () => {
       'Subscriptions',
       'Wants',
     ]);
-    expect(await categories.findAll()).toHaveLength(5);
+    expect(await categories.findAll()).toHaveLength(6);
   });
 
   it('appends defaults after existing user groups', async () => {

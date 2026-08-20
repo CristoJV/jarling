@@ -189,17 +189,27 @@ repositorio ofrece `findAll`, `findByCategory`, `save` y `deleteByCategory`.
 - Footer con iconos vectoriales: cerdito, banco, billete y gráfica.
 - Transaction reserva una barra inferior dentro del safe-area para que Save no
   pueda quedar bajo la navegación del sistema.
+- Transaction y Account creation son rutas opacas del Stack raíz: se abren
+  sobre la pestaña actual y `back` vuelve exactamente al origen. Payee,
+  Category, Account y Transaction Type son pasos de pantalla completa que
+  conservan el borrador y usan transición lateral.
 - Las pantallas completas entran lateralmente; los paneles parciales entran
   desde abajo mientras el backdrop aparece con un fade independiente, y
   comparten un contenedor con safe-area inferior y ajuste de teclado.
 - Transactions permite Memo, búsqueda combinable por Anything/Payee/Memo,
   cuentas/categorías dentro de las sugerencias, filtros removibles y borrado
   automático al superar el umbral de swipe en cualquier dirección.
+- Cada sugerencia aplica un paso, cierra el panel, actualiza resultados y cambia
+  el placeholder a Refine search; tocar de nuevo la búsqueda abre el siguiente
+  paso de refinamiento.
 - El editor de transacciones ofrece Show more/less, estado Cleared y un teclado
   TPV compacto con suma, resta, multiplicación, división, igual y Done. El
   teclado solo permanece visible mientras se edita el importe.
 - Las categorías iniciales contienen emoji y Demo utiliza sus IDs estables, sin
   crear un grupo `Everyday`.
+- `❓ Uncategorized` es la categoría inicial de un gasto nuevo. Application,
+  SQLite y restore rechazan gastos estándar sin categoría; transferencias,
+  saldos iniciales y ajustes conservan su semántica sin categoría.
 
 ### 5.6 Validación y Definition of Done
 
@@ -207,7 +217,8 @@ repositorio ofrece `findAll`, `findByCategory`, `save` y `deleteByCategory`.
 - Matriz de cálculo para los cuatro tipos, vencimientos, cuatro/cinco semanas,
   redondeo en céntimos, estrategias y progress `0..1`.
 - Tests de integración garantizan que los targets no modifican RTA ni Budget.
-- Demo es idempotente y solo referencia categorías predeterminadas.
+- Demo es idempotente, solo referencia categorías predeterminadas y su control
+  aparece exclusivamente en builds de desarrollo.
 - La matriz automatizada se ejecuta en CI sin fijar aquí un recuento de tests
   que quedaría obsoleto. La aceptación manual y los builds de tienda se siguen
   en `release-checklist.md`.
@@ -328,7 +339,8 @@ Este protocolo sustituye la planificación extensa por turno.
 
 1. Trabajar en un vertical slice pequeño: Domain → Application →
    Infrastructure → Bootstrap → Presentation.
-2. Reutilizar repositorios, hooks, modales y teclado monetario existentes.
+2. Reutilizar repositorios, hooks, componentes de navegación y teclado
+   monetario existentes.
 3. Ejecutar tests enfocados después de cada capa, no la suite completa tras cada
    archivo.
 4. Ejecutar typecheck cuando el slice compile de extremo a extremo.
@@ -343,6 +355,7 @@ npm run lint
 npm run test:coverage
 npm run export:web
 npm run export:android
+npm run export:ios
 ```
 
 Los exports se ejecutan una vez al final, no después de cada cambio visual.

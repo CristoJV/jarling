@@ -1,3 +1,4 @@
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
@@ -220,7 +221,11 @@ export function BudgetScreen() {
             style={styles.monthSelector}
           >
             <Text style={styles.month}>{monthLabel}</Text>
-            <Text style={styles.monthArrow}>⌄</Text>
+            <MaterialCommunityIcons
+              color={theme.colors.primary}
+              name="chevron-down-circle"
+              size={21}
+            />
           </Pressable>
         </View>
         <View style={styles.headerActions}>
@@ -344,9 +349,7 @@ export function BudgetScreen() {
 
       <Pressable
         accessibilityLabel={t('transactions.add')}
-        onPress={() =>
-          router.push({ pathname: '/transactions', params: { create: '1' } })
-        }
+        onPress={() => router.push('/transaction')}
         style={styles.fab}
       >
         <Text style={styles.fabText}>+ {t('budget.addTransaction')}</Text>
@@ -522,10 +525,6 @@ const createStyles = (theme: AppTheme) =>
       color: theme.colors.text,
       fontSize: 15,
       fontWeight: '700',
-    },
-    monthArrow: {
-      color: theme.colors.primary,
-      fontSize: 17,
     },
     headerActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
     editButton: {

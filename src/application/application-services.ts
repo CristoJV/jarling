@@ -18,6 +18,7 @@ import type { MoveBudgetBetweenCategories } from '@/application/use-cases/budget
 import type { CreateTransaction } from '@/application/use-cases/transactions/create-transaction';
 import type { DeleteTransaction } from '@/application/use-cases/transactions/delete-transaction';
 import type { GetTransactions } from '@/application/use-cases/transactions/get-transactions';
+import type { GetTransaction } from '@/application/use-cases/transactions/get-transaction';
 import type { GetPayees } from '@/application/use-cases/transactions/get-payees';
 import type { UpdateTransaction } from '@/application/use-cases/transactions/update-transaction';
 import type { CreateTransactionLink } from '@/application/use-cases/transactions/create-transaction-link';
@@ -57,6 +58,7 @@ export type ApplicationServices = Readonly<{
     update: Pick<UpdateTransaction, 'execute'>;
     delete: Pick<DeleteTransaction, 'execute'>;
     getAll: Pick<GetTransactions, 'execute'>;
+    getById: Pick<GetTransaction, 'execute'>;
     getPayees: Pick<GetPayees, 'execute'>;
     createLink: Pick<CreateTransactionLink, 'execute'>;
     getLinks: Pick<GetTransactionLinks, 'execute'>;

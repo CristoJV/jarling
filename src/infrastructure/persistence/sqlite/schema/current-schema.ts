@@ -75,7 +75,9 @@ export const currentSchema: Migration = {
       CHECK (
         (kind = 'transfer' AND transaction_group_id IS NOT NULL)
         OR (kind <> 'transfer' AND transaction_group_id IS NULL)
-      )
+      ),
+      CHECK (kind = 'standard' OR category_id IS NULL),
+      CHECK (kind <> 'standard' OR amount >= 0 OR category_id IS NOT NULL)
     );
 
     CREATE TABLE transaction_links (
@@ -147,6 +149,9 @@ export const currentSchema: Migration = {
     CREATE INDEX transactions_date_idx ON transactions(date);
     CREATE INDEX transactions_group_id_idx ON transactions(transaction_group_id);
     CREATE INDEX transactions_kind_idx ON transactions(kind);
+    CREATE INDEX transactions_payee_search_idx
+      ON transactions(lower(trim(payee)))
+      WHERE payee IS NOT NULL AND kind = 'standard' AND transaction_group_id IS NULL;
     CREATE UNIQUE INDEX transactions_group_account_unique_idx
       ON transactions(transaction_group_id, account_id)
       WHERE transaction_group_id IS NOT NULL;

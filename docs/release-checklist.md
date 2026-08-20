@@ -65,6 +65,9 @@ patches and upstream advisories must be reviewed before every candidate build.
 - [ ] Android light/dark/system theme and English/Spanish system language.
 - [ ] Account creation for cash, credit, and tracking types.
 - [ ] Expense, income, transfer, swipe deletion, search refinement, and memo.
+- [ ] Open and close a transaction from both Budget and Transactions in light
+      and dark mode; confirm the originating tab remains mounted with no white
+      transition frame.
 - [ ] Budget assignment, movement, overspending, rollover, and each target type.
 - [ ] Reconciliation with and without an adjustment.
 - [ ] Reports with empty, positive, negative, and sample data.

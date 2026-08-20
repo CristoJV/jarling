@@ -6,6 +6,7 @@ import type { Category } from '@/domain/entities/category';
 import type { Transaction } from '@/domain/entities/transaction';
 import { CannotModifyReconciledTransactionError } from '@/domain/errors/cannot-modify-reconciled-transaction-error';
 import { CategoryNotFoundError } from '@/domain/errors/category-not-found-error';
+import { CategoryRequiredForExpenseError } from '@/domain/errors/category-required-for-expense-error';
 import { InvalidTransactionAmountError } from '@/domain/errors/invalid-transaction-amount-error';
 import { InvalidTransactionDateError } from '@/domain/errors/invalid-transaction-date-error';
 import { TransactionNotFoundError } from '@/domain/errors/transaction-not-found-error';
@@ -182,6 +183,20 @@ describe('transaction use cases', () => {
         status: 'uncleared',
       }),
     ).rejects.toThrow(CategoryNotFoundError);
+  });
+
+  it('rejects an expense without a category at the application boundary', async () => {
+    const { create } = await setup();
+
+    await expect(
+      create.execute({
+        kind: 'expense',
+        accountId: account.id,
+        amountCents: 100,
+        date: '2026-08-18',
+        status: 'uncleared',
+      } as never),
+    ).rejects.toThrow(CategoryRequiredForExpenseError);
   });
 
   it('filters and enriches transactions for presentation', async () => {

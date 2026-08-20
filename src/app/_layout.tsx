@@ -33,10 +33,16 @@ function ThemedRoot() {
       <StatusBar style={theme.dark ? 'light' : 'dark'} />
       <Stack
         screenOptions={{
+          animation: 'slide_from_right',
           contentStyle: { backgroundColor: theme.colors.background },
           headerShown: false,
         }}
-      />
+      >
+        <Stack.Screen name="(tabs)" options={{ animation: 'none' }} />
+        <Stack.Screen name="transaction" />
+        <Stack.Screen name="account" />
+        <Stack.Screen name="settings" />
+      </Stack>
     </>
   );
 }

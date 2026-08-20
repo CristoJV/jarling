@@ -7,6 +7,10 @@ type Translate = (key: TranslationKey) => string;
 const categoryNames: Readonly<
   Record<string, Readonly<{ source: string; key: TranslationKey }>>
 > = {
+  'default-category-uncategorized': {
+    source: '❓ Uncategorized',
+    key: 'defaults.uncategorized',
+  },
   'default-category-rent-mortgage': {
     source: '🏠 Rent/Mortgage',
     key: 'defaults.rentMortgage',

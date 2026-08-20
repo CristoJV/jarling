@@ -1,5 +1,8 @@
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
+  Keyboard,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -8,33 +11,26 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { CreateAccountInput } from '@/application/use-cases/accounts/create-account';
 import type { AccountType } from '@/domain/entities/account';
 import { AccountTypeScreen } from '@/presentation/components/accounts/account-type-screen';
 import { MoneyKeypad } from '@/presentation/components/common/money-keypad';
-import { AnimatedBottomSheetModal } from '@/presentation/components/common/animated-bottom-sheet-modal';
-import { SafeBottomSheet } from '@/presentation/components/common/safe-bottom-sheet';
 import { Money } from '@/domain/value-objects/money';
 import { formatMoney } from '@/presentation/utils/money';
 import { useTranslation } from '@/presentation/localization/localization-provider';
+import { useApplication } from '@/presentation/contexts/application-context';
 import type { AppTheme } from '@/presentation/theme/theme';
 import {
   useAppTheme,
   useThemedStyles,
 } from '@/presentation/theme/theme-provider';
+import { domainErrorMessage } from '@/presentation/utils/domain-error-message';
 
-type CreateAccountModalProps = Readonly<{
-  visible: boolean;
-  onDismiss: () => void;
-  onCreate: (input: CreateAccountInput) => Promise<void>;
-}>;
-
-export function CreateAccountModal({
-  visible,
-  onDismiss,
-  onCreate,
-}: CreateAccountModalProps) {
+export function CreateAccountScreen() {
+  const router = useRouter();
+  const application = useApplication();
   const { t } = useTranslation();
   const theme = useAppTheme();
   const styles = useThemedStyles(createStyles);
@@ -50,6 +46,7 @@ export function CreateAccountModal({
   const [name, setName] = useState('');
   const [type, setType] = useState<AccountType>('checking');
   const [openingBalanceCents, setOpeningBalanceCents] = useState(0);
+  const [keypadVisible, setKeypadVisible] = useState(false);
   const [onBudget, setOnBudget] = useState(true);
   const [selectingType, setSelectingType] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,9 +56,10 @@ export function CreateAccountModal({
     setName('');
     setType('checking');
     setOpeningBalanceCents(0);
+    setKeypadVisible(false);
     setOnBudget(true);
     setError(null);
-    onDismiss();
+    router.back();
   }
 
   async function submit() {
@@ -74,145 +72,155 @@ export function CreateAccountModal({
     setError(null);
 
     try {
-      await onCreate({ name, type, onBudget, openingBalanceCents });
+      const input: CreateAccountInput = {
+        name,
+        type,
+        onBudget,
+        openingBalanceCents,
+      };
+      await application.accounts.create.execute(input);
       resetAndDismiss();
     } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : t('accounts.createError'),
-      );
+      setError(domainErrorMessage(cause, t));
     } finally {
       setSubmitting(false);
     }
   }
 
+  if (selectingType) {
+    return (
+      <AccountTypeScreen
+        onBack={() => setSelectingType(false)}
+        onSelect={(value) => {
+          setType(value);
+          if (value === 'tracking' || value === 'loan') setOnBudget(false);
+          if (value === 'credit_card' || value === 'line_of_credit') {
+            setOnBudget(true);
+          }
+        }}
+        selected={type}
+      />
+    );
+  }
+
   return (
-    <AnimatedBottomSheetModal
-      keyboardAvoiding
-      onDismiss={resetAndDismiss}
-      visible={visible}
-    >
-      <SafeBottomSheet style={styles.sheet}>
-        <View style={styles.header}>
-          <Text style={styles.title}>{t('accounts.new')}</Text>
+    <SafeAreaView style={styles.screen}>
+      <View style={styles.header}>
+        <Pressable
+          accessibilityLabel={t('common.back')}
+          accessibilityRole="button"
+          hitSlop={10}
+          onPress={resetAndDismiss}
+          style={styles.back}
+        >
+          <MaterialCommunityIcons
+            color={theme.colors.text}
+            name="arrow-left"
+            size={25}
+          />
+        </Pressable>
+        <Text style={styles.title}>{t('accounts.new')}</Text>
+        <View style={styles.headerSpacer} />
+      </View>
+
+      <ScrollView
+        contentContainerStyle={styles.form}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.field}>
+          <Text style={styles.label}>{t('accounts.name')}</Text>
+          <TextInput
+            accessibilityLabel={t('accounts.name')}
+            autoCapitalize="sentences"
+            autoFocus
+            onChangeText={setName}
+            onFocus={() => setKeypadVisible(false)}
+            placeholder={t('accounts.namePlaceholder')}
+            placeholderTextColor={theme.colors.textMuted}
+            style={styles.input}
+            testID="create-account-name"
+            value={name}
+          />
+        </View>
+
+        <View style={styles.field}>
+          <Text style={styles.label}>{t('accounts.type')}</Text>
           <Pressable
-            accessibilityLabel={t('common.close')}
-            accessibilityRole="button"
-            hitSlop={10}
-            onPress={resetAndDismiss}
+            accessibilityLabel={t('accounts.type')}
+            onPress={() => setSelectingType(true)}
+            style={styles.selector}
           >
-            <Text style={styles.dismiss}>{t('common.cancel')}</Text>
+            <Text style={styles.selectorValue}>{typeLabels[type]}</Text>
+            <Text style={styles.selectorArrow}>⌄</Text>
           </Pressable>
         </View>
 
-        <ScrollView
-          contentContainerStyle={styles.form}
-          keyboardShouldPersistTaps="handled"
-        >
-          <View style={styles.field}>
-            <Text style={styles.label}>{t('accounts.name')}</Text>
-            <TextInput
-              accessibilityLabel={t('accounts.name')}
-              autoCapitalize="sentences"
-              autoFocus
-              onChangeText={setName}
-              placeholder={t('accounts.namePlaceholder')}
-              placeholderTextColor={theme.colors.textMuted}
-              style={styles.input}
-              testID="create-account-name"
-              value={name}
-            />
-          </View>
-
-          <View style={styles.field}>
-            <Text style={styles.label}>{t('accounts.type')}</Text>
-            <Pressable
-              accessibilityLabel={t('accounts.type')}
-              onPress={() => setSelectingType(true)}
-              style={styles.selector}
-            >
-              <Text style={styles.selectorValue}>{typeLabels[type]}</Text>
-              <Text style={styles.selectorArrow}>⌄</Text>
-            </Pressable>
-          </View>
-
-          <View style={styles.field}>
-            <Text style={styles.label}>{t('accounts.openingBalance')}</Text>
-            <Text style={styles.help}>{t('accounts.openingBalanceHelp')}</Text>
-            <Text
-              accessibilityLabel={t('accounts.openingBalance')}
-              style={styles.amount}
-            >
+        <View style={styles.field}>
+          <Text style={styles.label}>{t('accounts.openingBalance')}</Text>
+          <Text style={styles.help}>{t('accounts.openingBalanceHelp')}</Text>
+          <Pressable
+            accessibilityLabel={t('accounts.openingBalance')}
+            accessibilityRole="button"
+            onPress={() => {
+              Keyboard.dismiss();
+              setKeypadVisible(true);
+            }}
+          >
+            <Text style={styles.amount}>
               {formatMoney(Money.fromCents(openingBalanceCents))}
             </Text>
+          </Pressable>
+          {keypadVisible ? (
             <MoneyKeypad
               allowNegative
               onChange={setOpeningBalanceCents}
               valueCents={openingBalanceCents}
             />
-          </View>
-
-          <View style={styles.switchRow}>
-            <View style={styles.switchCopy}>
-              <Text style={styles.label}>{t('accounts.includeBudget')}</Text>
-              <Text style={styles.help}>{t('accounts.trackingHelp')}</Text>
-            </View>
-            <Switch
-              disabled={
-                type === 'tracking' ||
-                type === 'loan' ||
-                type === 'credit_card' ||
-                type === 'line_of_credit'
-              }
-              onValueChange={setOnBudget}
-              value={onBudget}
-            />
-          </View>
-
-          {error ? (
-            <Text accessibilityLiveRegion="polite" style={styles.error}>
-              {error}
-            </Text>
           ) : null}
+        </View>
 
-          <Pressable
-            accessibilityRole="button"
-            disabled={submitting}
-            onPress={() => void submit()}
-            style={[styles.submit, submitting && styles.submitDisabled]}
-            testID="create-account-submit"
-          >
-            <Text style={styles.submitText}>
-              {submitting ? t('accounts.creating') : t('accounts.create')}
-            </Text>
-          </Pressable>
-        </ScrollView>
-      </SafeBottomSheet>
-      {selectingType ? (
-        <AccountTypeScreen
-          onDismiss={() => setSelectingType(false)}
-          onSelect={(value) => {
-            setType(value);
-            if (value === 'tracking' || value === 'loan') setOnBudget(false);
-            if (value === 'credit_card' || value === 'line_of_credit') {
-              setOnBudget(true);
+        <View style={styles.switchRow}>
+          <View style={styles.switchCopy}>
+            <Text style={styles.label}>{t('accounts.includeBudget')}</Text>
+            <Text style={styles.help}>{t('accounts.trackingHelp')}</Text>
+          </View>
+          <Switch
+            disabled={
+              type === 'tracking' ||
+              type === 'loan' ||
+              type === 'credit_card' ||
+              type === 'line_of_credit'
             }
-          }}
-          selected={type}
-        />
-      ) : null}
-    </AnimatedBottomSheetModal>
+            onValueChange={setOnBudget}
+            value={onBudget}
+          />
+        </View>
+
+        {error ? (
+          <Text accessibilityLiveRegion="polite" style={styles.error}>
+            {error}
+          </Text>
+        ) : null}
+
+        <Pressable
+          accessibilityRole="button"
+          disabled={submitting}
+          onPress={() => void submit()}
+          style={[styles.submit, submitting && styles.submitDisabled]}
+          testID="create-account-submit"
+        >
+          <Text style={styles.submitText}>
+            {submitting ? t('accounts.creating') : t('accounts.create')}
+          </Text>
+        </Pressable>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const createStyles = (theme: AppTheme) =>
   StyleSheet.create({
-    sheet: {
-      maxHeight: '92%',
-      backgroundColor: theme.colors.surface,
-      borderTopLeftRadius: 24,
-      borderTopRightRadius: 24,
-      overflow: 'hidden',
-    },
+    screen: { flex: 1, backgroundColor: theme.colors.background },
     header: {
       minHeight: 68,
       paddingHorizontal: 24,
@@ -220,21 +228,28 @@ const createStyles = (theme: AppTheme) =>
       borderBottomWidth: StyleSheet.hairlineWidth,
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
+    },
+    back: {
+      width: 44,
+      height: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     title: {
       color: theme.colors.text,
       fontSize: 21,
       fontWeight: '700',
+      flex: 1,
+      textAlign: 'center',
     },
-    dismiss: {
-      color: theme.colors.primary,
-      fontSize: 15,
-      fontWeight: '600',
-    },
+    headerSpacer: { width: 44 },
     form: {
+      width: '100%',
+      maxWidth: 680,
       padding: 24,
+      paddingBottom: 48,
       gap: 24,
+      alignSelf: 'center',
     },
     field: {
       gap: 8,

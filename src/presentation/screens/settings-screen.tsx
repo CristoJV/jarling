@@ -381,21 +381,27 @@ export function SettingsScreen() {
           />
         </View>
 
-        <Text style={styles.sectionLabel}>{t('settings.development')}</Text>
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>{t('settings.sampleData')}</Text>
-          <Text style={styles.help}>{t('settings.sampleDescription')}</Text>
-          <Pressable
-            accessibilityRole="button"
-            disabled={populating}
-            onPress={() => void populateSampleData()}
-            style={[styles.populateButton, populating && styles.disabled]}
-          >
-            <Text style={styles.populateButtonText}>
-              {populating ? t('settings.populating') : t('settings.populate')}
-            </Text>
-          </Pressable>
-        </View>
+        {__DEV__ ? (
+          <>
+            <Text style={styles.sectionLabel}>{t('settings.development')}</Text>
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>{t('settings.sampleData')}</Text>
+              <Text style={styles.help}>{t('settings.sampleDescription')}</Text>
+              <Pressable
+                accessibilityRole="button"
+                disabled={populating}
+                onPress={() => void populateSampleData()}
+                style={[styles.populateButton, populating && styles.disabled]}
+              >
+                <Text style={styles.populateButtonText}>
+                  {populating
+                    ? t('settings.populating')
+                    : t('settings.populate')}
+                </Text>
+              </Pressable>
+            </View>
+          </>
+        ) : null}
       </ScrollView>
 
       {selector === 'currency' ? (

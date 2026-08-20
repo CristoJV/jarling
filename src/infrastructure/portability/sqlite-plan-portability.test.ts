@@ -118,4 +118,42 @@ describe('Jarling plan snapshots', () => {
       }),
     ).toThrow('unbalanced transfer');
   });
+
+  it('rejects an expense without a category', () => {
+    expect(() =>
+      parsePlanSnapshot({
+        ...emptySnapshot,
+        tables: {
+          ...emptySnapshot.tables,
+          accounts: [
+            {
+              id: 'account-1',
+              name: 'Cash',
+              type: 'checking',
+              on_budget: 1,
+              closed: 0,
+              created_at: '2026-08-19T10:00:00.000Z',
+              updated_at: '2026-08-19T10:00:00.000Z',
+            },
+          ],
+          transactions: [
+            {
+              id: 'transaction-1',
+              account_id: 'account-1',
+              category_id: null,
+              payee: 'Shop',
+              amount: -1000,
+              date: '2026-08-19',
+              notes: null,
+              status: 'cleared',
+              kind: 'standard',
+              transaction_group_id: null,
+              created_at: '2026-08-19T10:00:00.000Z',
+              updated_at: '2026-08-19T10:00:00.000Z',
+            },
+          ],
+        },
+      }),
+    ).toThrow('invalid transaction category');
+  });
 });

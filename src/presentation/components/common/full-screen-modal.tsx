@@ -4,9 +4,11 @@ import {
   Modal,
   Platform,
   StyleSheet,
+  View,
   useWindowDimensions,
 } from 'react-native';
 import type { PropsWithChildren } from 'react';
+import { useAppTheme } from '@/presentation/theme/theme-provider';
 
 type FullScreenModalProps = PropsWithChildren<
   Readonly<{ onRequestClose: () => void }>
@@ -17,6 +19,7 @@ export function FullScreenModal({
   onRequestClose,
 }: FullScreenModalProps) {
   const { width } = useWindowDimensions();
+  const theme = useAppTheme();
   const [translateX] = useState(() => new Animated.Value(width));
 
   useEffect(() => {
@@ -29,8 +32,28 @@ export function FullScreenModal({
   }, [translateX, width]);
 
   return (
-    <Modal animationType="none" onRequestClose={onRequestClose} visible>
-      <Animated.View style={[styles.screen, { transform: [{ translateX }] }]}>
+    <Modal
+      animationType="none"
+      navigationBarTranslucent
+      onRequestClose={onRequestClose}
+      statusBarTranslucent
+      visible
+    >
+      <View
+        style={[
+          StyleSheet.absoluteFill,
+          { backgroundColor: theme.colors.background },
+        ]}
+      />
+      <Animated.View
+        style={[
+          styles.screen,
+          {
+            backgroundColor: theme.colors.background,
+            transform: [{ translateX }],
+          },
+        ]}
+      >
         {children}
       </Animated.View>
     </Modal>

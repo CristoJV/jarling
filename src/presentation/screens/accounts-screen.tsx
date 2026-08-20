@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -12,7 +13,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AccountRow } from '@/presentation/components/accounts/account-row';
-import { CreateAccountModal } from '@/presentation/components/accounts/create-account-modal';
 import { ReconciliationScreen } from '@/presentation/components/accounts/reconciliation-screen';
 import { OverflowMenu } from '@/presentation/components/common/overflow-menu';
 import { SelectionModal } from '@/presentation/components/common/selection-modal';
@@ -28,6 +28,7 @@ import {
 } from '@/presentation/theme/theme-provider';
 
 export function AccountsScreen() {
+  const router = useRouter();
   const { t } = useTranslation();
   const theme = useAppTheme();
   const styles = useThemedStyles(createStyles);
@@ -36,12 +37,10 @@ export function AccountsScreen() {
     error,
     loading,
     refresh,
-    createAccount,
     closeAccount,
     getReconciliation,
     reconcile,
   } = useAccounts();
-  const [createModalVisible, setCreateModalVisible] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<AccountSummary | null>(
     null,
   );
@@ -85,7 +84,7 @@ export function AccountsScreen() {
             accessibilityLabel={t('accounts.add')}
             accessibilityRole="button"
             hitSlop={8}
-            onPress={() => setCreateModalVisible(true)}
+            onPress={() => router.push('/account')}
             style={styles.addButton}
             testID="add-account"
           >
@@ -133,7 +132,7 @@ export function AccountsScreen() {
               {t('accounts.emptyHint')}
             </Text>
             <Pressable
-              onPress={() => setCreateModalVisible(true)}
+              onPress={() => router.push('/account')}
               style={styles.emptyAction}
               testID="create-first-account"
             >
@@ -153,11 +152,6 @@ export function AccountsScreen() {
         ))}
       </ScrollView>
 
-      <CreateAccountModal
-        onCreate={createAccount}
-        onDismiss={() => setCreateModalVisible(false)}
-        visible={createModalVisible}
-      />
       {selectedAccount ? (
         <SelectionModal
           onDismiss={() => setSelectedAccount(null)}

@@ -21,6 +21,7 @@ ADR that supersedes the previous one instead of rewriting history.
 | [0004](0004-data-protection-and-portability.md)        | Data protection and portability boundaries         | Accepted |
 | [0005](0005-first-release-scope.md)                    | First-release scope and deferred CSV import        | Accepted |
 | [0006](0006-atomic-sqlite-application-writes.md)       | Atomic SQLite application writes                   | Accepted |
+| [0007](0007-full-screen-navigation-flows.md)           | Route-backed full-screen creation flows            | Accepted |
 
 ## Creating an ADR
 

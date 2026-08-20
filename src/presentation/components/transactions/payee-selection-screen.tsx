@@ -1,6 +1,8 @@
-import { useMemo, useState } from 'react';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
+  InteractionManager,
   Pressable,
   StyleSheet,
   Text,
@@ -8,27 +10,32 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { FullScreenModal } from '@/presentation/components/common/full-screen-modal';
+import { AnimatedFlowScreen } from '@/presentation/components/common/animated-flow-screen';
 import { useTranslation } from '@/presentation/localization/localization-provider';
 import type { AppTheme } from '@/presentation/theme/theme';
-import { useThemedStyles } from '@/presentation/theme/theme-provider';
+import {
+  useAppTheme,
+  useThemedStyles,
+} from '@/presentation/theme/theme-provider';
 
 type PayeeSelectionScreenProps = Readonly<{
   payees: readonly string[];
   selectedPayee?: string;
   onSelect: (payee: string) => void;
-  onDismiss: () => void;
+  onBack: () => void;
 }>;
 
 export function PayeeSelectionScreen({
   payees,
   selectedPayee,
   onSelect,
-  onDismiss,
+  onBack,
 }: PayeeSelectionScreenProps) {
   const { language, t } = useTranslation();
+  const theme = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const [search, setSearch] = useState('');
+  const inputRef = useRef<TextInput>(null);
   const query = search.trim();
   const visible = useMemo(
     () =>
@@ -44,94 +51,112 @@ export function PayeeSelectionScreen({
       payee.toLocaleLowerCase(language) === query.toLocaleLowerCase(language),
   );
 
-  function choose(payee: string) {
+  useEffect(() => {
+    const interaction = InteractionManager.runAfterInteractions(() =>
+      inputRef.current?.focus(),
+    );
+    return () => interaction.cancel();
+  }, []);
+
+  function choose(payee: string, goBack: () => void) {
     onSelect(payee);
-    onDismiss();
+    goBack();
   }
 
   return (
-    <FullScreenModal onRequestClose={onDismiss}>
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.header}>
-          <Pressable
-            accessibilityLabel={t('common.back')}
-            onPress={onDismiss}
-            style={styles.back}
-          >
-            <Text style={styles.backText}>‹</Text>
-          </Pressable>
-          <Text style={styles.title}>{t('payees.choose')}</Text>
-          <View style={styles.spacer} />
-        </View>
-        <View style={styles.searchWrap}>
-          <Text style={styles.searchIcon}>⌕</Text>
-          <TextInput
-            autoCapitalize="words"
-            autoFocus
-            onChangeText={setSearch}
-            placeholder={t('payees.searchOrCreate')}
-            returnKeyType="done"
-            onSubmitEditing={() => query && choose(query)}
-            style={styles.search}
-            value={search}
-          />
-        </View>
-        <FlatList
-          contentContainerStyle={styles.content}
-          data={visible}
-          keyboardShouldPersistTaps="handled"
-          keyExtractor={(payee) => payee.toLocaleLowerCase(language)}
-          ListEmptyComponent={
-            !query ? (
-              <Text style={styles.empty}>{t('payees.emptyHint')}</Text>
-            ) : null
-          }
-          ListHeaderComponent={
-            <>
-              {query && !exactMatch ? (
+    <AnimatedFlowScreen onBack={onBack}>
+      {(goBack) => (
+        <SafeAreaView style={styles.safeArea}>
+          <View style={styles.header}>
+            <Pressable
+              accessibilityLabel={t('common.back')}
+              onPress={goBack}
+              style={styles.back}
+            >
+              <MaterialCommunityIcons
+                color={theme.colors.text}
+                name="arrow-left"
+                size={25}
+              />
+            </Pressable>
+            <Text style={styles.title}>{t('payees.choose')}</Text>
+            <View style={styles.spacer} />
+          </View>
+          <View style={styles.searchWrap}>
+            <MaterialCommunityIcons
+              color={theme.colors.textMuted}
+              name="magnify"
+              size={22}
+            />
+            <TextInput
+              autoCapitalize="words"
+              onChangeText={setSearch}
+              placeholder={t('payees.searchOrCreate')}
+              placeholderTextColor={theme.colors.textMuted}
+              ref={inputRef}
+              returnKeyType="done"
+              onSubmitEditing={() => query && choose(query, goBack)}
+              style={styles.search}
+              value={search}
+            />
+          </View>
+          <FlatList
+            contentContainerStyle={styles.content}
+            data={visible}
+            keyboardShouldPersistTaps="handled"
+            keyExtractor={(payee) => payee.toLocaleLowerCase(language)}
+            ListEmptyComponent={
+              !query ? (
+                <Text style={styles.empty}>{t('payees.emptyHint')}</Text>
+              ) : null
+            }
+            ListHeaderComponent={
+              <>
+                {query && !exactMatch ? (
+                  <Pressable
+                    onPress={() => choose(query, goBack)}
+                    style={styles.createRow}
+                  >
+                    <View style={styles.createIcon}>
+                      <Text style={styles.createIconText}>+</Text>
+                    </View>
+                    <View style={styles.rowCopy}>
+                      <Text style={styles.createLabel}>
+                        {t('payees.create', { name: query })}
+                      </Text>
+                      <Text style={styles.description}>
+                        {t('payees.createHint')}
+                      </Text>
+                    </View>
+                  </Pressable>
+                ) : null}
+                <Text style={styles.sectionTitle}>
+                  {query ? t('payees.matching') : t('payees.all')}
+                </Text>
+              </>
+            }
+            renderItem={({ item: payee }) => {
+              const selected = payee === selectedPayee;
+              return (
                 <Pressable
-                  onPress={() => choose(query)}
-                  style={styles.createRow}
+                  onPress={() => choose(payee, goBack)}
+                  style={[styles.row, selected && styles.selectedRow]}
                 >
-                  <View style={styles.createIcon}>
-                    <Text style={styles.createIconText}>+</Text>
-                  </View>
-                  <View style={styles.rowCopy}>
-                    <Text style={styles.createLabel}>
-                      {t('payees.create', { name: query })}
-                    </Text>
-                    <Text style={styles.description}>
-                      {t('payees.createHint')}
+                  <View style={styles.avatar}>
+                    <Text style={styles.avatarText}>
+                      {payee.slice(0, 1).toLocaleUpperCase()}
                     </Text>
                   </View>
+                  <Text style={styles.payee}>{payee}</Text>
+                  <Text style={styles.check}>{selected ? '✓' : ''}</Text>
                 </Pressable>
-              ) : null}
-              <Text style={styles.sectionTitle}>
-                {query ? t('payees.matching') : t('payees.all')}
-              </Text>
-            </>
-          }
-          renderItem={({ item: payee }) => {
-            const selected = payee === selectedPayee;
-            return (
-              <Pressable
-                onPress={() => choose(payee)}
-                style={[styles.row, selected && styles.selectedRow]}
-              >
-                <View style={styles.avatar}>
-                  <Text style={styles.avatarText}>
-                    {payee.slice(0, 1).toLocaleUpperCase()}
-                  </Text>
-                </View>
-                <Text style={styles.payee}>{payee}</Text>
-                <Text style={styles.check}>{selected ? '✓' : ''}</Text>
-              </Pressable>
-            );
-          }}
-          style={styles.list}
-        />
-      </SafeAreaView>
-    </FullScreenModal>
+              );
+            }}
+            style={styles.list}
+          />
+        </SafeAreaView>
+      )}
+    </AnimatedFlowScreen>
   );
 }
 
@@ -150,7 +175,6 @@ const createStyles = (theme: AppTheme) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
-    backText: { color: theme.colors.primary, fontSize: 38, lineHeight: 40 },
     title: {
       flex: 1,
       color: theme.colors.text,
@@ -168,7 +192,6 @@ const createStyles = (theme: AppTheme) =>
       flexDirection: 'row',
       alignItems: 'center',
     },
-    searchIcon: { color: theme.colors.textMuted, fontSize: 24 },
     search: {
       flex: 1,
       minHeight: 50,

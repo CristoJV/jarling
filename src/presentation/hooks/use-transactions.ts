@@ -7,8 +7,6 @@ import type {
   GetTransactionsInput,
   TransactionSummary,
 } from '@/application/use-cases/transactions/get-transactions';
-import type { TransactionInput } from '@/application/use-cases/transactions/transaction-input';
-import type { TransferInput } from '@/application/use-cases/transfers/transfer-input';
 import { useApplication } from '@/presentation/contexts/application-context';
 import { useTranslation } from '@/presentation/localization/localization-provider';
 import { domainErrorMessage } from '@/presentation/utils/domain-error-message';
@@ -18,12 +16,9 @@ export type TransactionScreenData = Readonly<{
   hasMore: boolean;
   accounts: AccountsOverview;
   categoryGroups: readonly CategoryGroupSummary[];
-  payees: readonly string[];
 }>;
 
 const PAGE_SIZE = 100;
-
-export type TransactionEditorInput = TransactionInput | TransferInput;
 
 export function useTransactions(filters: GetTransactionsInput) {
   const application = useApplication();
@@ -35,21 +30,19 @@ export function useTransactions(filters: GetTransactionsInput) {
   const loadingMoreRef = useRef(false);
 
   const load = useCallback(async () => {
-    const [transactions, accounts, categoryGroups, payees] = await Promise.all([
+    const [transactions, accounts, categoryGroups] = await Promise.all([
       application.transactions.getAll.execute({
         ...filters,
         limit: PAGE_SIZE,
       }),
       application.accounts.getAll.execute(),
       application.categories.getGroups.execute(),
-      application.transactions.getPayees.execute(),
     ]);
     return {
       transactions,
       hasMore: transactions.length === PAGE_SIZE,
       accounts,
       categoryGroups,
-      payees,
     };
   }, [application, filters]);
 
@@ -88,41 +81,6 @@ export function useTransactions(filters: GetTransactionsInput) {
         active = false;
       };
     }, [load, t]),
-  );
-
-  const save = useCallback(
-    async (
-      input: TransactionEditorInput,
-      transactionId?: string,
-      transactionGroupId?: string,
-    ) => {
-      setError(null);
-      try {
-        if (input.kind === 'transfer') {
-          if (transactionGroupId) {
-            await application.transfers.update.execute({
-              ...input,
-              transactionGroupId,
-            });
-          } else {
-            await application.transfers.create.execute(input);
-          }
-        } else if (transactionId) {
-          await application.transactions.update.execute({
-            ...input,
-            id: transactionId,
-          });
-        } else {
-          await application.transactions.create.execute(input);
-        }
-        await refresh();
-      } catch (cause) {
-        const message = domainErrorMessage(cause, t);
-        setError(message);
-        throw new Error(message, { cause });
-      }
-    },
-    [application, refresh, t],
   );
 
   const deleteTransaction = useCallback(
@@ -174,17 +132,6 @@ export function useTransactions(filters: GetTransactionsInput) {
     }
   }, [application, data, filters, t]);
 
-  const getLinkedTransaction = useCallback(
-    async (transactionGroupId: string, currentId: string) => {
-      const group = await application.transactions.getAll.execute({
-        transactionGroupId,
-        limit: 2,
-      });
-      return group.find(({ transaction }) => transaction.id !== currentId);
-    },
-    [application],
-  );
-
   return {
     data,
     error,
@@ -192,8 +139,6 @@ export function useTransactions(filters: GetTransactionsInput) {
     loadingMore,
     refresh,
     loadMore,
-    getLinkedTransaction,
-    save,
     deleteTransaction,
   };
 }

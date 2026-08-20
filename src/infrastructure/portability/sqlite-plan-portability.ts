@@ -292,6 +292,7 @@ function validateSnapshotSemantics(snapshot: PlanSnapshot): void {
     const date = requiredText(row, 'date');
     const categoryId = nullableString(row, 'category_id');
     const groupId = nullableString(row, 'transaction_group_id');
+    const amount = integer(row, 'amount');
     if (
       transactionIds.has(id) ||
       !accountIds.has(accountId) ||
@@ -302,11 +303,17 @@ function validateSnapshotSemantics(snapshot: PlanSnapshot): void {
     ) {
       throw new Error('The backup contains an invalid transaction.');
     }
+    if (
+      (kind !== 'standard' && categoryId !== undefined) ||
+      (kind === 'standard' && amount < 0 && categoryId === undefined)
+    ) {
+      throw new Error('The backup contains an invalid transaction category.');
+    }
     if (kind === 'transfer') {
       if (!groupId) throw new Error('A transfer is missing its group.');
       transferGroups.set(groupId, [
         ...(transferGroups.get(groupId) ?? []),
-        { accountId, amount: integer(row, 'amount') },
+        { accountId, amount },
       ]);
     } else if (groupId) {
       throw new Error('Only transfers may own a transaction group.');

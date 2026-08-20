@@ -8,6 +8,15 @@ follows [Semantic Versioning](https://semver.org/).
 The first public build is being validated. See the
 [release checklist](docs/release-checklist.md).
 
+### Changed
+
+- Transaction, payee, category, account, and account-type creation flows now
+  use theme-safe full-screen navigation without switching tabs.
+- New expenses default to the built-in Uncategorized category, while the
+  financial and backup boundaries reject category-less expenses.
+- Transaction search applies one refinement at a time and sample data controls
+  are visible only in development builds.
+
 ## [1.0.0] - TBD
 
 ### Added

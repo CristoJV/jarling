@@ -21,6 +21,7 @@ import { MoveBudgetBetweenCategories } from '@/application/use-cases/budget/move
 import { CreateTransaction } from '@/application/use-cases/transactions/create-transaction';
 import { DeleteTransaction } from '@/application/use-cases/transactions/delete-transaction';
 import { GetTransactions } from '@/application/use-cases/transactions/get-transactions';
+import { GetTransaction } from '@/application/use-cases/transactions/get-transaction';
 import { GetPayees } from '@/application/use-cases/transactions/get-payees';
 import { UpdateTransaction } from '@/application/use-cases/transactions/update-transaction';
 import { CreateTransactionLink } from '@/application/use-cases/transactions/create-transaction-link';
@@ -147,6 +148,7 @@ export function createApplication(
       ),
       delete: new DeleteTransaction(transactions, unitOfWork),
       getAll: new GetTransactions(transactions, accounts, categories),
+      getById: new GetTransaction(transactions, accounts, categories),
       getPayees: new GetPayees(transactions),
       createLink: new CreateTransactionLink(
         transactions,

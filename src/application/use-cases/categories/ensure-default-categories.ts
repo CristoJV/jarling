@@ -5,6 +5,8 @@ import { createCategory } from '@/domain/entities/category';
 import type { CategoryGroupRepository } from '@/domain/repositories/category-group-repository';
 import type { CategoryRepository } from '@/domain/repositories/category-repository';
 
+export const UNCATEGORIZED_CATEGORY_ID = 'default-category-uncategorized';
+
 export const DEFAULT_CATEGORY_GROUPS = [
   {
     id: 'default-group-bills',
@@ -19,6 +21,7 @@ export const DEFAULT_CATEGORY_GROUPS = [
     id: 'default-group-needs',
     name: 'Needs',
     categories: [
+      { id: UNCATEGORIZED_CATEGORY_ID, name: '❓ Uncategorized' },
       { id: 'default-category-groceries', name: '🛒 Groceries' },
       { id: 'default-category-transportation', name: '🚗 Transportation' },
     ],

@@ -2,15 +2,10 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AnimatedBottomSheetModal } from '@/presentation/components/common/animated-bottom-sheet-modal';
 import { AnimatedCenteredModal } from '@/presentation/components/common/animated-centered-modal';
 import { SafeBottomSheet } from '@/presentation/components/common/safe-bottom-sheet';
+import type { SelectionOption } from '@/presentation/components/common/selection-option';
 import { useTranslation } from '@/presentation/localization/localization-provider';
 import type { AppTheme } from '@/presentation/theme/theme';
 import { useThemedStyles } from '@/presentation/theme/theme-provider';
-
-export type SelectionOption<Value extends string> = Readonly<{
-  value: Value;
-  label: string;
-  description?: string;
-}>;
 
 type SelectionModalProps<Value extends string> = Readonly<{
   title: string;

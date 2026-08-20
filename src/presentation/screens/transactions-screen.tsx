@@ -1,10 +1,11 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Keyboard,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -17,7 +18,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { TransactionSummary } from '@/application/use-cases/transactions/get-transactions';
 import { OverflowMenu } from '@/presentation/components/common/overflow-menu';
-import { TransactionEditorModal } from '@/presentation/components/transactions/transaction-editor-modal';
 import { TransactionRow } from '@/presentation/components/transactions/transaction-row';
 import { useTransactions } from '@/presentation/hooks/use-transactions';
 import { useTranslation } from '@/presentation/localization/localization-provider';
@@ -33,8 +33,6 @@ import {
 } from '@/presentation/utils/transaction-search';
 import { categoryDisplayName } from '@/presentation/utils/category-name';
 
-type EditorState = 'create' | TransactionSummary | null;
-
 export function TransactionsScreen() {
   const router = useRouter();
   const { t } = useTranslation();
@@ -45,7 +43,6 @@ export function TransactionsScreen() {
     payee: t('transactions.payee'),
     memo: t('transactions.memo'),
   };
-  const parameters = useLocalSearchParams<{ create?: string }>();
   const [searchDraft, setSearchDraft] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
   const [appliedSearches, setAppliedSearches] = useState<
@@ -53,9 +50,6 @@ export function TransactionsScreen() {
   >([]);
   const [accountId, setAccountId] = useState<string | undefined>();
   const [categoryId, setCategoryId] = useState<string | undefined>();
-  const [editor, setEditor] = useState<EditorState>(null);
-  const [linkedTransaction, setLinkedTransaction] =
-    useState<TransactionSummary>();
   const filters = useMemo(
     () => ({
       ...Object.fromEntries(
@@ -73,16 +67,16 @@ export function TransactionsScreen() {
     loadingMore,
     refresh,
     loadMore,
-    getLinkedTransaction,
-    save,
     deleteTransaction,
   } = useTransactions(filters);
-  const visibleEditor: EditorState =
-    editor ?? (parameters.create === '1' ? 'create' : null);
 
-  function continueRefiningSearch() {
+  const hasFilters =
+    appliedSearches.length > 0 || Boolean(accountId) || Boolean(categoryId);
+
+  function finishSearchStep() {
     setSearchDraft('');
-    setSearchFocused(true);
+    setSearchFocused(false);
+    Keyboard.dismiss();
   }
 
   function applySearch(field: TransactionSearchField) {
@@ -91,20 +85,13 @@ export function TransactionsScreen() {
     setAppliedSearches((current) =>
       upsertTransactionSearch(current, { field, value }),
     );
-    continueRefiningSearch();
+    finishSearchStep();
   }
 
   function removeSearch(field: TransactionSearchField) {
     setAppliedSearches((current) =>
       current.filter((filter) => filter.field !== field),
     );
-  }
-
-  function dismissEditor() {
-    setEditor(null);
-    if (parameters.create === '1') {
-      router.setParams({ create: '' });
-    }
   }
 
   function requestDelete(summary: TransactionSummary) {
@@ -127,7 +114,7 @@ export function TransactionsScreen() {
     );
   }
 
-  async function edit(summary: TransactionSummary) {
+  function edit(summary: TransactionSummary) {
     if (summary.transaction.status === 'reconciled') {
       Alert.alert(
         t('transactions.reconciledTitle'),
@@ -135,16 +122,10 @@ export function TransactionsScreen() {
       );
       return;
     }
-    setLinkedTransaction(
-      summary.transaction.kind === 'transfer' &&
-        summary.transaction.transactionGroupId
-        ? await getLinkedTransaction(
-            summary.transaction.transactionGroupId,
-            summary.transaction.id,
-          )
-        : undefined,
-    );
-    setEditor(summary);
+    router.push({
+      pathname: '/transaction',
+      params: { id: summary.transaction.id },
+    });
   }
 
   const categories =
@@ -171,7 +152,11 @@ export function TransactionsScreen() {
               onChangeText={setSearchDraft}
               onFocus={() => setSearchFocused(true)}
               onSubmitEditing={() => applySearch('search')}
-              placeholder={t('transactions.search')}
+              placeholder={
+                hasFilters
+                  ? t('transactions.refineSearch')
+                  : t('transactions.search')
+              }
               placeholderTextColor={theme.colors.textMuted}
               returnKeyType="search"
               style={styles.search}
@@ -222,7 +207,7 @@ export function TransactionsScreen() {
                         label={account.name}
                         onPress={() => {
                           setAccountId(account.id);
-                          continueRefiningSearch();
+                          finishSearchStep();
                         }}
                         selected={account.id === accountId}
                       />
@@ -237,7 +222,7 @@ export function TransactionsScreen() {
                         label={categoryDisplayName(category, t)}
                         onPress={() => {
                           setCategoryId(category.id);
-                          continueRefiningSearch();
+                          finishSearchStep();
                         }}
                         selected={category.id === categoryId}
                       />
@@ -248,7 +233,7 @@ export function TransactionsScreen() {
             </View>
           ) : null}
         </View>
-        {appliedSearches.length > 0 || accountId || categoryId ? (
+        {hasFilters ? (
           <View style={styles.appliedSearches}>
             {appliedSearches.map(({ field, value }) => (
               <Pressable
@@ -331,7 +316,7 @@ export function TransactionsScreen() {
         renderItem={({ item: summary }) => (
           <TransactionRow
             onDelete={() => requestDelete(summary)}
-            onEdit={() => void edit(summary)}
+            onEdit={() => edit(summary)}
             summary={summary}
           />
         )}
@@ -340,38 +325,11 @@ export function TransactionsScreen() {
       <Pressable
         accessibilityLabel={t('transactions.add')}
         accessibilityRole="button"
-        onPress={() => {
-          setLinkedTransaction(undefined);
-          setEditor('create');
-        }}
+        onPress={() => router.push('/transaction')}
         style={styles.fab}
       >
         <Text style={styles.fabText}>+ {t('budget.addTransaction')}</Text>
       </Pressable>
-
-      {visibleEditor && data ? (
-        <TransactionEditorModal
-          accounts={data.accounts}
-          categoryGroups={data.categoryGroups}
-          payees={data.payees}
-          onDismiss={dismissEditor}
-          onSave={(input) =>
-            save(
-              input,
-              visibleEditor === 'create'
-                ? undefined
-                : visibleEditor.transaction.id,
-              visibleEditor === 'create'
-                ? undefined
-                : visibleEditor.transaction.transactionGroupId,
-            )
-          }
-          linkedTransaction={
-            visibleEditor === 'create' ? undefined : linkedTransaction
-          }
-          transaction={visibleEditor === 'create' ? undefined : visibleEditor}
-        />
-      ) : null}
     </SafeAreaView>
   );
 }

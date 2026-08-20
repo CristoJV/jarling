@@ -3,14 +3,17 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { AccountType } from '@/domain/entities/account';
-import { FullScreenModal } from '@/presentation/components/common/full-screen-modal';
+import { AnimatedFlowScreen } from '@/presentation/components/common/animated-flow-screen';
 import { useTranslation } from '@/presentation/localization/localization-provider';
 import type { AppTheme } from '@/presentation/theme/theme';
-import { useThemedStyles } from '@/presentation/theme/theme-provider';
+import {
+  useAppTheme,
+  useThemedStyles,
+} from '@/presentation/theme/theme-provider';
 
 type Props = Readonly<{
   selected: AccountType;
-  onDismiss: () => void;
+  onBack: () => void;
   onSelect: (type: AccountType) => void;
 }>;
 
@@ -33,8 +36,9 @@ const trackingOptions: readonly Option[] = [
   { type: 'loan', icon: 'hand-coin-outline' },
 ];
 
-export function AccountTypeScreen({ selected, onDismiss, onSelect }: Props) {
+export function AccountTypeScreen({ selected, onBack, onSelect }: Props) {
   const { t } = useTranslation();
+  const theme = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const labels: Record<AccountType, string> = {
     checking: t('accounts.checking'),
@@ -50,6 +54,7 @@ export function AccountTypeScreen({ selected, onDismiss, onSelect }: Props) {
     title: string,
     description: string,
     options: readonly Option[],
+    goBack: () => void,
   ) {
     return (
       <View style={styles.section}>
@@ -63,7 +68,7 @@ export function AccountTypeScreen({ selected, onDismiss, onSelect }: Props) {
               key={option.type}
               onPress={() => {
                 onSelect(option.type);
-                onDismiss();
+                goBack();
               }}
               style={({ pressed }) => [
                 styles.option,
@@ -88,34 +93,48 @@ export function AccountTypeScreen({ selected, onDismiss, onSelect }: Props) {
   }
 
   return (
-    <FullScreenModal onRequestClose={onDismiss}>
-      <SafeAreaView style={styles.screen}>
-        <View style={styles.header}>
-          <Pressable hitSlop={10} onPress={onDismiss}>
-            <Text style={styles.back}>‹</Text>
-          </Pressable>
-          <Text style={styles.title}>{t('accounts.type')}</Text>
-          <View style={styles.headerSpacer} />
-        </View>
-        <ScrollView contentContainerStyle={styles.content}>
-          {section(
-            t('accounts.cashAccounts'),
-            t('accounts.cashAccountsDescription'),
-            cashOptions,
-          )}
-          {section(
-            t('accounts.creditAccounts'),
-            t('accounts.creditAccountsDescription'),
-            creditOptions,
-          )}
-          {section(
-            t('accounts.trackingAccounts'),
-            t('accounts.trackingAccountsDescription'),
-            trackingOptions,
-          )}
-        </ScrollView>
-      </SafeAreaView>
-    </FullScreenModal>
+    <AnimatedFlowScreen onBack={onBack}>
+      {(goBack) => (
+        <SafeAreaView style={styles.screen}>
+          <View style={styles.header}>
+            <Pressable
+              accessibilityLabel={t('common.back')}
+              hitSlop={10}
+              onPress={goBack}
+              style={styles.back}
+            >
+              <MaterialCommunityIcons
+                color={theme.colors.text}
+                name="arrow-left"
+                size={25}
+              />
+            </Pressable>
+            <Text style={styles.title}>{t('accounts.type')}</Text>
+            <View style={styles.headerSpacer} />
+          </View>
+          <ScrollView contentContainerStyle={styles.content}>
+            {section(
+              t('accounts.cashAccounts'),
+              t('accounts.cashAccountsDescription'),
+              cashOptions,
+              goBack,
+            )}
+            {section(
+              t('accounts.creditAccounts'),
+              t('accounts.creditAccountsDescription'),
+              creditOptions,
+              goBack,
+            )}
+            {section(
+              t('accounts.trackingAccounts'),
+              t('accounts.trackingAccountsDescription'),
+              trackingOptions,
+              goBack,
+            )}
+          </ScrollView>
+        </SafeAreaView>
+      )}
+    </AnimatedFlowScreen>
   );
 }
 
@@ -130,7 +149,12 @@ const createStyles = (theme: AppTheme) =>
       flexDirection: 'row',
       alignItems: 'center',
     },
-    back: { width: 40, color: theme.colors.primary, fontSize: 40 },
+    back: {
+      width: 44,
+      height: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     title: {
       flex: 1,
       color: theme.colors.text,
@@ -138,7 +162,7 @@ const createStyles = (theme: AppTheme) =>
       fontWeight: '700',
       textAlign: 'center',
     },
-    headerSpacer: { width: 40 },
+    headerSpacer: { width: 44 },
     content: {
       width: '100%',
       maxWidth: 680,

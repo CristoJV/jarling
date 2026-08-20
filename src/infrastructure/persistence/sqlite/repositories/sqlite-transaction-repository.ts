@@ -170,21 +170,13 @@ export class SQLiteTransactionRepository implements TransactionRepository {
 
   async findDistinctPayees(): Promise<readonly string[]> {
     const rows = await this.database.getAllAsync<{ payee: string }>(
-      `SELECT trim(candidate.payee) AS payee
-       FROM transactions AS candidate
-       WHERE candidate.payee IS NOT NULL
-         AND length(trim(candidate.payee)) > 0
-         AND candidate.transaction_group_id IS NULL
-         AND candidate.kind = 'standard'
-         AND candidate.id = (
-           SELECT first.id
-           FROM transactions AS first
-           WHERE lower(trim(first.payee)) = lower(trim(candidate.payee))
-             AND first.transaction_group_id IS NULL
-             AND first.kind = 'standard'
-           ORDER BY first.created_at ASC, first.id ASC
-           LIMIT 1
-         )
+      `SELECT min(trim(payee)) AS payee
+       FROM transactions
+       WHERE payee IS NOT NULL
+         AND length(trim(payee)) > 0
+         AND transaction_group_id IS NULL
+         AND kind = 'standard'
+       GROUP BY lower(trim(payee))
        ORDER BY payee COLLATE NOCASE ASC`,
     );
     return rows.map(({ payee }) => payee);

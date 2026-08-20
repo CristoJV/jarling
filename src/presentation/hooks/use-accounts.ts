@@ -1,7 +1,6 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 
-import type { CreateAccountInput } from '@/application/use-cases/accounts/create-account';
 import type { AccountsOverview } from '@/application/use-cases/accounts/get-accounts';
 import type { ReconciliationPreview } from '@/application/use-cases/accounts/get-reconciliation';
 import type { ReconcileAccountInput } from '@/application/use-cases/accounts/reconcile-account';
@@ -54,22 +53,6 @@ export function useAccounts() {
     }, [application, t]),
   );
 
-  const createAccount = useCallback(
-    async (input: CreateAccountInput) => {
-      setError(null);
-
-      try {
-        await application.accounts.create.execute(input);
-        await refresh();
-      } catch (cause) {
-        const message = domainErrorMessage(cause, t);
-        setError(message);
-        throw new Error(message, { cause });
-      }
-    },
-    [application, refresh, t],
-  );
-
   const closeAccount = useCallback(
     async (accountId: string) => {
       setError(null);
@@ -117,7 +100,6 @@ export function useAccounts() {
     error,
     loading,
     refresh,
-    createAccount,
     closeAccount,
     getReconciliation,
     reconcile,

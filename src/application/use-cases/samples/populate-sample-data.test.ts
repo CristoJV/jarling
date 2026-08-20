@@ -160,7 +160,7 @@ describe('PopulateSampleData', () => {
     });
     expect(await accounts.findAll()).toHaveLength(1);
     expect(await groups.findAll()).toHaveLength(4);
-    expect(await categories.findAll()).toHaveLength(5);
+    expect(await categories.findAll()).toHaveLength(6);
     expect(await transactions.findAll()).toHaveLength(3);
     expect(await targets.findAll()).toHaveLength(4);
   });
