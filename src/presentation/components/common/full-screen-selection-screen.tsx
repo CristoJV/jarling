@@ -17,6 +17,7 @@ type Props<Value extends string> = Readonly<{
   selectedValue?: Value;
   onSelect: (value: Value) => void;
   onBack: () => void;
+  overlay?: boolean;
 }>;
 
 export function FullScreenSelectionScreen<Value extends string>({
@@ -25,13 +26,14 @@ export function FullScreenSelectionScreen<Value extends string>({
   selectedValue,
   onSelect,
   onBack,
+  overlay = false,
 }: Props<Value>) {
   const { t } = useTranslation();
   const theme = useAppTheme();
   const styles = useThemedStyles(createStyles);
 
   return (
-    <AnimatedFlowScreen onBack={onBack}>
+    <AnimatedFlowScreen onBack={onBack} overlay={overlay}>
       {(goBack) => (
         <SafeAreaView style={styles.screen}>
           <View style={styles.header}>

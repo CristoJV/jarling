@@ -36,6 +36,10 @@ const categoryNames: Readonly<
 const groupNames: Readonly<
   Record<string, Readonly<{ source: string; key: TranslationKey }>>
 > = {
+  'system-group-uncategorized': {
+    source: 'Uncategorized',
+    key: 'defaults.uncategorized',
+  },
   'default-group-bills': { source: 'Bills', key: 'defaults.bills' },
   'default-group-needs': { source: 'Needs', key: 'defaults.needs' },
   'default-group-subscriptions': {

@@ -1,12 +1,12 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { FullScreenModal } from '@/presentation/components/common/full-screen-modal';
 
 import type { CategoryGroupSummary } from '@/application/use-cases/categories/get-category-groups';
 import type { CategoryTarget } from '@/domain/entities/category-target';
 import type { BudgetCategoryValues } from '@/domain/services/calculate-budget-month';
 import type { TargetProgress } from '@/domain/services/calculate-target-progress';
 import { Money } from '@/domain/value-objects/money';
+import { isProtectedCategoryGroup } from '@/domain/policies/system-categories';
 import { formatMoney } from '@/presentation/utils/money';
 import { targetDescription } from '@/presentation/utils/target';
 import { useTranslation } from '@/presentation/localization/localization-provider';
@@ -52,39 +52,40 @@ export function EditBudgetModal({
   );
 
   return (
-    <FullScreenModal onRequestClose={onDismiss}>
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.header}>
-          <Pressable onPress={onDismiss} style={styles.back}>
-            <Text style={styles.backText}>‹</Text>
-          </Pressable>
-          <Text style={styles.title}>{t('budget.edit')}</Text>
-          <View style={styles.headerSpacer} />
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.header}>
+        <Pressable onPress={onDismiss} style={styles.back}>
+          <Text style={styles.backText}>‹</Text>
+        </Pressable>
+        <Text style={styles.title}>{t('budget.edit')}</Text>
+        <View style={styles.headerSpacer} />
+      </View>
+
+      <ScrollView contentContainerStyle={styles.content}>
+        <Text style={styles.total}>{formatMoney(totalTargets)}</Text>
+        <Text style={styles.totalLabel}>{t('budget.costToBeMe')}</Text>
+
+        <View style={styles.summaryCard}>
+          <Text style={styles.summaryLabel}>
+            {t('budget.monthTargets', { month: monthLabel })}
+          </Text>
+          <Text style={styles.summaryValue}>{formatMoney(totalTargets)}</Text>
         </View>
 
-        <ScrollView contentContainerStyle={styles.content}>
-          <Text style={styles.total}>{formatMoney(totalTargets)}</Text>
-          <Text style={styles.totalLabel}>{t('budget.costToBeMe')}</Text>
-
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryLabel}>
-              {t('budget.monthTargets', { month: monthLabel })}
-            </Text>
-            <Text style={styles.summaryValue}>{formatMoney(totalTargets)}</Text>
-          </View>
-
-          {groups.map(({ group, categories }) => (
-            <View key={group.id} style={styles.groupSection}>
-              <View style={styles.groupHeader}>
-                <Pressable
-                  onPress={() =>
-                    onRenameGroup(group.id, groupDisplayName(group, t))
-                  }
-                >
-                  <Text style={styles.groupName}>
-                    {groupDisplayName(group, t)}
-                  </Text>
-                </Pressable>
+        {groups.map(({ group, categories }) => (
+          <View key={group.id} style={styles.groupSection}>
+            <View style={styles.groupHeader}>
+              <Pressable
+                disabled={isProtectedCategoryGroup(group.id)}
+                onPress={() =>
+                  onRenameGroup(group.id, groupDisplayName(group, t))
+                }
+              >
+                <Text style={styles.groupName}>
+                  {groupDisplayName(group, t)}
+                </Text>
+              </Pressable>
+              {!isProtectedCategoryGroup(group.id) ? (
                 <Pressable
                   accessibilityLabel={t('budget.addCategoryTo', {
                     group: groupDisplayName(group, t),
@@ -94,61 +95,59 @@ export function EditBudgetModal({
                 >
                   <Text style={styles.addText}>+</Text>
                 </Pressable>
-              </View>
-              <View style={styles.categoryCard}>
-                {categories.map((category) => {
-                  const values = valuesByCategoryId.get(category.id);
-                  const target = targetsByCategoryId.get(category.id);
-                  return (
-                    <Pressable
-                      disabled={!values}
-                      key={category.id}
-                      onPress={() => values && onSelectCategory(values)}
-                      style={styles.categoryRow}
-                    >
-                      <View style={styles.categoryCopy}>
-                        <Text numberOfLines={1} style={styles.categoryName}>
-                          {categoryDisplayName(category, t)}
-                        </Text>
-                        {category.hidden ? (
-                          <Text style={styles.hidden}>
-                            {t('budget.hidden')}
-                          </Text>
-                        ) : null}
-                      </View>
-                      <View style={styles.targetCopy}>
-                        {target ? (
-                          <>
-                            <Text style={styles.targetAmount}>
-                              {formatMoney(target.amount)}
-                            </Text>
-                            <Text
-                              numberOfLines={1}
-                              style={styles.targetDescription}
-                            >
-                              {targetDescription(target, language)}
-                            </Text>
-                          </>
-                        ) : (
-                          <Text style={styles.addTarget}>
-                            {t('budget.addTarget')}
-                          </Text>
-                        )}
-                      </View>
-                      <Text style={styles.chevron}>›</Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
+              ) : null}
             </View>
-          ))}
+            <View style={styles.categoryCard}>
+              {categories.map((category) => {
+                const values = valuesByCategoryId.get(category.id);
+                const target = targetsByCategoryId.get(category.id);
+                return (
+                  <Pressable
+                    disabled={!values}
+                    key={category.id}
+                    onPress={() => values && onSelectCategory(values)}
+                    style={styles.categoryRow}
+                  >
+                    <View style={styles.categoryCopy}>
+                      <Text numberOfLines={1} style={styles.categoryName}>
+                        {categoryDisplayName(category, t)}
+                      </Text>
+                      {category.hidden ? (
+                        <Text style={styles.hidden}>{t('budget.hidden')}</Text>
+                      ) : null}
+                    </View>
+                    <View style={styles.targetCopy}>
+                      {target ? (
+                        <>
+                          <Text style={styles.targetAmount}>
+                            {formatMoney(target.amount)}
+                          </Text>
+                          <Text
+                            numberOfLines={1}
+                            style={styles.targetDescription}
+                          >
+                            {targetDescription(target, language)}
+                          </Text>
+                        </>
+                      ) : (
+                        <Text style={styles.addTarget}>
+                          {t('budget.addTarget')}
+                        </Text>
+                      )}
+                    </View>
+                    <Text style={styles.chevron}>›</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        ))}
 
-          <Pressable onPress={onAddGroup} style={styles.addGroupButton}>
-            <Text style={styles.addGroupText}>+ {t('budget.newGroup')}</Text>
-          </Pressable>
-        </ScrollView>
-      </SafeAreaView>
-    </FullScreenModal>
+        <Pressable onPress={onAddGroup} style={styles.addGroupButton}>
+          <Text style={styles.addGroupText}>+ {t('budget.newGroup')}</Text>
+        </Pressable>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 

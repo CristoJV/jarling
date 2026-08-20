@@ -156,6 +156,10 @@ export const english = {
   'budget.moving': 'Moving…',
   'budget.moveValidation':
     'Choose two different categories and a positive amount.',
+  'budget.availableAmount': 'Available: {{amount}}',
+  'budget.swap': 'Swap source and destination',
+  'budget.selectSource': 'Choose source',
+  'budget.selectDestination': 'Choose destination',
   'categoryDetails.title': 'Category details',
   'categoryDetails.balance': 'Balance',
   'categoryDetails.target': 'Target',
@@ -165,7 +169,7 @@ export const english = {
   'categoryDetails.createTarget': 'Create Target',
   'categoryDetails.assignMore':
     'Assign {{amount}} more this month to stay on track.',
-  'categoryDetails.onTrack': 'You are on track this month.',
+  'categoryDetails.onTrack': 'You are on track to meet your target!',
   'categoryDetails.assign': 'Assign',
   'categoryDetails.totalToAssignBy': 'Total to assign by {{date}}',
   'categoryDetails.assignedSoFar': 'Assigned so far',
@@ -179,6 +183,11 @@ export const english = {
   'categoryDetails.every': 'Every {{date}}',
   'categoryDetails.by': 'By {{date}}',
   'categoryDetails.ongoing': 'Ongoing',
+  'categoryDetails.availableFromPrevious': 'Available from previous month',
+  'categoryDetails.assignedForMonth': 'Assigned for {{month}}',
+  'categoryDetails.activityInMonth': 'Activity in {{month}}',
+  'categoryDetails.insufficientFunds':
+    'Requested {{requested}} · Available {{available}} · Missing {{missing}}',
   'reports.title': 'Reports',
   'reports.lastSixMonths': 'Last 6 months',
   'reports.spending': 'Spending',
@@ -246,6 +255,13 @@ export const english = {
   'accounts.creditCardDescription':
     'Included in the budget with a linked payment category.',
   'accounts.loanDescription': 'Debt tracking; not included in the budget.',
+  'accounts.details': 'Account details',
+  'accounts.rename': 'Rename account',
+  'accounts.workingBalance': 'Working balance',
+  'accounts.clearedBalance': 'Cleared balance',
+  'accounts.unclearedBalance': 'Uncleared balance',
+  'accounts.balanceCounts':
+    '{{cleared}} cleared · {{uncleared}} uncleared transactions',
   'reconciliation.title': 'Reconcile {{name}}',
   'reconciliation.question': 'What is the current bank balance?',
   'reconciliation.help':
@@ -407,6 +423,8 @@ export const english = {
     'A reconciled transaction cannot be changed or deleted.',
   'errors.insufficientReadyToAssign':
     'There is not enough money in Ready to Assign for that allocation.',
+  'errors.protectedCategory':
+    'Uncategorized is managed by Jarling and cannot be changed.',
   'errors.insufficientAvailable':
     'The source category does not have enough available money.',
   'errors.invalidBudgetMove':
@@ -576,6 +594,10 @@ export const spanish: TranslationDictionary = {
   'budget.moving': 'Moviendo…',
   'budget.moveValidation':
     'Elige dos categorías distintas y un importe positivo.',
+  'budget.availableAmount': 'Disponible: {{amount}}',
+  'budget.swap': 'Intercambiar origen y destino',
+  'budget.selectSource': 'Elegir origen',
+  'budget.selectDestination': 'Elegir destino',
   'categoryDetails.title': 'Detalles de la categoría',
   'categoryDetails.balance': 'Saldo',
   'categoryDetails.target': 'Objetivo',
@@ -585,7 +607,7 @@ export const spanish: TranslationDictionary = {
   'categoryDetails.createTarget': 'Crear objetivo',
   'categoryDetails.assignMore':
     'Asigna {{amount}} más este mes para mantener el ritmo.',
-  'categoryDetails.onTrack': 'Vas al día este mes.',
+  'categoryDetails.onTrack': '¡Vas al día para alcanzar tu objetivo!',
   'categoryDetails.assign': 'Asignar',
   'categoryDetails.totalToAssignBy': 'Total a asignar antes de {{date}}',
   'categoryDetails.assignedSoFar': 'Asignado hasta ahora',
@@ -599,6 +621,11 @@ export const spanish: TranslationDictionary = {
   'categoryDetails.every': 'Cada {{date}}',
   'categoryDetails.by': 'Antes de {{date}}',
   'categoryDetails.ongoing': 'Continuo',
+  'categoryDetails.availableFromPrevious': 'Disponible del mes anterior',
+  'categoryDetails.assignedForMonth': 'Asignado en {{month}}',
+  'categoryDetails.activityInMonth': 'Actividad en {{month}}',
+  'categoryDetails.insufficientFunds':
+    'Solicitado {{requested}} · Disponible {{available}} · Faltan {{missing}}',
   'reports.title': 'Informes',
   'reports.lastSixMonths': 'Últimos 6 meses',
   'reports.spending': 'Gastos',
@@ -670,6 +697,13 @@ export const spanish: TranslationDictionary = {
     'Se incluye en el presupuesto con una categoría de pago vinculada.',
   'accounts.loanDescription':
     'Seguimiento de deuda; no participa en el presupuesto.',
+  'accounts.details': 'Detalles de la cuenta',
+  'accounts.rename': 'Renombrar cuenta',
+  'accounts.workingBalance': 'Saldo operativo',
+  'accounts.clearedBalance': 'Saldo confirmado',
+  'accounts.unclearedBalance': 'Saldo pendiente',
+  'accounts.balanceCounts':
+    '{{cleared}} confirmadas · {{uncleared}} transacciones pendientes',
   'reconciliation.title': 'Conciliar {{name}}',
   'reconciliation.question': '¿Cuál es el saldo actual del banco?',
   'reconciliation.help':
@@ -836,6 +870,8 @@ export const spanish: TranslationDictionary = {
     'Una transacción conciliada no se puede modificar ni eliminar.',
   'errors.insufficientReadyToAssign':
     'No hay suficiente dinero en Disponible para asignar para esa asignación.',
+  'errors.protectedCategory':
+    'Jarling gestiona Uncategorized y no permite modificarla.',
   'errors.insufficientAvailable':
     'La categoría de origen no tiene suficiente dinero disponible.',
   'errors.invalidBudgetMove':

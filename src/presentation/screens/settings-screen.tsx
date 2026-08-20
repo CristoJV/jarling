@@ -14,8 +14,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { SelectionModal } from '@/presentation/components/common/selection-modal';
+import { KeyboardResponsiveScreen } from '@/presentation/components/common/keyboard-responsive-screen';
 import { PasswordInputModal } from '@/presentation/components/common/password-input-modal';
 import { useApplication } from '@/presentation/contexts/application-context';
+import { invalidateTransactionReferenceData } from '@/presentation/cache/transaction-reference-data';
 import { useTranslation } from '@/presentation/localization/localization-provider';
 import {
   CURRENCIES,
@@ -95,6 +97,7 @@ export function SettingsScreen() {
   async function restoreBackup(password: string) {
     const result = await application.planPortability.restoreBackup(password);
     if (!result.restored) return;
+    invalidateTransactionReferenceData();
     if (result.preferences !== undefined) {
       await updatePreferences(
         parsePreferences(JSON.stringify(result.preferences)),
@@ -153,6 +156,7 @@ export function SettingsScreen() {
     setDeleting(true);
     try {
       await application.plan.delete.execute();
+      invalidateTransactionReferenceData();
       await resetBudgetPreferences();
       Alert.alert(t('settings.planDeleted'), t('settings.planDeletedBody'), [
         { text: t('common.done'), onPress: () => router.replace('/budget') },
@@ -168,6 +172,7 @@ export function SettingsScreen() {
     setPopulating(true);
     try {
       const result = await application.samples.populate.execute();
+      invalidateTransactionReferenceData();
       Alert.alert(
         result.populated
           ? t('settings.sampleAdded')
@@ -260,149 +265,164 @@ export function SettingsScreen() {
         <View style={styles.headerSpacer} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.sectionLabel}>{t('settings.budgetSection')}</Text>
-        <View style={styles.card}>
-          <View style={styles.field}>
-            <Text style={styles.fieldLabel}>{t('settings.budgetName')}</Text>
-            <TextInput
-              onChangeText={(budgetName) =>
-                setBudgetDraft((current) => ({ ...current, budgetName }))
-              }
-              placeholderTextColor={theme.colors.textMuted}
-              style={styles.input}
-              value={budgetDraft.budgetName}
-            />
-          </View>
-          <SettingsRow
-            label={t('settings.currency')}
-            onPress={() => setSelector('currency')}
-            value={budgetDraft.currency}
-          />
-          <SettingsRow
-            label={t('settings.numberFormat')}
-            onPress={() => setSelector('number')}
-            value={numberFormatLabel}
-          />
-          <SettingsRow
-            label={t('settings.currencyPlacement')}
-            onPress={() => setSelector('placement')}
-            value={placementLabel}
-          />
-          <SettingsRow
-            label={t('settings.dateFormat')}
-            onPress={() => setSelector('date')}
-            value={
-              budgetDraft.dateFormat === 'system'
-                ? t('settings.systemFormat')
-                : budgetDraft.dateFormat.toUpperCase()
-            }
-          />
-          <View style={styles.preview}>
-            <Text style={styles.previewText}>
-              {formatMoney(Money.fromCents(123_456), previewPreferences)}
-            </Text>
-            <Text style={styles.previewText}>
-              {formatDate('2026-08-18', language, previewPreferences)}
-            </Text>
-          </View>
-          <View style={styles.buttonRow}>
-            <Pressable
-              disabled={deleting}
-              onPress={requestDeletePlan}
-              style={styles.deleteButton}
-            >
-              <Text style={styles.deleteText}>{t('settings.deletePlan')}</Text>
-            </Pressable>
-            <Pressable
-              disabled={saving || !budgetDraft.budgetName.trim()}
-              onPress={() => void saveBudgetSettings()}
-              style={[styles.saveButton, saving && styles.disabled]}
-            >
-              <Text style={styles.saveText}>
-                {saving ? t('form.saving') : t('common.save')}
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-
-        <Text style={styles.sectionLabel}>{t('settings.appSection')}</Text>
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>{t('settings.displayOptions')}</Text>
-          <Text style={styles.fieldLabel}>{t('settings.theme')}</Text>
-          <View style={styles.themeOptions}>
-            {(
-              [
-                ['light', t('settings.themeLight')],
-                ['dark', t('settings.themeDark')],
-                ['system', t('settings.themeSystem')],
-              ] as const
-            ).map(([value, label]) => (
-              <ThemeOption
-                key={value}
-                label={label}
-                selected={preferences.theme === value}
-                onPress={() => void setTheme(value)}
+      <KeyboardResponsiveScreen>
+        <ScrollView
+          automaticallyAdjustKeyboardInsets
+          contentContainerStyle={styles.content}
+          keyboardDismissMode="interactive"
+          keyboardShouldPersistTaps="handled"
+        >
+          <Text style={styles.sectionLabel}>{t('settings.budgetSection')}</Text>
+          <View style={styles.card}>
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>{t('settings.budgetName')}</Text>
+              <TextInput
+                onChangeText={(budgetName) =>
+                  setBudgetDraft((current) => ({ ...current, budgetName }))
+                }
+                placeholderTextColor={theme.colors.textMuted}
+                style={styles.input}
+                value={budgetDraft.budgetName}
               />
-            ))}
-          </View>
-          <View style={styles.switchRow}>
-            <View style={styles.switchCopy}>
-              <Text style={styles.cardTitle}>{t('settings.lock')}</Text>
-              <Text style={styles.help}>{t('settings.lockDescription')}</Text>
             </View>
-            <Switch
-              onValueChange={(enabled) => void setLockEnabled(enabled)}
-              value={preferences.lockEnabled}
+            <SettingsRow
+              label={t('settings.currency')}
+              onPress={() => setSelector('currency')}
+              value={budgetDraft.currency}
             />
-          </View>
-        </View>
-
-        <Text style={styles.sectionLabel}>{t('settings.dataSection')}</Text>
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>{t('settings.dataPortability')}</Text>
-          <Text style={styles.help}>
-            {t('settings.portabilityDescription')}
-          </Text>
-          <SettingsRow
-            label={exporting ? t('settings.exporting') : t('settings.export')}
-            onPress={requestExport}
-            value={t('settings.exportFormat')}
-          />
-          <SettingsRow
-            label={t('settings.backup')}
-            onPress={() => setDataAction('backup')}
-            value={t('settings.encrypted')}
-          />
-          <SettingsRow
-            label={t('settings.restore')}
-            onPress={requestRestore}
-            value=".jarling"
-          />
-        </View>
-
-        {__DEV__ ? (
-          <>
-            <Text style={styles.sectionLabel}>{t('settings.development')}</Text>
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>{t('settings.sampleData')}</Text>
-              <Text style={styles.help}>{t('settings.sampleDescription')}</Text>
+            <SettingsRow
+              label={t('settings.numberFormat')}
+              onPress={() => setSelector('number')}
+              value={numberFormatLabel}
+            />
+            <SettingsRow
+              label={t('settings.currencyPlacement')}
+              onPress={() => setSelector('placement')}
+              value={placementLabel}
+            />
+            <SettingsRow
+              label={t('settings.dateFormat')}
+              onPress={() => setSelector('date')}
+              value={
+                budgetDraft.dateFormat === 'system'
+                  ? t('settings.systemFormat')
+                  : budgetDraft.dateFormat.toUpperCase()
+              }
+            />
+            <View style={styles.preview}>
+              <Text style={styles.previewText}>
+                {formatMoney(Money.fromCents(123_456), previewPreferences)}
+              </Text>
+              <Text style={styles.previewText}>
+                {formatDate('2026-08-18', language, previewPreferences)}
+              </Text>
+            </View>
+            <View style={styles.buttonRow}>
               <Pressable
-                accessibilityRole="button"
-                disabled={populating}
-                onPress={() => void populateSampleData()}
-                style={[styles.populateButton, populating && styles.disabled]}
+                disabled={deleting}
+                onPress={requestDeletePlan}
+                style={styles.deleteButton}
               >
-                <Text style={styles.populateButtonText}>
-                  {populating
-                    ? t('settings.populating')
-                    : t('settings.populate')}
+                <Text style={styles.deleteText}>
+                  {t('settings.deletePlan')}
+                </Text>
+              </Pressable>
+              <Pressable
+                disabled={saving || !budgetDraft.budgetName.trim()}
+                onPress={() => void saveBudgetSettings()}
+                style={[styles.saveButton, saving && styles.disabled]}
+              >
+                <Text style={styles.saveText}>
+                  {saving ? t('form.saving') : t('common.save')}
                 </Text>
               </Pressable>
             </View>
-          </>
-        ) : null}
-      </ScrollView>
+          </View>
+
+          <Text style={styles.sectionLabel}>{t('settings.appSection')}</Text>
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>{t('settings.displayOptions')}</Text>
+            <Text style={styles.fieldLabel}>{t('settings.theme')}</Text>
+            <View style={styles.themeOptions}>
+              {(
+                [
+                  ['light', t('settings.themeLight')],
+                  ['dark', t('settings.themeDark')],
+                  ['system', t('settings.themeSystem')],
+                ] as const
+              ).map(([value, label]) => (
+                <ThemeOption
+                  key={value}
+                  label={label}
+                  selected={preferences.theme === value}
+                  onPress={() => void setTheme(value)}
+                />
+              ))}
+            </View>
+            <View style={styles.switchRow}>
+              <View style={styles.switchCopy}>
+                <Text style={styles.cardTitle}>{t('settings.lock')}</Text>
+                <Text style={styles.help}>{t('settings.lockDescription')}</Text>
+              </View>
+              <Switch
+                onValueChange={(enabled) => void setLockEnabled(enabled)}
+                value={preferences.lockEnabled}
+              />
+            </View>
+          </View>
+
+          <Text style={styles.sectionLabel}>{t('settings.dataSection')}</Text>
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>
+              {t('settings.dataPortability')}
+            </Text>
+            <Text style={styles.help}>
+              {t('settings.portabilityDescription')}
+            </Text>
+            <SettingsRow
+              label={exporting ? t('settings.exporting') : t('settings.export')}
+              onPress={requestExport}
+              value={t('settings.exportFormat')}
+            />
+            <SettingsRow
+              label={t('settings.backup')}
+              onPress={() => setDataAction('backup')}
+              value={t('settings.encrypted')}
+            />
+            <SettingsRow
+              label={t('settings.restore')}
+              onPress={requestRestore}
+              value=".jarling"
+            />
+          </View>
+
+          {__DEV__ ? (
+            <>
+              <Text style={styles.sectionLabel}>
+                {t('settings.development')}
+              </Text>
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>{t('settings.sampleData')}</Text>
+                <Text style={styles.help}>
+                  {t('settings.sampleDescription')}
+                </Text>
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={populating}
+                  onPress={() => void populateSampleData()}
+                  style={[styles.populateButton, populating && styles.disabled]}
+                >
+                  <Text style={styles.populateButtonText}>
+                    {populating
+                      ? t('settings.populating')
+                      : t('settings.populate')}
+                  </Text>
+                </Pressable>
+              </View>
+            </>
+          ) : null}
+        </ScrollView>
+      </KeyboardResponsiveScreen>
 
       {selector === 'currency' ? (
         <SelectionModal

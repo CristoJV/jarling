@@ -5,6 +5,8 @@ import {
   type Category,
 } from '@/domain/entities/category';
 import { CategoryNotFoundError } from '@/domain/errors/category-not-found-error';
+import { ProtectedCategoryError } from '@/domain/errors/protected-category-error';
+import { isProtectedCategory } from '@/domain/policies/system-categories';
 import type { CategoryRepository } from '@/domain/repositories/category-repository';
 
 export class SetCategoryHidden {
@@ -15,6 +17,7 @@ export class SetCategoryHidden {
   ) {}
 
   async execute(categoryId: string, hidden: boolean): Promise<Category> {
+    if (isProtectedCategory(categoryId)) throw new ProtectedCategoryError();
     const category = await this.categories.findById(categoryId);
 
     if (!category) {

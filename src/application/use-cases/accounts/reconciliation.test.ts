@@ -9,7 +9,9 @@ import { InMemoryAccountRepository } from '@/infrastructure/persistence/in-memor
 import { InMemoryTransactionRepository } from '@/infrastructure/persistence/in-memory/in-memory-transaction-repository';
 
 import { GetReconciliation } from './get-reconciliation';
+import { GetAccountDetails } from './get-account-details';
 import { ReconcileAccount } from './reconcile-account';
+import { RenameAccount } from './rename-account';
 
 const clock: Clock = {
   now: () => ({
@@ -53,6 +55,44 @@ async function setup() {
 }
 
 describe('account reconciliation', () => {
+  it('exposes balances with working equal to cleared plus uncleared', async () => {
+    const { accounts, transactions } = await setup();
+    const details = await new GetAccountDetails(
+      accounts,
+      transactions,
+      clock,
+    ).execute('account-1');
+
+    expect(details).toEqual(
+      expect.objectContaining({
+        clearedBalance: Money.fromCents(102_000),
+        unclearedBalance: Money.fromCents(-5_000),
+        workingBalance: Money.fromCents(97_000),
+        clearedCount: 2,
+        unclearedCount: 1,
+      }),
+    );
+  });
+
+  it('renames without changing account identity or balances', async () => {
+    const { accounts, transactions } = await setup();
+    const renamed = await new RenameAccount(
+      accounts,
+      new ImmediateUnitOfWork(),
+      clock,
+    ).execute('account-1', '  Main bank  ');
+    const details = await new GetAccountDetails(
+      accounts,
+      transactions,
+      clock,
+    ).execute('account-1');
+
+    expect(renamed).toEqual(
+      expect.objectContaining({ id: 'account-1', name: 'Main bank' }),
+    );
+    expect(details.workingBalance).toEqual(Money.fromCents(97_000));
+  });
+
   it('previews cleared and working balances independently', async () => {
     const { accounts, transactions } = await setup();
 

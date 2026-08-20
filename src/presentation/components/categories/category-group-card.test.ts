@@ -35,6 +35,7 @@ describe('categoryStatus', () => {
   it('shows target funding rather than the remaining available balance', () => {
     const values: BudgetCategoryValues = {
       category,
+      availableFromPreviousMonth: Money.zero(),
       assigned: Money.fromCents(10_000),
       activity: Money.fromCents(-2_000),
       available: Money.fromCents(8_000),
@@ -56,6 +57,7 @@ describe('categoryStatus', () => {
   it('reports total spending against covered funding when overspent', () => {
     const values: BudgetCategoryValues = {
       category,
+      availableFromPreviousMonth: Money.zero(),
       assigned: Money.fromCents(5_000),
       activity: Money.fromCents(-7_000),
       available: Money.fromCents(-2_000),

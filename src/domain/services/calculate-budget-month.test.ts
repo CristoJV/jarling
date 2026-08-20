@@ -171,12 +171,14 @@ describe('calculateBudgetMonth', () => {
     expect(result.readyToAssign).toEqual(Money.fromCents(145_000));
     expect(result.groups[0]?.categories).toEqual([
       expect.objectContaining({
+        availableFromPreviousMonth: Money.zero(),
         assigned: Money.fromCents(40_000),
         activity: Money.fromCents(-6_000),
         available: Money.fromCents(34_000),
         spendingTransactions: [Money.fromCents(6_000)],
       }),
       expect.objectContaining({
+        availableFromPreviousMonth: Money.zero(),
         assigned: Money.fromCents(15_000),
         activity: Money.fromCents(-17_000),
         available: Money.fromCents(-2_000),
@@ -220,6 +222,7 @@ describe('calculateBudgetMonth', () => {
     const values = result.groups[0]?.categories[0];
     expect(values?.assigned).toEqual(Money.zero());
     expect(values?.activity).toEqual(Money.zero());
+    expect(values?.availableFromPreviousMonth).toEqual(Money.fromCents(44_000));
     expect(values?.available).toEqual(Money.fromCents(44_000));
   });
 

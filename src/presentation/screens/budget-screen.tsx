@@ -15,8 +15,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { BudgetCategoryValues } from '@/domain/services/calculate-budget-month';
 import { calculateBudgetCategoryTargetProgress } from '@/domain/services/calculate-target-progress';
 import { CategoryBudgetModal } from '@/presentation/components/budget/category-budget-modal';
-import { EditBudgetModal } from '@/presentation/components/budget/edit-budget-modal';
-import { MoveBudgetModal } from '@/presentation/components/budget/move-budget-modal';
 import { CategoryGroupCard } from '@/presentation/components/categories/category-group-card';
 import { MonthYearPickerModal } from '@/presentation/components/common/month-year-picker-modal';
 import { NameInputModal } from '@/presentation/components/common/name-input-modal';
@@ -24,7 +22,9 @@ import { OverflowMenu } from '@/presentation/components/common/overflow-menu';
 import { useBudget } from '@/presentation/hooks/use-budget';
 import { useCategories } from '@/presentation/hooks/use-categories';
 import { useTargets } from '@/presentation/hooks/use-targets';
+import { usePrefetchTransactionReferenceData } from '@/presentation/hooks/use-prefetch-transaction-reference-data';
 import { useTranslation } from '@/presentation/localization/localization-provider';
+import { routes } from '@/presentation/navigation/routes';
 import type { TranslationKey } from '@/presentation/localization/translations';
 import { usePreferences } from '@/presentation/preferences/preferences-provider';
 import type { AppTheme } from '@/presentation/theme/theme';
@@ -57,6 +57,7 @@ function todayKey(): string {
 }
 
 export function BudgetScreen() {
+  usePrefetchTransactionReferenceData();
   const router = useRouter();
   const { language, t } = useTranslation();
   const { preferences } = usePreferences();
@@ -78,7 +79,6 @@ export function BudgetScreen() {
     loading: budgetLoading,
     refresh: refreshBudget,
     assign,
-    move,
   } = useBudget(month);
   const {
     targets,
@@ -86,14 +86,10 @@ export function BudgetScreen() {
     loading: targetsLoading,
     refresh: refreshTargets,
   } = useTargets();
-  const [editingBudget, setEditingBudget] = useState(false);
   const [selectingMonth, setSelectingMonth] = useState(false);
   const [nameEditor, setNameEditor] = useState<NameEditor | null>(null);
   const [categoryEditor, setCategoryEditor] =
     useState<BudgetCategoryValues | null>(null);
-  const [moveTarget, setMoveTarget] = useState<BudgetCategoryValues | null>(
-    null,
-  );
   const [collapsedGroupIds, setCollapsedGroupIds] = useState(
     () => new Set<string>(),
   );
@@ -168,10 +164,7 @@ export function BudgetScreen() {
   ) {
     dismissOverlay?.();
     requestAnimationFrame(() => {
-      router.push({
-        pathname: '/category',
-        params: { id: values.category.id, month },
-      });
+      router.push(routes.category(values.category.id, month));
     });
   }
 
@@ -197,17 +190,22 @@ export function BudgetScreen() {
         </View>
         <View style={styles.headerActions}>
           <Pressable
+            accessibilityLabel={t('budget.edit')}
             accessibilityRole="button"
-            onPress={() => setEditingBudget(true)}
+            onPress={() => router.push(routes.editBudget(month))}
             style={styles.editButton}
           >
-            <Text style={styles.editButtonText}>{t('common.edit')}</Text>
+            <MaterialCommunityIcons
+              color={theme.colors.primary}
+              name="pencil-outline"
+              size={23}
+            />
           </Pressable>
           <OverflowMenu
             items={[
               {
                 label: t('budget.edit'),
-                onPress: () => setEditingBudget(true),
+                onPress: () => router.push(routes.editBudget(month)),
               },
             ]}
           />
@@ -316,32 +314,11 @@ export function BudgetScreen() {
 
       <Pressable
         accessibilityLabel={t('transactions.add')}
-        onPress={() => router.push('/transaction')}
+        onPress={() => router.push(routes.newTransaction())}
         style={styles.fab}
       >
         <Text style={styles.fabText}>+ {t('budget.addTransaction')}</Text>
       </Pressable>
-
-      {editingBudget && groups ? (
-        <EditBudgetModal
-          groups={groups}
-          monthLabel={monthLabel}
-          onAddGroup={() => setNameEditor({ kind: 'create-group' })}
-          onAddCategory={(groupId) =>
-            setNameEditor({ kind: 'create-category', groupId })
-          }
-          onDismiss={() => setEditingBudget(false)}
-          onRenameGroup={(id, name) =>
-            setNameEditor({ kind: 'rename-group', id, name })
-          }
-          onSelectCategory={(values) => {
-            openCategoryDetails(values, () => setEditingBudget(false));
-          }}
-          progressByCategoryId={progressByCategoryId}
-          targetsByCategoryId={targetsByCategoryId}
-          valuesByCategoryId={valuesByCategoryId}
-        />
-      ) : null}
 
       {nameEditor ? (
         <NameInputModal
@@ -373,7 +350,7 @@ export function BudgetScreen() {
           }
           onDismiss={() => setCategoryEditor(null)}
           onMoveMoney={() => {
-            setMoveTarget(categoryEditor);
+            router.push(routes.moveBudget(month, categoryEditor.category.id));
             setCategoryEditor(null);
           }}
           onSave={(amountCents) =>
@@ -387,16 +364,6 @@ export function BudgetScreen() {
           onDismiss={() => setSelectingMonth(false)}
           onSelect={setMonth}
           value={month}
-        />
-      ) : null}
-
-      {moveTarget ? (
-        <MoveBudgetModal
-          categories={budgetCategories}
-          initialTarget={moveTarget}
-          monthLabel={monthLabel}
-          onDismiss={() => setMoveTarget(null)}
-          onMove={move}
         />
       ) : null}
     </SafeAreaView>
@@ -454,11 +421,6 @@ const createStyles = (theme: AppTheme) =>
       borderRadius: 11,
       alignItems: 'center',
       justifyContent: 'center',
-    },
-    editButtonText: {
-      color: theme.colors.primary,
-      fontSize: 14,
-      fontWeight: '700',
     },
     content: {
       width: '100%',

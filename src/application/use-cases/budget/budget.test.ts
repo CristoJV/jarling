@@ -153,13 +153,23 @@ describe('budget use cases', () => {
   it('rejects an assignment that would make Ready to Assign negative', async () => {
     const { assign, allocations } = await setup();
 
-    await expect(
-      assign.execute({
+    const cause = await assign
+      .execute({
         categoryId: category.id,
         month: '2026-08',
         amountCents: 200_001,
-      }),
-    ).rejects.toThrow(InsufficientReadyToAssignError);
+      })
+      .catch((error: unknown) => error);
+    expect(cause).toBeInstanceOf(InsufficientReadyToAssignError);
+    expect((cause as InsufficientReadyToAssignError).requested).toEqual(
+      Money.fromCents(200_001),
+    );
+    expect((cause as InsufficientReadyToAssignError).available).toEqual(
+      Money.fromCents(200_000),
+    );
+    expect((cause as InsufficientReadyToAssignError).missing).toEqual(
+      Money.fromCents(1),
+    );
     expect(await allocations.findThroughMonth('2026-08')).toEqual([]);
   });
 

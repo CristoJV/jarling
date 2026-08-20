@@ -4,8 +4,10 @@ import type { ApplicationServices } from '@/application/application-services';
 import { CloseAccount } from '@/application/use-cases/accounts/close-account';
 import { CreateAccount } from '@/application/use-cases/accounts/create-account';
 import { GetAccounts } from '@/application/use-cases/accounts/get-accounts';
+import { GetAccountDetails } from '@/application/use-cases/accounts/get-account-details';
 import { GetReconciliation } from '@/application/use-cases/accounts/get-reconciliation';
 import { ReconcileAccount } from '@/application/use-cases/accounts/reconcile-account';
+import { RenameAccount } from '@/application/use-cases/accounts/rename-account';
 import { CreateCategoryGroup } from '@/application/use-cases/categories/create-category-group';
 import { CreateCategory } from '@/application/use-cases/categories/create-category';
 import { EnsureDefaultCategories } from '@/application/use-cases/categories/ensure-default-categories';
@@ -19,7 +21,7 @@ import { SetCategoryHidden } from '@/application/use-cases/categories/set-catego
 import { UpdateCategoryNotes } from '@/application/use-cases/categories/update-category-notes';
 import { AssignBudget } from '@/application/use-cases/budget/assign-budget';
 import { GetBudgetMonth } from '@/application/use-cases/budget/get-budget-month';
-import { MoveBudgetBetweenCategories } from '@/application/use-cases/budget/move-budget-between-categories';
+import { MoveBudget } from '@/application/use-cases/budget/move-budget';
 import { CreateTransaction } from '@/application/use-cases/transactions/create-transaction';
 import { DeleteTransaction } from '@/application/use-cases/transactions/delete-transaction';
 import { GetTransactions } from '@/application/use-cases/transactions/get-transactions';
@@ -77,6 +79,7 @@ export function createApplication(
     transactions,
     allocations,
   );
+  const planPortability = new SQLitePlanPortability(database);
 
   return {
     accounts: {
@@ -90,6 +93,8 @@ export function createApplication(
         clock,
       ),
       getAll: new GetAccounts(accounts, transactions),
+      getDetails: new GetAccountDetails(accounts, transactions, clock),
+      rename: new RenameAccount(accounts, unitOfWork, clock),
       close: new CloseAccount(
         accounts,
         categories,
@@ -174,7 +179,7 @@ export function createApplication(
         ids,
         clock,
       ),
-      move: new MoveBudgetBetweenCategories(
+      move: new MoveBudget(
         categories,
         allocations,
         getBudgetMonth,
@@ -227,6 +232,15 @@ export function createApplication(
         unitOfWork,
       ),
     },
-    planPortability: new SQLitePlanPortability(database),
+    planPortability: {
+      exportData: (preferences) => planPortability.exportData(preferences),
+      createBackup: (password, preferences) =>
+        planPortability.createBackup(password, preferences),
+      restoreBackup: async (password) => {
+        const result = await planPortability.restoreBackup(password);
+        if (result.restored) await ensureDefaults.execute();
+        return result;
+      },
+    },
   };
 }

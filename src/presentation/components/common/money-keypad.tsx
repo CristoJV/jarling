@@ -19,7 +19,7 @@ type MoneyKeypadProps = Readonly<{
   onChange: (valueCents: number) => void;
   allowNegative?: boolean;
   calculator?: boolean;
-  onDone?: () => void;
+  onDone?: (valueCents: number) => void;
 }>;
 
 export function MoneyKeypad({
@@ -40,20 +40,22 @@ export function MoneyKeypad({
     onChange(0);
   }
 
-  function evaluate() {
-    if (!pending) return;
+  function evaluate(): number {
+    if (!pending) return valueCents;
     const calculated = calculateMoneyOperation(
       pending.leftCents,
       valueCents,
       pending.operator,
     );
-    onChange(allowNegative ? calculated : Math.max(0, calculated));
+    const next = allowNegative ? calculated : Math.max(0, calculated);
+    onChange(next);
     setPending(undefined);
+    return next;
   }
 
   function finish() {
-    if (pending) evaluate();
-    onDone?.();
+    const finalValue = pending ? evaluate() : valueCents;
+    onDone?.(finalValue);
   }
 
   if (calculator) {

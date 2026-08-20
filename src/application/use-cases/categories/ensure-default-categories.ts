@@ -4,10 +4,19 @@ import { createCategoryGroup } from '@/domain/entities/category-group';
 import { createCategory } from '@/domain/entities/category';
 import type { CategoryGroupRepository } from '@/domain/repositories/category-group-repository';
 import type { CategoryRepository } from '@/domain/repositories/category-repository';
+import {
+  UNCATEGORIZED_CATEGORY_ID,
+  UNCATEGORIZED_GROUP_ID,
+} from '@/domain/policies/system-categories';
 
-export const UNCATEGORIZED_CATEGORY_ID = 'default-category-uncategorized';
+export { UNCATEGORIZED_CATEGORY_ID, UNCATEGORIZED_GROUP_ID };
 
 export const DEFAULT_CATEGORY_GROUPS = [
+  {
+    id: UNCATEGORIZED_GROUP_ID,
+    name: 'Uncategorized',
+    categories: [{ id: UNCATEGORIZED_CATEGORY_ID, name: '❓ Uncategorized' }],
+  },
   {
     id: 'default-group-bills',
     name: 'Bills',
@@ -21,7 +30,6 @@ export const DEFAULT_CATEGORY_GROUPS = [
     id: 'default-group-needs',
     name: 'Needs',
     categories: [
-      { id: UNCATEGORIZED_CATEGORY_ID, name: '❓ Uncategorized' },
       { id: 'default-category-groceries', name: '🛒 Groceries' },
       { id: 'default-category-transportation', name: '🚗 Transportation' },
     ],
@@ -51,6 +59,12 @@ export class EnsureDefaultCategories {
     const existingCategories = await this.categories.findAll();
     const groupIds = new Set(existingGroups.map(({ id }) => id));
     const categoryIds = new Set(existingCategories.map(({ id }) => id));
+    const groupsById = new Map(
+      existingGroups.map((group) => [group.id, group]),
+    );
+    const categoriesById = new Map(
+      existingCategories.map((category) => [category.id, category]),
+    );
     let nextGroupOrder =
       existingGroups.reduce(
         (maximum, group) => Math.max(maximum, group.sortOrder),
@@ -70,6 +84,15 @@ export class EnsureDefaultCategories {
           }),
         );
         nextGroupOrder += 1;
+      } else if (definition.id === UNCATEGORIZED_GROUP_ID) {
+        const group = groupsById.get(definition.id);
+        if (group && group.name !== definition.name) {
+          await this.groups.save({
+            ...group,
+            name: definition.name,
+            updatedAt: instant,
+          });
+        }
       }
 
       const existingInGroup = existingCategories.filter(
@@ -95,6 +118,24 @@ export class EnsureDefaultCategories {
             }),
           );
           nextCategoryOrder += 1;
+        } else if (categoryDefinition.id === UNCATEGORIZED_CATEGORY_ID) {
+          const category = categoriesById.get(categoryDefinition.id);
+          if (
+            category &&
+            (category.groupId !== UNCATEGORIZED_GROUP_ID ||
+              category.name !== categoryDefinition.name ||
+              category.hidden ||
+              category.sortOrder !== 0)
+          ) {
+            await this.categories.save({
+              ...category,
+              groupId: UNCATEGORIZED_GROUP_ID,
+              name: categoryDefinition.name,
+              hidden: false,
+              sortOrder: 0,
+              updatedAt: instant,
+            });
+          }
         }
       }
     }

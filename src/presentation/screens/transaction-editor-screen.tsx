@@ -1,5 +1,5 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import {
   SafeAreaView,
@@ -8,7 +8,7 @@ import {
 
 import type { AccountsOverview } from '@/application/use-cases/accounts/get-accounts';
 import type { CategoryGroupSummary } from '@/application/use-cases/categories/get-category-groups';
-import { UNCATEGORIZED_CATEGORY_ID } from '@/application/use-cases/categories/ensure-default-categories';
+import { UNCATEGORIZED_CATEGORY_ID } from '@/domain/policies/system-categories';
 import type { TransactionSummary } from '@/application/use-cases/transactions/get-transactions';
 import type { TransactionInput } from '@/application/use-cases/transactions/transaction-input';
 import type { TransferInput } from '@/application/use-cases/transfers/transfer-input';
@@ -16,6 +16,7 @@ import { Money } from '@/domain/value-objects/money';
 import { MoneyKeypad } from '@/presentation/components/common/money-keypad';
 import { FullScreenSelectionScreen } from '@/presentation/components/common/full-screen-selection-screen';
 import { FormRow } from '@/presentation/components/common/form-row';
+import { KeyboardResponsiveScreen } from '@/presentation/components/common/keyboard-responsive-screen';
 import { NameInputModal } from '@/presentation/components/common/name-input-modal';
 import { NativeDatePicker } from '@/presentation/components/common/native-date-picker';
 import { PayeeSelectionScreen } from '@/presentation/components/transactions/payee-selection-screen';
@@ -139,6 +140,7 @@ export function TransactionEditorScreen({
   const [showMore, setShowMore] = useState(false);
   const [keypadVisible, setKeypadVisible] = useState(true);
   const [editor, setEditor] = useState<Editor>(null);
+  const restoreKeypad = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -160,8 +162,15 @@ export function TransactionEditorScreen({
       ?.account.name ?? t('transactions.chooseDestination');
 
   function openEditor(value: Exclude<Editor, null>) {
+    restoreKeypad.current = keypadVisible;
     setKeypadVisible(false);
     setEditor(value);
+  }
+
+  function closeEditor() {
+    setEditor(null);
+    setKeypadVisible(restoreKeypad.current);
+    restoreKeypad.current = false;
   }
 
   async function submit() {
@@ -240,35 +249,29 @@ export function TransactionEditorScreen({
     }
   }
 
-  if (editor === 'kind') {
-    return (
-      <FullScreenSelectionScreen
-        onBack={() => setEditor(null)}
-        onSelect={selectKind}
-        options={[
-          ...(existingTransfer
-            ? []
-            : [
-                {
-                  value: 'expense',
-                  label: t('transactions.spending'),
-                  description: t('transactions.spendingDescription'),
-                } as const,
-                {
-                  value: 'income',
-                  label: t('transactions.inflow'),
-                  description: t('transactions.inflowDescription'),
-                } as const,
-              ]),
-          ...(!existing
-            ? [
-                {
-                  value: 'transfer',
-                  label: t('transactions.transfer'),
-                  description: t('transactions.transferDescription'),
-                } as const,
-              ]
-            : existingTransfer
+  function renderSelectionOverlay() {
+    if (editor === 'kind') {
+      return (
+        <FullScreenSelectionScreen
+          overlay
+          onBack={closeEditor}
+          onSelect={selectKind}
+          options={[
+            ...(existingTransfer
+              ? []
+              : [
+                  {
+                    value: 'expense',
+                    label: t('transactions.spending'),
+                    description: t('transactions.spendingDescription'),
+                  } as const,
+                  {
+                    value: 'income',
+                    label: t('transactions.inflow'),
+                    description: t('transactions.inflowDescription'),
+                  } as const,
+                ]),
+            ...(!existing
               ? [
                   {
                     value: 'transfer',
@@ -276,264 +279,293 @@ export function TransactionEditorScreen({
                     description: t('transactions.transferDescription'),
                   } as const,
                 ]
-              : []),
-        ]}
-        selectedValue={kind}
-        title={t('transactions.type')}
-      />
-    );
-  }
+              : existingTransfer
+                ? [
+                    {
+                      value: 'transfer',
+                      label: t('transactions.transfer'),
+                      description: t('transactions.transferDescription'),
+                    } as const,
+                  ]
+                : []),
+          ]}
+          selectedValue={kind}
+          title={t('transactions.type')}
+        />
+      );
+    }
 
-  if (editor === 'account') {
-    return (
-      <FullScreenSelectionScreen
-        onBack={() => setEditor(null)}
-        onSelect={setAccountId}
-        options={selectableSourceAccounts
-          .filter(
-            ({ account }) =>
-              kind !== 'transfer' || account.id !== destinationAccountId,
-          )
-          .map(({ account }) => ({ value: account.id, label: account.name }))}
-        selectedValue={accountId}
-        title={t('transactions.chooseAccount')}
-      />
-    );
-  }
+    if (editor === 'account') {
+      return (
+        <FullScreenSelectionScreen
+          overlay
+          onBack={closeEditor}
+          onSelect={setAccountId}
+          options={selectableSourceAccounts
+            .filter(
+              ({ account }) =>
+                kind !== 'transfer' || account.id !== destinationAccountId,
+            )
+            .map(({ account }) => ({ value: account.id, label: account.name }))}
+          selectedValue={accountId}
+          title={t('transactions.chooseAccount')}
+        />
+      );
+    }
 
-  if (editor === 'destination-account') {
-    return (
-      <FullScreenSelectionScreen
-        onBack={() => setEditor(null)}
-        onSelect={setDestinationAccountId}
-        options={availableAccounts
-          .filter(({ account }) => account.id !== accountId)
-          .map(({ account }) => ({ value: account.id, label: account.name }))}
-        selectedValue={destinationAccountId}
-        title={t('transactions.chooseDestinationAccount')}
-      />
-    );
-  }
+    if (editor === 'destination-account') {
+      return (
+        <FullScreenSelectionScreen
+          overlay
+          onBack={closeEditor}
+          onSelect={setDestinationAccountId}
+          options={availableAccounts
+            .filter(({ account }) => account.id !== accountId)
+            .map(({ account }) => ({ value: account.id, label: account.name }))}
+          selectedValue={destinationAccountId}
+          title={t('transactions.chooseDestinationAccount')}
+        />
+      );
+    }
 
-  if (editor === 'category') {
-    return (
-      <FullScreenSelectionScreen
-        onBack={() => setEditor(null)}
-        onSelect={setCategoryId}
-        options={availableCategories.map(({ category, groupName }) => ({
-          value: category.id,
-          label: categoryDisplayName(category, t),
-          description: groupName,
-        }))}
-        selectedValue={categoryId}
-        title={t('transactions.chooseCategory')}
-      />
-    );
-  }
+    if (editor === 'category') {
+      return (
+        <FullScreenSelectionScreen
+          overlay
+          onBack={closeEditor}
+          onSelect={setCategoryId}
+          options={availableCategories.map(({ category, groupName }) => ({
+            value: category.id,
+            label: categoryDisplayName(category, t),
+            description: groupName,
+          }))}
+          selectedValue={categoryId}
+          title={t('transactions.chooseCategory')}
+        />
+      );
+    }
 
-  if (editor === 'payee') {
-    return (
-      <PayeeSelectionScreen
-        onBack={() => setEditor(null)}
-        onSelect={setPayee}
-        payees={payees}
-        selectedPayee={payee || undefined}
-      />
-    );
+    if (editor === 'payee') {
+      return (
+        <PayeeSelectionScreen
+          overlay
+          onBack={closeEditor}
+          onSelect={setPayee}
+          payees={payees}
+          selectedPayee={payee || undefined}
+        />
+      );
+    }
+
+    return null;
   }
 
   return (
-    <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
-      <View style={styles.header}>
-        <Pressable
-          accessibilityLabel={t('common.close')}
-          hitSlop={12}
-          onPress={onDismiss}
-          style={styles.close}
-        >
-          <Text style={styles.closeText}>×</Text>
-        </Pressable>
-        <Text style={styles.headerTitle}>
-          {existing ? t('transactions.edit') : t('transactions.new')}
-        </Text>
-        <View style={styles.headerSpacer} />
-      </View>
-
-      <ScrollView
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-      >
-        <Pressable onPress={() => setKeypadVisible(true)}>
-          <Text
-            accessibilityLabel={t('transactions.amount')}
-            style={styles.amount}
-          >
-            {formatMoney(Money.fromCents(amountCents))}
-          </Text>
-        </Pressable>
-
-        <Pressable onPress={() => openEditor('kind')} style={styles.kindPill}>
-          <MaterialCommunityIcons
-            color={theme.colors.primary}
-            name={
-              kind === 'transfer'
-                ? 'bank-transfer'
-                : kind === 'expense'
-                  ? 'minus-box-outline'
-                  : 'plus-box-outline'
-            }
-            size={22}
-          />
-          <Text style={styles.kindText}>
-            {kind === 'transfer'
-              ? t('transactions.transfer')
-              : kind === 'expense'
-                ? t('transactions.spending')
-                : t('transactions.inflow')}
-          </Text>
-          <Text style={styles.chevron}>⌄</Text>
-        </Pressable>
-
-        <View style={styles.formCard}>
-          {kind !== 'transfer' ? (
-            <FormRow
-              icon="currency-eur"
-              label={payee || t('transactions.choosePayee')}
-              muted={!payee}
-              onPress={() => openEditor('payee')}
-            />
-          ) : null}
-          {kind === 'expense' ? (
-            <FormRow
-              icon="shape-outline"
-              label={categoryName ?? t('transactions.chooseCategory')}
-              muted={!categoryName}
-              onPress={() => openEditor('category')}
-            />
-          ) : null}
-          <FormRow
-            icon="cash"
-            label={accountName}
-            muted={!accountId}
-            onPress={() => openEditor('account')}
-            overline={
-              kind === 'transfer'
-                ? t('transactions.fromAccount')
-                : t('transactions.account')
-            }
-          />
-          {kind === 'transfer' ? (
-            <FormRow
-              icon="bank-transfer-in"
-              label={destinationAccountName}
-              muted={!destinationAccountId}
-              onPress={() => openEditor('destination-account')}
-              overline={t('transactions.toAccount')}
-            />
-          ) : null}
-          <FormRow
-            icon="calendar-outline"
-            label={formatDate(date, language)}
-            onPress={() => openEditor('date')}
-            overline={t('transactions.date')}
-          />
-          {showMore ? (
-            <>
-              <FormRow
-                icon="note-text-outline"
-                label={memo || t('transactions.addMemo')}
-                muted={!memo}
-                onPress={() => openEditor('memo')}
-                overline={memo ? t('transactions.memo') : undefined}
-              />
-              <FormRow
-                icon={cleared ? 'check-circle' : 'circle-outline'}
-                label={
-                  cleared
-                    ? t('transactions.cleared')
-                    : t('transactions.uncleared')
-                }
-                onPress={() => setCleared((current) => !current)}
-                overline={t('transactions.status')}
-              />
-            </>
-          ) : null}
-        </View>
-
-        <Pressable
-          accessibilityState={{ expanded: showMore }}
-          onPress={() => {
-            setKeypadVisible(false);
-            setShowMore((current) => !current);
-          }}
-          style={styles.showMore}
-        >
-          <Text style={styles.showMoreText}>
-            {showMore ? t('transactions.showLess') : t('transactions.showMore')}
-          </Text>
-          <MaterialCommunityIcons
-            color={theme.colors.primary}
-            name={showMore ? 'chevron-up' : 'chevron-down'}
-            size={20}
-          />
-        </Pressable>
-
-        {error ? (
-          <Text accessibilityLiveRegion="polite" style={styles.error}>
-            {error}
-          </Text>
-        ) : null}
-      </ScrollView>
-
-      <View style={[styles.bottomPanel, { paddingBottom: insets.bottom }]}>
-        <View style={styles.actionBar}>
-          <Pressable
-            disabled={submitting || selectableSourceAccounts.length === 0}
-            onPress={() => void submit()}
-            style={[styles.save, submitting && styles.disabled]}
-          >
-            <Text style={styles.saveText}>
-              {submitting ? t('transactions.saving') : `✓  ${t('common.save')}`}
+    <View style={styles.root}>
+      <KeyboardResponsiveScreen>
+        <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
+          <View style={styles.header}>
+            <Pressable
+              accessibilityLabel={t('common.close')}
+              hitSlop={12}
+              onPress={onDismiss}
+              style={styles.close}
+            >
+              <Text style={styles.closeText}>×</Text>
+            </Pressable>
+            <Text style={styles.headerTitle}>
+              {existing ? t('transactions.edit') : t('transactions.new')}
             </Text>
-          </Pressable>
-        </View>
-        {keypadVisible ? (
-          <MoneyKeypad
-            calculator
-            onChange={setAmountCents}
-            onDone={() => setKeypadVisible(false)}
-            valueCents={amountCents}
-          />
-        ) : null}
-      </View>
+            <View style={styles.headerSpacer} />
+          </View>
 
-      {editor === 'date' ? (
-        <NativeDatePicker
-          value={date}
-          onDismiss={() => setEditor(null)}
-          title={t('transactions.chooseDate')}
-          onChange={setDate}
-        />
-      ) : null}
-      {editor === 'memo' ? (
-        <NameInputModal
-          allowEmpty
-          initialValue={memo}
-          label={t('transactions.memo')}
-          multiline
-          placement="center"
-          onDismiss={() => setEditor(null)}
-          onSubmit={async (value) => setMemo(value.trim())}
-          submitLabel={t('transactions.saveMemo')}
-          title={t('transactions.memoTitle')}
-        />
-      ) : null}
-    </SafeAreaView>
+          <ScrollView
+            contentContainerStyle={styles.content}
+            keyboardDismissMode="interactive"
+            keyboardShouldPersistTaps="handled"
+          >
+            <Pressable onPress={() => setKeypadVisible(true)}>
+              <Text
+                accessibilityLabel={t('transactions.amount')}
+                style={styles.amount}
+              >
+                {formatMoney(Money.fromCents(amountCents))}
+              </Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => openEditor('kind')}
+              style={styles.kindPill}
+            >
+              <MaterialCommunityIcons
+                color={theme.colors.primary}
+                name={
+                  kind === 'transfer'
+                    ? 'bank-transfer'
+                    : kind === 'expense'
+                      ? 'minus-box-outline'
+                      : 'plus-box-outline'
+                }
+                size={22}
+              />
+              <Text style={styles.kindText}>
+                {kind === 'transfer'
+                  ? t('transactions.transfer')
+                  : kind === 'expense'
+                    ? t('transactions.spending')
+                    : t('transactions.inflow')}
+              </Text>
+              <Text style={styles.chevron}>⌄</Text>
+            </Pressable>
+
+            <View style={styles.formCard}>
+              {kind !== 'transfer' ? (
+                <FormRow
+                  icon="currency-eur"
+                  label={payee || t('transactions.choosePayee')}
+                  muted={!payee}
+                  onPress={() => openEditor('payee')}
+                />
+              ) : null}
+              {kind === 'expense' ? (
+                <FormRow
+                  icon="shape-outline"
+                  label={categoryName ?? t('transactions.chooseCategory')}
+                  muted={!categoryName}
+                  onPress={() => openEditor('category')}
+                />
+              ) : null}
+              <FormRow
+                icon="cash"
+                label={accountName}
+                muted={!accountId}
+                onPress={() => openEditor('account')}
+                overline={
+                  kind === 'transfer'
+                    ? t('transactions.fromAccount')
+                    : t('transactions.account')
+                }
+              />
+              {kind === 'transfer' ? (
+                <FormRow
+                  icon="bank-transfer-in"
+                  label={destinationAccountName}
+                  muted={!destinationAccountId}
+                  onPress={() => openEditor('destination-account')}
+                  overline={t('transactions.toAccount')}
+                />
+              ) : null}
+              <FormRow
+                icon="calendar-outline"
+                label={formatDate(date, language)}
+                onPress={() => openEditor('date')}
+                overline={t('transactions.date')}
+              />
+              {showMore ? (
+                <>
+                  <FormRow
+                    icon="note-text-outline"
+                    label={memo || t('transactions.addMemo')}
+                    muted={!memo}
+                    onPress={() => openEditor('memo')}
+                    overline={memo ? t('transactions.memo') : undefined}
+                  />
+                  <FormRow
+                    icon={cleared ? 'check-circle' : 'circle-outline'}
+                    label={
+                      cleared
+                        ? t('transactions.cleared')
+                        : t('transactions.uncleared')
+                    }
+                    onPress={() => setCleared((current) => !current)}
+                    overline={t('transactions.status')}
+                  />
+                </>
+              ) : null}
+            </View>
+
+            <Pressable
+              accessibilityState={{ expanded: showMore }}
+              onPress={() => {
+                setKeypadVisible(false);
+                setShowMore((current) => !current);
+              }}
+              style={styles.showMore}
+            >
+              <Text style={styles.showMoreText}>
+                {showMore
+                  ? t('transactions.showLess')
+                  : t('transactions.showMore')}
+              </Text>
+              <MaterialCommunityIcons
+                color={theme.colors.primary}
+                name={showMore ? 'chevron-up' : 'chevron-down'}
+                size={20}
+              />
+            </Pressable>
+
+            {error ? (
+              <Text accessibilityLiveRegion="polite" style={styles.error}>
+                {error}
+              </Text>
+            ) : null}
+          </ScrollView>
+
+          <View style={[styles.bottomPanel, { paddingBottom: insets.bottom }]}>
+            <View style={styles.actionBar}>
+              <Pressable
+                disabled={submitting || selectableSourceAccounts.length === 0}
+                onPress={() => void submit()}
+                style={[styles.save, submitting && styles.disabled]}
+              >
+                <Text style={styles.saveText}>
+                  {submitting
+                    ? t('transactions.saving')
+                    : `✓  ${t('common.save')}`}
+                </Text>
+              </Pressable>
+            </View>
+            {keypadVisible ? (
+              <MoneyKeypad
+                calculator
+                onChange={setAmountCents}
+                onDone={() => setKeypadVisible(false)}
+                valueCents={amountCents}
+              />
+            ) : null}
+          </View>
+
+          {editor === 'date' ? (
+            <NativeDatePicker
+              value={date}
+              onDismiss={closeEditor}
+              title={t('transactions.chooseDate')}
+              onChange={setDate}
+            />
+          ) : null}
+          {editor === 'memo' ? (
+            <NameInputModal
+              allowEmpty
+              initialValue={memo}
+              label={t('transactions.memo')}
+              multiline
+              placement="center"
+              onDismiss={closeEditor}
+              onSubmit={async (value) => setMemo(value.trim())}
+              submitLabel={t('transactions.saveMemo')}
+              title={t('transactions.memoTitle')}
+            />
+          ) : null}
+        </SafeAreaView>
+      </KeyboardResponsiveScreen>
+      {renderSelectionOverlay()}
+    </View>
   );
 }
 
 const createStyles = (theme: AppTheme) =>
   StyleSheet.create({
+    root: { flex: 1, backgroundColor: theme.colors.background },
     safeArea: { flex: 1, backgroundColor: theme.colors.background },
     header: {
       minHeight: 56,

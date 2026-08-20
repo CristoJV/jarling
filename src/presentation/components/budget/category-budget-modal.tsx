@@ -1,5 +1,12 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { BudgetCategoryValues } from '@/domain/services/calculate-budget-month';
 import { Money } from '@/domain/value-objects/money';
@@ -30,16 +37,18 @@ export function CategoryBudgetModal({
   onSave,
 }: CategoryBudgetModalProps) {
   const { t } = useTranslation();
+  const { height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
   const [amountCents, setAmountCents] = useState(values.assigned.cents);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  async function submit() {
+  async function submit(valueCents = amountCents) {
     setSubmitting(true);
     setError(null);
     try {
-      await onSave(amountCents);
+      await onSave(valueCents);
       onDismiss();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : t('form.couldNotSave'));
@@ -50,7 +59,9 @@ export function CategoryBudgetModal({
 
   return (
     <AnimatedBottomSheetModal onDismiss={onDismiss}>
-      <SafeBottomSheet style={styles.sheet}>
+      <SafeBottomSheet
+        style={[styles.sheet, { maxHeight: height - insets.top - 8 }]}
+      >
         <View style={styles.header}>
           <View>
             <Text numberOfLines={1} style={styles.title}>
@@ -62,7 +73,7 @@ export function CategoryBudgetModal({
             <Text style={styles.dismiss}>{t('common.close')}</Text>
           </Pressable>
         </View>
-        <ScrollView contentContainerStyle={styles.content}>
+        <View style={styles.content}>
           <Text style={styles.amountLabel}>
             {t('budget.assigned').toUpperCase()}
           </Text>
@@ -81,7 +92,12 @@ export function CategoryBudgetModal({
             </Pressable>
           </View>
 
-          <MoneyKeypad onChange={setAmountCents} valueCents={amountCents} />
+          <MoneyKeypad
+            calculator
+            onChange={setAmountCents}
+            onDone={(value) => void submit(value)}
+            valueCents={amountCents}
+          />
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <Pressable
             disabled={submitting}
@@ -92,7 +108,7 @@ export function CategoryBudgetModal({
               {submitting ? t('transactions.saving') : t('common.done')}
             </Text>
           </Pressable>
-        </ScrollView>
+        </View>
       </SafeBottomSheet>
     </AnimatedBottomSheetModal>
   );
@@ -101,7 +117,6 @@ export function CategoryBudgetModal({
 const createStyles = (theme: AppTheme) =>
   StyleSheet.create({
     sheet: {
-      maxHeight: '94%',
       backgroundColor: theme.colors.background,
       borderTopLeftRadius: 26,
       borderTopRightRadius: 26,
@@ -124,7 +139,7 @@ const createStyles = (theme: AppTheme) =>
     },
     subtitle: { marginTop: 2, color: theme.colors.textMuted, fontSize: 12 },
     dismiss: { color: theme.colors.primary, fontSize: 14, fontWeight: '700' },
-    content: { padding: 22, alignItems: 'center' },
+    content: { flexShrink: 1, padding: 16, alignItems: 'center' },
     amountLabel: {
       color: theme.colors.textMuted,
       fontSize: 10,
@@ -133,7 +148,7 @@ const createStyles = (theme: AppTheme) =>
     },
     amount: {
       marginTop: 5,
-      marginBottom: 18,
+      marginBottom: 8,
       color: theme.colors.text,
       fontSize: 42,
       fontVariant: ['tabular-nums'],
@@ -142,7 +157,7 @@ const createStyles = (theme: AppTheme) =>
     actions: { width: '100%', flexDirection: 'row', gap: 10 },
     action: {
       flex: 1,
-      minHeight: 66,
+      minHeight: 52,
       backgroundColor: theme.colors.surfaceMuted,
       borderRadius: 17,
       alignItems: 'center',

@@ -1,10 +1,8 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,13 +13,16 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { CategoryDetails } from '@/application/use-cases/categories/get-category-details';
-import type { SetCategoryTargetInput } from '@/application/use-cases/targets/set-category-target';
 import { CATEGORY_NOTES_MAX_LENGTH } from '@/domain/entities/category';
+import { InsufficientReadyToAssignError } from '@/domain/errors/insufficient-ready-to-assign-error';
+import { isProtectedCategory } from '@/domain/policies/system-categories';
 import { Money } from '@/domain/value-objects/money';
 import { NameInputModal } from '@/presentation/components/common/name-input-modal';
-import { TargetEditorModal } from '@/presentation/components/targets/target-editor-modal';
+import { KeyboardResponsiveScreen } from '@/presentation/components/common/keyboard-responsive-screen';
+import { invalidateTransactionReferenceData } from '@/presentation/cache/transaction-reference-data';
 import { useApplication } from '@/presentation/contexts/application-context';
 import { useTranslation } from '@/presentation/localization/localization-provider';
+import { routes } from '@/presentation/navigation/routes';
 import type { AppTheme } from '@/presentation/theme/theme';
 import {
   useAppTheme,
@@ -39,6 +40,13 @@ function currentMonth(): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
 
+function monthName(month: string, language: string): string {
+  const [year, monthNumber] = month.split('-').map(Number);
+  return new Intl.DateTimeFormat(language, { month: 'long' }).format(
+    new Date(year ?? 0, (monthNumber ?? 1) - 1, 1),
+  );
+}
+
 export function CategoryDetailsScreen() {
   const parameters = useLocalSearchParams<{ id?: string; month?: string }>();
   const router = useRouter();
@@ -53,12 +61,14 @@ export function CategoryDetailsScreen() {
   const [details, setDetails] = useState<CategoryDetails | null>(null);
   const [notes, setNotes] = useState('');
   const [renaming, setRenaming] = useState(false);
-  const [editingTarget, setEditingTarget] = useState(false);
   const [loading, setLoading] = useState(true);
   const [assigning, setAssigning] = useState(false);
   const [savingNotes, setSavingNotes] = useState(false);
   const [notesSaved, setNotesSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [shortfall, setShortfall] = useState<
+    Readonly<{ requested: Money; available: Money; missing: Money }> | undefined
+  >();
 
   const load = useCallback(
     async (synchronizeNotes = false) => {
@@ -84,10 +94,12 @@ export function CategoryDetailsScreen() {
     [application, categoryId, month, t],
   );
 
-  useEffect(() => {
-    const handle = setTimeout(() => void load(true), 0);
-    return () => clearTimeout(handle);
-  }, [load]);
+  useFocusEffect(
+    useCallback(() => {
+      const handle = setTimeout(() => void load(true), 0);
+      return () => clearTimeout(handle);
+    }, [load]),
+  );
 
   const displayName = details
     ? categoryDisplayName(details.values.category, t)
@@ -99,6 +111,7 @@ export function CategoryDetailsScreen() {
   async function rename(name: string) {
     try {
       await application.categories.rename.execute(categoryId, name);
+      invalidateTransactionReferenceData();
       await load();
     } catch (cause) {
       throw new Error(domainErrorMessage(cause, t), { cause });
@@ -120,28 +133,11 @@ export function CategoryDetailsScreen() {
     }
   }
 
-  async function saveTarget(input: SetCategoryTargetInput) {
-    try {
-      await application.targets.set.execute(input);
-      await load();
-    } catch (cause) {
-      throw new Error(domainErrorMessage(cause, t), { cause });
-    }
-  }
-
-  async function deleteTarget(id: string) {
-    try {
-      await application.targets.delete.execute(id);
-      await load();
-    } catch (cause) {
-      throw new Error(domainErrorMessage(cause, t), { cause });
-    }
-  }
-
   async function assignRecommended() {
     if (!details?.progress || details.progress.recommended.cents <= 0) return;
     setAssigning(true);
     setError(null);
+    setShortfall(undefined);
     try {
       await application.budget.assign.execute({
         categoryId,
@@ -151,6 +147,13 @@ export function CategoryDetailsScreen() {
       });
       await load();
     } catch (cause) {
+      if (cause instanceof InsufficientReadyToAssignError) {
+        setShortfall({
+          requested: cause.requested,
+          available: cause.available,
+          missing: cause.missing,
+        });
+      }
       setError(domainErrorMessage(cause, t));
     } finally {
       setAssigning(false);
@@ -165,6 +168,7 @@ export function CategoryDetailsScreen() {
         categoryId,
         !details.values.category.hidden,
       );
+      invalidateTransactionReferenceData();
       await load();
     } catch (cause) {
       setError(domainErrorMessage(cause, t));
@@ -208,6 +212,7 @@ export function CategoryDetailsScreen() {
   }
 
   const { values, target, progress } = details;
+  const protectedCategory = isProtectedCategory(values.category.id);
   const needsAssignment = (progress?.recommended.cents ?? 0) > 0;
   const toGo = progress
     ? Money.fromCents(
@@ -221,24 +226,28 @@ export function CategoryDetailsScreen() {
         onBack={() => router.back()}
         title={t('categoryDetails.title')}
       />
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.flex}
-      >
+      <KeyboardResponsiveScreen>
         <ScrollView
           contentContainerStyle={styles.content}
+          keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="handled"
         >
-          <Pressable onPress={() => setRenaming(true)} style={styles.nameCard}>
+          <Pressable
+            disabled={protectedCategory}
+            onPress={() => setRenaming(true)}
+            style={styles.nameCard}
+          >
             <View style={styles.nameCopy}>
               <Text style={styles.eyebrow}>{t('budget.categoryName')}</Text>
               <Text style={styles.categoryName}>{displayName}</Text>
             </View>
-            <MaterialCommunityIcons
-              color={theme.colors.primary}
-              name="pencil-outline"
-              size={23}
-            />
+            {!protectedCategory ? (
+              <MaterialCommunityIcons
+                color={theme.colors.primary}
+                name="pencil-outline"
+                size={23}
+              />
+            ) : null}
           </Pressable>
 
           <View style={styles.balanceCard}>
@@ -251,6 +260,29 @@ export function CategoryDetailsScreen() {
             >
               {formatMoney(values.available)}
             </Text>
+            <View style={styles.balanceBreakdown}>
+              <BalanceRow
+                label={t('categoryDetails.availableFromPrevious')}
+                value={formatMoney(values.availableFromPreviousMonth)}
+              />
+              <BalanceRow
+                label={t('categoryDetails.assignedForMonth', {
+                  month: monthName(month, language),
+                })}
+                value={formatMoney(values.assigned)}
+              />
+              <BalanceRow
+                label={t('categoryDetails.activityInMonth', {
+                  month: monthName(month, language),
+                })}
+                value={formatMoney(values.activity)}
+              />
+              <BalanceRow
+                label={t('budget.available')}
+                value={formatMoney(values.available)}
+                strong
+              />
+            </View>
           </View>
 
           <View style={styles.section}>
@@ -266,7 +298,9 @@ export function CategoryDetailsScreen() {
                   {t('categoryDetails.targetIntro')}
                 </Text>
                 <Pressable
-                  onPress={() => setEditingTarget(true)}
+                  onPress={() =>
+                    router.push(routes.categoryTarget(categoryId, month))
+                  }
                   style={styles.primaryButton}
                 >
                   <Text style={styles.primaryButtonText}>
@@ -334,7 +368,9 @@ export function CategoryDetailsScreen() {
                 </View>
 
                 <Pressable
-                  onPress={() => setEditingTarget(true)}
+                  onPress={() =>
+                    router.push(routes.categoryTarget(categoryId, month))
+                  }
                   style={styles.secondaryButton}
                 >
                   <Text style={styles.secondaryButtonText}>
@@ -388,21 +424,46 @@ export function CategoryDetailsScreen() {
           </View>
 
           {error ? (
-            <Text accessibilityLiveRegion="polite" style={styles.errorText}>
-              {error}
-            </Text>
+            <View style={styles.errorCard}>
+              <Text accessibilityLiveRegion="polite" style={styles.errorText}>
+                {error}
+              </Text>
+              {shortfall ? (
+                <>
+                  <Text style={styles.errorDetails}>
+                    {t('categoryDetails.insufficientFunds', {
+                      requested: formatMoney(shortfall.requested),
+                      available: formatMoney(shortfall.available),
+                      missing: formatMoney(shortfall.missing),
+                    })}
+                  </Text>
+                  <Pressable
+                    onPress={() =>
+                      router.push(routes.moveBudget(month, categoryId))
+                    }
+                    style={styles.errorAction}
+                  >
+                    <Text style={styles.errorActionText}>
+                      {t('budget.moveMoney')}
+                    </Text>
+                  </Pressable>
+                </>
+              ) : null}
+            </View>
           ) : null}
 
-          <Pressable
-            onPress={() => void toggleHidden()}
-            style={styles.hideButton}
-          >
-            <Text style={styles.hideButtonText}>
-              {values.category.hidden ? t('budget.unhide') : t('budget.hide')}
-            </Text>
-          </Pressable>
+          {!protectedCategory ? (
+            <Pressable
+              onPress={() => void toggleHidden()}
+              style={styles.hideButton}
+            >
+              <Text style={styles.hideButtonText}>
+                {values.category.hidden ? t('budget.unhide') : t('budget.hide')}
+              </Text>
+            </Pressable>
+          ) : null}
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardResponsiveScreen>
 
       {renaming ? (
         <NameInputModal
@@ -413,17 +474,6 @@ export function CategoryDetailsScreen() {
           placement="center"
           submitLabel={t('common.save')}
           title={t('budget.renameCategory')}
-        />
-      ) : null}
-
-      {editingTarget ? (
-        <TargetEditorModal
-          categoryId={categoryId}
-          categoryName={displayName}
-          onDelete={deleteTarget}
-          onDismiss={() => setEditingTarget(false)}
-          onSave={saveTarget}
-          target={target}
         />
       ) : null}
     </SafeAreaView>
@@ -499,9 +549,17 @@ function SegmentedProgressCircle({
           />
         </View>
       ))}
-      <Text style={[styles.percentage, { color: activeColor }]}>
-        {percentage}%
-      </Text>
+      {percentage >= 100 ? (
+        <MaterialCommunityIcons
+          color={activeColor}
+          name="check-bold"
+          size={30}
+        />
+      ) : (
+        <Text style={[styles.percentage, { color: activeColor }]}>
+          {percentage}%
+        </Text>
+      )}
     </View>
   );
 }
@@ -519,9 +577,24 @@ function TargetStat({
   );
 }
 
+function BalanceRow({
+  label,
+  value,
+  strong = false,
+}: Readonly<{ label: string; value: string; strong?: boolean }>) {
+  const styles = useThemedStyles(createStyles);
+  return (
+    <View style={styles.balanceRow}>
+      <Text style={styles.balanceLabel}>{label}</Text>
+      <Text style={[styles.balanceRowValue, strong && styles.balanceRowStrong]}>
+        {value}
+      </Text>
+    </View>
+  );
+}
+
 const createStyles = (theme: AppTheme) =>
   StyleSheet.create({
-    flex: { flex: 1 },
     screen: { flex: 1, backgroundColor: theme.colors.background },
     header: {
       minHeight: 64,
@@ -599,6 +672,32 @@ const createStyles = (theme: AppTheme) =>
       fontWeight: '800',
     },
     balanceNegative: { color: theme.colors.negative },
+    balanceBreakdown: {
+      width: '100%',
+      paddingTop: 12,
+      marginTop: 4,
+      borderTopColor: theme.colors.border,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      gap: 10,
+    },
+    balanceRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 14,
+    },
+    balanceLabel: {
+      flex: 1,
+      color: theme.colors.textSecondary,
+      fontSize: 13,
+    },
+    balanceRowValue: {
+      color: theme.colors.text,
+      fontSize: 14,
+      fontVariant: ['tabular-nums'],
+      fontWeight: '700',
+    },
+    balanceRowStrong: { color: theme.colors.primary, fontSize: 16 },
     section: { gap: 10 },
     sectionTitle: {
       paddingHorizontal: 4,
@@ -781,6 +880,25 @@ const createStyles = (theme: AppTheme) =>
       fontSize: 13,
       lineHeight: 19,
       textAlign: 'center',
+    },
+    errorCard: { gap: 10 },
+    errorDetails: {
+      color: theme.colors.textSecondary,
+      fontSize: 13,
+      lineHeight: 19,
+      textAlign: 'center',
+    },
+    errorAction: {
+      minHeight: 46,
+      backgroundColor: theme.colors.primaryMuted,
+      borderRadius: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    errorActionText: {
+      color: theme.colors.primary,
+      fontSize: 14,
+      fontWeight: '800',
     },
     hideButton: {
       minHeight: 50,

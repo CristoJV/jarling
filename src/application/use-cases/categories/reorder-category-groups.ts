@@ -1,6 +1,8 @@
 import type { Clock } from '@/application/ports/clock';
 import type { UnitOfWork } from '@/application/ports/unit-of-work';
 import { CategoryGroupNotFoundError } from '@/domain/errors/category-group-not-found-error';
+import { ProtectedCategoryError } from '@/domain/errors/protected-category-error';
+import { isProtectedCategoryGroup } from '@/domain/policies/system-categories';
 import type { CategoryGroupRepository } from '@/domain/repositories/category-group-repository';
 
 export type ReorderDirection = 'up' | 'down';
@@ -13,6 +15,7 @@ export class ReorderCategoryGroups {
   ) {}
 
   async execute(groupId: string, direction: ReorderDirection): Promise<void> {
+    if (isProtectedCategoryGroup(groupId)) throw new ProtectedCategoryError();
     const groups = [...(await this.groups.findAll())].sort(
       (left, right) => left.sortOrder - right.sortOrder,
     );
@@ -29,6 +32,9 @@ export class ReorderCategoryGroups {
 
     if (!current || !target) {
       return;
+    }
+    if (isProtectedCategoryGroup(target.id)) {
+      throw new ProtectedCategoryError();
     }
 
     const { instant } = this.clock.now();

@@ -1,8 +1,10 @@
 import type { CloseAccount } from '@/application/use-cases/accounts/close-account';
 import type { CreateAccount } from '@/application/use-cases/accounts/create-account';
 import type { GetAccounts } from '@/application/use-cases/accounts/get-accounts';
+import type { GetAccountDetails } from '@/application/use-cases/accounts/get-account-details';
 import type { GetReconciliation } from '@/application/use-cases/accounts/get-reconciliation';
 import type { ReconcileAccount } from '@/application/use-cases/accounts/reconcile-account';
+import type { RenameAccount } from '@/application/use-cases/accounts/rename-account';
 import type { CreateCategoryGroup } from '@/application/use-cases/categories/create-category-group';
 import type { CreateCategory } from '@/application/use-cases/categories/create-category';
 import type { EnsureDefaultCategories } from '@/application/use-cases/categories/ensure-default-categories';
@@ -16,7 +18,7 @@ import type { SetCategoryHidden } from '@/application/use-cases/categories/set-c
 import type { UpdateCategoryNotes } from '@/application/use-cases/categories/update-category-notes';
 import type { AssignBudget } from '@/application/use-cases/budget/assign-budget';
 import type { GetBudgetMonth } from '@/application/use-cases/budget/get-budget-month';
-import type { MoveBudgetBetweenCategories } from '@/application/use-cases/budget/move-budget-between-categories';
+import type { MoveBudget } from '@/application/use-cases/budget/move-budget';
 import type { CreateTransaction } from '@/application/use-cases/transactions/create-transaction';
 import type { DeleteTransaction } from '@/application/use-cases/transactions/delete-transaction';
 import type { GetTransactions } from '@/application/use-cases/transactions/get-transactions';
@@ -40,6 +42,8 @@ export type ApplicationServices = Readonly<{
   accounts: Readonly<{
     create: Pick<CreateAccount, 'execute'>;
     getAll: Pick<GetAccounts, 'execute'>;
+    getDetails: Pick<GetAccountDetails, 'execute'>;
+    rename: Pick<RenameAccount, 'execute'>;
     close: Pick<CloseAccount, 'execute'>;
     getReconciliation: Pick<GetReconciliation, 'execute'>;
     reconcile: Pick<ReconcileAccount, 'execute'>;
@@ -71,7 +75,7 @@ export type ApplicationServices = Readonly<{
   budget: Readonly<{
     getMonth: Pick<GetBudgetMonth, 'execute'>;
     assign: Pick<AssignBudget, 'execute'>;
-    move: Pick<MoveBudgetBetweenCategories, 'execute'>;
+    move: Pick<MoveBudget, 'execute'>;
   }>;
   targets: Readonly<{
     getAll: Pick<GetCategoryTargets, 'execute'>;

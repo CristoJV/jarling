@@ -16,6 +16,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { CreateAccountInput } from '@/application/use-cases/accounts/create-account';
 import type { AccountType } from '@/domain/entities/account';
 import { AccountTypeScreen } from '@/presentation/components/accounts/account-type-screen';
+import { invalidateTransactionReferenceData } from '@/presentation/cache/transaction-reference-data';
+import { KeyboardResponsiveScreen } from '@/presentation/components/common/keyboard-responsive-screen';
 import { MoneyKeypad } from '@/presentation/components/common/money-keypad';
 import { Money } from '@/domain/value-objects/money';
 import { formatMoney } from '@/presentation/utils/money';
@@ -79,6 +81,7 @@ export function CreateAccountScreen() {
         openingBalanceCents,
       };
       await application.accounts.create.execute(input);
+      invalidateTransactionReferenceData();
       resetAndDismiss();
     } catch (cause) {
       setError(domainErrorMessage(cause, t));
@@ -87,139 +90,154 @@ export function CreateAccountScreen() {
     }
   }
 
-  if (selectingType) {
-    return (
-      <AccountTypeScreen
-        onBack={() => setSelectingType(false)}
-        onSelect={(value) => {
-          setType(value);
-          if (value === 'tracking' || value === 'loan') setOnBudget(false);
-          if (value === 'credit_card' || value === 'line_of_credit') {
-            setOnBudget(true);
-          }
-        }}
-        selected={type}
-      />
-    );
-  }
-
   return (
-    <SafeAreaView style={styles.screen}>
-      <View style={styles.header}>
-        <Pressable
-          accessibilityLabel={t('common.back')}
-          accessibilityRole="button"
-          hitSlop={10}
-          onPress={resetAndDismiss}
-          style={styles.back}
-        >
-          <MaterialCommunityIcons
-            color={theme.colors.text}
-            name="arrow-left"
-            size={25}
-          />
-        </Pressable>
-        <Text style={styles.title}>{t('accounts.new')}</Text>
-        <View style={styles.headerSpacer} />
-      </View>
-
-      <ScrollView
-        contentContainerStyle={styles.form}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={styles.field}>
-          <Text style={styles.label}>{t('accounts.name')}</Text>
-          <TextInput
-            accessibilityLabel={t('accounts.name')}
-            autoCapitalize="sentences"
-            autoFocus
-            onChangeText={setName}
-            onFocus={() => setKeypadVisible(false)}
-            placeholder={t('accounts.namePlaceholder')}
-            placeholderTextColor={theme.colors.textMuted}
-            style={styles.input}
-            testID="create-account-name"
-            value={name}
-          />
-        </View>
-
-        <View style={styles.field}>
-          <Text style={styles.label}>{t('accounts.type')}</Text>
-          <Pressable
-            accessibilityLabel={t('accounts.type')}
-            onPress={() => setSelectingType(true)}
-            style={styles.selector}
-          >
-            <Text style={styles.selectorValue}>{typeLabels[type]}</Text>
-            <Text style={styles.selectorArrow}>⌄</Text>
-          </Pressable>
-        </View>
-
-        <View style={styles.field}>
-          <Text style={styles.label}>{t('accounts.openingBalance')}</Text>
-          <Text style={styles.help}>{t('accounts.openingBalanceHelp')}</Text>
-          <Pressable
-            accessibilityLabel={t('accounts.openingBalance')}
-            accessibilityRole="button"
-            onPress={() => {
-              Keyboard.dismiss();
-              setKeypadVisible(true);
-            }}
-          >
-            <Text style={styles.amount}>
-              {formatMoney(Money.fromCents(openingBalanceCents))}
-            </Text>
-          </Pressable>
-          {keypadVisible ? (
-            <MoneyKeypad
-              allowNegative
-              onChange={setOpeningBalanceCents}
-              valueCents={openingBalanceCents}
-            />
-          ) : null}
-        </View>
-
-        <View style={styles.switchRow}>
-          <View style={styles.switchCopy}>
-            <Text style={styles.label}>{t('accounts.includeBudget')}</Text>
-            <Text style={styles.help}>{t('accounts.trackingHelp')}</Text>
+    <View style={styles.root}>
+      <KeyboardResponsiveScreen>
+        <SafeAreaView style={styles.screen}>
+          <View style={styles.header}>
+            <Pressable
+              accessibilityLabel={t('common.back')}
+              accessibilityRole="button"
+              hitSlop={10}
+              onPress={resetAndDismiss}
+              style={styles.back}
+            >
+              <MaterialCommunityIcons
+                color={theme.colors.text}
+                name="arrow-left"
+                size={25}
+              />
+            </Pressable>
+            <Text style={styles.title}>{t('accounts.new')}</Text>
+            <View style={styles.headerSpacer} />
           </View>
-          <Switch
-            disabled={
-              type === 'tracking' ||
-              type === 'loan' ||
-              type === 'credit_card' ||
-              type === 'line_of_credit'
-            }
-            onValueChange={setOnBudget}
-            value={onBudget}
+
+          <ScrollView
+            contentContainerStyle={styles.form}
+            keyboardDismissMode="interactive"
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={styles.field}>
+              <Text style={styles.label}>{t('accounts.name')}</Text>
+              <TextInput
+                accessibilityLabel={t('accounts.name')}
+                autoCapitalize="sentences"
+                autoFocus
+                onChangeText={setName}
+                onFocus={() => setKeypadVisible(false)}
+                placeholder={t('accounts.namePlaceholder')}
+                placeholderTextColor={theme.colors.textMuted}
+                style={styles.input}
+                testID="create-account-name"
+                value={name}
+              />
+            </View>
+
+            <View style={styles.field}>
+              <Text style={styles.label}>{t('accounts.type')}</Text>
+              <Pressable
+                accessibilityLabel={t('accounts.type')}
+                onPress={() => setSelectingType(true)}
+                style={styles.selector}
+              >
+                <Text style={styles.selectorValue}>{typeLabels[type]}</Text>
+                <Text style={styles.selectorArrow}>⌄</Text>
+              </Pressable>
+            </View>
+
+            <View style={styles.field}>
+              <Text style={styles.label}>{t('accounts.openingBalance')}</Text>
+              <Text style={styles.help}>
+                {t('accounts.openingBalanceHelp')}
+              </Text>
+              <Pressable
+                accessibilityLabel={t('accounts.openingBalance')}
+                accessibilityRole="button"
+                onPress={() => {
+                  Keyboard.dismiss();
+                  setKeypadVisible(true);
+                }}
+              >
+                <Text style={styles.amount}>
+                  {formatMoney(Money.fromCents(openingBalanceCents))}
+                </Text>
+              </Pressable>
+              {keypadVisible ? (
+                <MoneyKeypad
+                  allowNegative
+                  onChange={setOpeningBalanceCents}
+                  valueCents={openingBalanceCents}
+                />
+              ) : null}
+            </View>
+
+            <View style={styles.switchRow}>
+              <View style={styles.switchCopy}>
+                <Text style={styles.label}>{t('accounts.includeBudget')}</Text>
+                <Text style={styles.help}>{t('accounts.trackingHelp')}</Text>
+              </View>
+              <Switch
+                disabled={
+                  type === 'tracking' ||
+                  type === 'loan' ||
+                  type === 'credit_card' ||
+                  type === 'line_of_credit'
+                }
+                onValueChange={setOnBudget}
+                value={onBudget}
+              />
+            </View>
+
+            {error ? (
+              <Text accessibilityLiveRegion="polite" style={styles.error}>
+                {error}
+              </Text>
+            ) : null}
+
+            <Pressable
+              accessibilityRole="button"
+              disabled={submitting}
+              onPress={() => void submit()}
+              style={[styles.submit, submitting && styles.submitDisabled]}
+              testID="create-account-submit"
+            >
+              <Text style={styles.submitText}>
+                {submitting ? t('accounts.creating') : t('accounts.create')}
+              </Text>
+            </Pressable>
+          </ScrollView>
+        </SafeAreaView>
+      </KeyboardResponsiveScreen>
+      {selectingType ? (
+        <View style={styles.overlay}>
+          <AccountTypeScreen
+            onBack={() => setSelectingType(false)}
+            onSelect={(value) => {
+              setType(value);
+              if (value === 'tracking' || value === 'loan') setOnBudget(false);
+              if (value === 'credit_card' || value === 'line_of_credit') {
+                setOnBudget(true);
+              }
+            }}
+            selected={type}
           />
         </View>
-
-        {error ? (
-          <Text accessibilityLiveRegion="polite" style={styles.error}>
-            {error}
-          </Text>
-        ) : null}
-
-        <Pressable
-          accessibilityRole="button"
-          disabled={submitting}
-          onPress={() => void submit()}
-          style={[styles.submit, submitting && styles.submitDisabled]}
-          testID="create-account-submit"
-        >
-          <Text style={styles.submitText}>
-            {submitting ? t('accounts.creating') : t('accounts.create')}
-          </Text>
-        </Pressable>
-      </ScrollView>
-    </SafeAreaView>
+      ) : null}
+    </View>
   );
 }
 
 const createStyles = (theme: AppTheme) =>
   StyleSheet.create({
+    root: { flex: 1, backgroundColor: theme.colors.background },
+    overlay: {
+      position: 'absolute',
+      top: 0,
+      right: 0,
+      bottom: 0,
+      left: 0,
+      zIndex: 10,
+    },
     screen: { flex: 1, backgroundColor: theme.colors.background },
     header: {
       minHeight: 68,

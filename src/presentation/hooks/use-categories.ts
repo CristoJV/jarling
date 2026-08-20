@@ -6,6 +6,7 @@ import type { ReorderDirection } from '@/application/use-cases/categories/reorde
 import { useApplication } from '@/presentation/contexts/application-context';
 import { useTranslation } from '@/presentation/localization/localization-provider';
 import { domainErrorMessage } from '@/presentation/utils/domain-error-message';
+import { invalidateTransactionReferenceData } from '@/presentation/cache/transaction-reference-data';
 
 export function useCategories() {
   const application = useApplication();
@@ -60,6 +61,7 @@ export function useCategories() {
 
       try {
         await operation();
+        invalidateTransactionReferenceData();
         await refresh();
       } catch (cause) {
         const message = domainErrorMessage(cause, t);

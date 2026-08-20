@@ -1,8 +1,6 @@
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -13,13 +11,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AccountRow } from '@/presentation/components/accounts/account-row';
-import { ReconciliationScreen } from '@/presentation/components/accounts/reconciliation-screen';
 import { OverflowMenu } from '@/presentation/components/common/overflow-menu';
-import { SelectionModal } from '@/presentation/components/common/selection-modal';
 import { useAccounts } from '@/presentation/hooks/use-accounts';
+import { routes } from '@/presentation/navigation/routes';
 import { formatMoney } from '@/presentation/utils/money';
-import type { AccountSummary } from '@/application/use-cases/accounts/get-accounts';
-import type { ReconciliationPreview } from '@/application/use-cases/accounts/get-reconciliation';
 import { useTranslation } from '@/presentation/localization/localization-provider';
 import type { AppTheme } from '@/presentation/theme/theme';
 import {
@@ -32,44 +27,7 @@ export function AccountsScreen() {
   const { t } = useTranslation();
   const theme = useAppTheme();
   const styles = useThemedStyles(createStyles);
-  const {
-    overview,
-    error,
-    loading,
-    refresh,
-    closeAccount,
-    getReconciliation,
-    reconcile,
-  } = useAccounts();
-  const [selectedAccount, setSelectedAccount] = useState<AccountSummary | null>(
-    null,
-  );
-  const [reconciliation, setReconciliation] =
-    useState<ReconciliationPreview | null>(null);
-
-  function confirmClose(accountId: string, accountName: string) {
-    Alert.alert(
-      t('accounts.close'),
-      t('accounts.closeDescription', { name: accountName }),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('accounts.close'),
-          style: 'destructive',
-          onPress: () => void closeAccount(accountId),
-        },
-      ],
-    );
-  }
-
-  async function openReconciliation(accountId: string) {
-    setSelectedAccount(null);
-    try {
-      setReconciliation(await getReconciliation(accountId));
-    } catch {
-      // The hook exposes the translated error in the screen.
-    }
-  }
+  const { overview, error, loading, refresh } = useAccounts();
 
   return (
     <SafeAreaView
@@ -84,7 +42,7 @@ export function AccountsScreen() {
             accessibilityLabel={t('accounts.add')}
             accessibilityRole="button"
             hitSlop={8}
-            onPress={() => router.push('/account')}
+            onPress={() => router.push(routes.newAccount())}
             style={styles.addButton}
             testID="add-account"
           >
@@ -132,7 +90,7 @@ export function AccountsScreen() {
               {t('accounts.emptyHint')}
             </Text>
             <Pressable
-              onPress={() => router.push('/account')}
+              onPress={() => router.push(routes.newAccount())}
               style={styles.emptyAction}
               testID="create-first-account"
             >
@@ -146,47 +104,11 @@ export function AccountsScreen() {
         {overview?.accounts.map((summary) => (
           <AccountRow
             key={summary.account.id}
-            onPress={() => setSelectedAccount(summary)}
+            onPress={() => router.push(routes.account(summary.account.id))}
             summary={summary}
           />
         ))}
       </ScrollView>
-
-      {selectedAccount ? (
-        <SelectionModal
-          onDismiss={() => setSelectedAccount(null)}
-          onSelect={(action) => {
-            if (action === 'reconcile') {
-              void openReconciliation(selectedAccount.account.id);
-            } else {
-              confirmClose(
-                selectedAccount.account.id,
-                selectedAccount.account.name,
-              );
-            }
-          }}
-          options={[
-            {
-              value: 'reconcile',
-              label: t('accounts.reconcile'),
-              description: t('accounts.reconcileDescription'),
-            },
-            {
-              value: 'close',
-              label: t('accounts.close'),
-              description: t('accounts.closeHistoryDescription'),
-            },
-          ]}
-          title={selectedAccount.account.name}
-        />
-      ) : null}
-      {reconciliation ? (
-        <ReconciliationScreen
-          onDismiss={() => setReconciliation(null)}
-          onReconcile={reconcile}
-          preview={reconciliation}
-        />
-      ) : null}
     </SafeAreaView>
   );
 }

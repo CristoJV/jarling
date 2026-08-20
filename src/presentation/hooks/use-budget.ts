@@ -2,6 +2,7 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 
 import type { BudgetMonthValues } from '@/domain/services/calculate-budget-month';
+import type { BudgetLocation } from '@/application/use-cases/budget/move-budget';
 import { useApplication } from '@/presentation/contexts/application-context';
 import { useTranslation } from '@/presentation/localization/localization-provider';
 import { domainErrorMessage } from '@/presentation/utils/domain-error-message';
@@ -70,15 +71,15 @@ export function useBudget(month: string) {
 
   const move = useCallback(
     async (
-      sourceCategoryId: string,
-      targetCategoryId: string,
+      source: BudgetLocation,
+      target: BudgetLocation,
       amountCents: number,
     ) => {
       setError(null);
       try {
         await application.budget.move.execute({
-          sourceCategoryId,
-          targetCategoryId,
+          source,
+          target,
           month,
           amountCents,
         });

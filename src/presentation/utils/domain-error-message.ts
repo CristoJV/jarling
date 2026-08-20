@@ -8,6 +8,7 @@ import { CannotModifyReconciledTransactionError } from '@/domain/errors/cannot-m
 import { CategoryRequiredForExpenseError } from '@/domain/errors/category-required-for-expense-error';
 import { ClosedAccountError } from '@/domain/errors/closed-account-error';
 import { InsufficientReadyToAssignError } from '@/domain/errors/insufficient-ready-to-assign-error';
+import { ProtectedCategoryError } from '@/domain/errors/protected-category-error';
 import { InsufficientCategoryAvailableError } from '@/domain/errors/insufficient-category-available-error';
 import { InvalidBudgetMoveError } from '@/domain/errors/invalid-budget-move-error';
 import { InvalidAccountNameError } from '@/domain/errors/invalid-account-name-error';
@@ -103,6 +104,9 @@ export function domainErrorMessage(error: unknown, t: Translate): string {
 
   if (error instanceof InsufficientReadyToAssignError) {
     return t('errors.insufficientReadyToAssign');
+  }
+  if (error instanceof ProtectedCategoryError) {
+    return t('errors.protectedCategory');
   }
 
   if (error instanceof InsufficientCategoryAvailableError) {

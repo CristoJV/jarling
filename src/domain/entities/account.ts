@@ -68,3 +68,13 @@ export function closeAccount(account: Account, updatedAt: string): Account {
     updatedAt,
   };
 }
+
+export function renameAccount(
+  account: Account,
+  name: string,
+  updatedAt: string,
+): Account {
+  const normalized = name.trim();
+  if (!normalized) throw new InvalidAccountNameError();
+  return { ...account, name: normalized, updatedAt };
+}

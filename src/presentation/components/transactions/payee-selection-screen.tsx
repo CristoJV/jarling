@@ -2,7 +2,6 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
-  InteractionManager,
   Pressable,
   StyleSheet,
   Text,
@@ -23,6 +22,7 @@ type PayeeSelectionScreenProps = Readonly<{
   selectedPayee?: string;
   onSelect: (payee: string) => void;
   onBack: () => void;
+  overlay?: boolean;
 }>;
 
 export function PayeeSelectionScreen({
@@ -30,6 +30,7 @@ export function PayeeSelectionScreen({
   selectedPayee,
   onSelect,
   onBack,
+  overlay = false,
 }: PayeeSelectionScreenProps) {
   const { language, t } = useTranslation();
   const theme = useAppTheme();
@@ -52,10 +53,8 @@ export function PayeeSelectionScreen({
   );
 
   useEffect(() => {
-    const interaction = InteractionManager.runAfterInteractions(() =>
-      inputRef.current?.focus(),
-    );
-    return () => interaction.cancel();
+    const frame = requestAnimationFrame(() => inputRef.current?.focus());
+    return () => cancelAnimationFrame(frame);
   }, []);
 
   function choose(payee: string, goBack: () => void) {
@@ -64,7 +63,7 @@ export function PayeeSelectionScreen({
   }
 
   return (
-    <AnimatedFlowScreen onBack={onBack}>
+    <AnimatedFlowScreen onBack={onBack} overlay={overlay}>
       {(goBack) => (
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.header}>
@@ -101,6 +100,8 @@ export function PayeeSelectionScreen({
             />
           </View>
           <FlatList
+            automaticallyAdjustKeyboardInsets
+            keyboardDismissMode="on-drag"
             contentContainerStyle={styles.content}
             data={visible}
             keyboardShouldPersistTaps="handled"

@@ -22,6 +22,10 @@ import {
   useThemedStyles,
 } from '@/presentation/theme/theme-provider';
 import { domainErrorMessage } from '@/presentation/utils/domain-error-message';
+import {
+  getTransactionReferenceData,
+  invalidateTransactionReferenceData,
+} from '@/presentation/cache/transaction-reference-data';
 
 import { TransactionEditorScreen } from './transaction-editor-screen';
 
@@ -50,9 +54,8 @@ export function TransactionFlowScreen() {
     async function load() {
       setError(null);
       try {
-        const [accounts, categoryGroups, transaction] = await Promise.all([
-          application.accounts.getAll.execute(),
-          application.categories.getGroups.execute(),
+        const [referenceData, transaction] = await Promise.all([
+          getTransactionReferenceData(application),
           id ? application.transactions.getById.execute(id) : null,
         ]);
         if (id && !transaction) throw new Error('Transaction not found.');
@@ -72,22 +75,10 @@ export function TransactionFlowScreen() {
             : undefined;
         if (active) {
           setData({
-            accounts,
-            categoryGroups,
-            payees: [],
+            ...referenceData,
             ...(transaction ? { transaction } : {}),
             ...(linkedTransaction ? { linkedTransaction } : {}),
           });
-          void application.transactions.getPayees.execute().then(
-            (payees) => {
-              if (active) {
-                setData((current) =>
-                  current ? { ...current, payees } : current,
-                );
-              }
-            },
-            () => undefined,
-          );
         }
       } catch (cause) {
         if (active) setError(domainErrorMessage(cause, t));
@@ -122,6 +113,7 @@ export function TransactionFlowScreen() {
         } else {
           await application.transactions.create.execute(input);
         }
+        invalidateTransactionReferenceData();
       } catch (cause) {
         throw new Error(domainErrorMessage(cause, t), { cause });
       }

@@ -11,6 +11,8 @@ import {
 } from 'react-native';
 
 import { useAppTheme } from '@/presentation/theme/theme-provider';
+import { motion } from '@/presentation/motion/motion';
+import { useReducedMotion } from '@/presentation/motion/use-reduced-motion';
 
 type Props = PropsWithChildren<
   Readonly<{
@@ -29,6 +31,7 @@ export function ModalScaffold({
   keyboardAvoiding = false,
 }: Props) {
   const theme = useAppTheme();
+  const reducedMotion = useReducedMotion();
   const [progress] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
@@ -36,16 +39,19 @@ export function ModalScaffold({
     progress.setValue(0);
     Animated.timing(progress, {
       toValue: 1,
-      duration: placement === 'bottom' ? 260 : 220,
+      duration: reducedMotion
+        ? 0
+        : placement === 'bottom'
+          ? motion.bottomSheet
+          : motion.dialog,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: Platform.OS !== 'web',
     }).start();
-  }, [placement, progress, visible]);
+  }, [placement, progress, reducedMotion, visible]);
 
   return (
     <Modal
       animationType="none"
-      navigationBarTranslucent
       onRequestClose={onDismiss}
       statusBarTranslucent
       transparent
@@ -61,11 +67,7 @@ export function ModalScaffold({
       <Pressable onPress={onDismiss} style={StyleSheet.absoluteFill} />
       <KeyboardAvoidingView
         behavior={
-          keyboardAvoiding
-            ? Platform.OS === 'ios'
-              ? 'padding'
-              : 'height'
-            : undefined
+          keyboardAvoiding && Platform.OS === 'ios' ? 'padding' : undefined
         }
         pointerEvents="box-none"
         style={[

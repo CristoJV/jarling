@@ -16,6 +16,11 @@
 | 7     | Reconciliation                                                      | Completada  |
 | 8     | Reports                                                             | Completada  |
 
+El siguiente bloque de trabajo se desarrolla en el
+[plan de mejoras de interacción, presupuesto y cuentas](interaction-budget-accounts-plan.md).
+Se mantiene separado de las fases funcionales ya completadas para poder
+ejecutarlo y validarlo de forma incremental.
+
 Importación CSV/QIF/OFX/CAMT, conexión bancaria, Scheduled Transactions, Payees
 como entidad persistida, sincronización y cloud quedan fuera de la primera
 release. La implementación CSV se conserva únicamente en

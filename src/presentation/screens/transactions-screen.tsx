@@ -20,7 +20,9 @@ import type { TransactionSummary } from '@/application/use-cases/transactions/ge
 import { OverflowMenu } from '@/presentation/components/common/overflow-menu';
 import { TransactionRow } from '@/presentation/components/transactions/transaction-row';
 import { useTransactions } from '@/presentation/hooks/use-transactions';
+import { usePrefetchTransactionReferenceData } from '@/presentation/hooks/use-prefetch-transaction-reference-data';
 import { useTranslation } from '@/presentation/localization/localization-provider';
+import { routes } from '@/presentation/navigation/routes';
 import type { AppTheme } from '@/presentation/theme/theme';
 import {
   useAppTheme,
@@ -34,6 +36,7 @@ import {
 import { categoryDisplayName } from '@/presentation/utils/category-name';
 
 export function TransactionsScreen() {
+  usePrefetchTransactionReferenceData();
   const router = useRouter();
   const { t } = useTranslation();
   const theme = useAppTheme();
@@ -122,10 +125,7 @@ export function TransactionsScreen() {
       );
       return;
     }
-    router.push({
-      pathname: '/transaction',
-      params: { id: summary.transaction.id },
-    });
+    router.push(routes.transaction(summary.transaction.id));
   }
 
   const categories =
@@ -278,6 +278,8 @@ export function TransactionsScreen() {
       </View>
 
       <FlatList
+        automaticallyAdjustKeyboardInsets
+        keyboardDismissMode="on-drag"
         contentContainerStyle={styles.content}
         data={data?.transactions ?? []}
         keyExtractor={(summary) => summary.transaction.id}
@@ -325,7 +327,7 @@ export function TransactionsScreen() {
       <Pressable
         accessibilityLabel={t('transactions.add')}
         accessibilityRole="button"
-        onPress={() => router.push('/transaction')}
+        onPress={() => router.push(routes.newTransaction())}
         style={styles.fab}
       >
         <Text style={styles.fabText}>+ {t('budget.addTransaction')}</Text>

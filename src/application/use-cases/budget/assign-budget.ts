@@ -46,7 +46,10 @@ export class AssignBudget {
       const difference = amount.cents - (current?.amount.cents ?? 0);
 
       if (difference > 0 && difference > budget.readyToAssign.cents) {
-        throw new InsufficientReadyToAssignError();
+        throw new InsufficientReadyToAssignError(
+          Money.fromCents(difference),
+          budget.readyToAssign,
+        );
       }
 
       const { instant } = this.clock.now();

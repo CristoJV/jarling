@@ -5,7 +5,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { ReconciliationPreview } from '@/application/use-cases/accounts/get-reconciliation';
 import type { ReconcileAccountInput } from '@/application/use-cases/accounts/reconcile-account';
 import { Money } from '@/domain/value-objects/money';
-import { FullScreenModal } from '@/presentation/components/common/full-screen-modal';
 import { MoneyKeypad } from '@/presentation/components/common/money-keypad';
 import { formatMoney } from '@/presentation/utils/money';
 import { useTranslation } from '@/presentation/localization/localization-provider';
@@ -72,68 +71,66 @@ export function ReconciliationScreen({
   }
 
   return (
-    <FullScreenModal onRequestClose={onDismiss}>
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.header}>
-          <Pressable hitSlop={10} onPress={onDismiss}>
-            <Text style={styles.back}>‹</Text>
-          </Pressable>
-          <Text numberOfLines={1} style={styles.title}>
-            {t('reconciliation.title', { name: preview.account.name })}
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.header}>
+        <Pressable hitSlop={10} onPress={onDismiss}>
+          <Text style={styles.back}>‹</Text>
+        </Pressable>
+        <Text numberOfLines={1} style={styles.title}>
+          {t('reconciliation.title', { name: preview.account.name })}
+        </Text>
+        <View style={styles.spacer} />
+      </View>
+
+      <View style={styles.content}>
+        <Text style={styles.question}>{t('reconciliation.question')}</Text>
+        <Text style={styles.help}>{t('reconciliation.help')}</Text>
+        <Text style={styles.amount}>
+          {formatMoney(Money.fromCents(actualBalanceCents))}
+        </Text>
+
+        <View style={styles.summary}>
+          <SummaryRow
+            label={t('reconciliation.clearedBalance')}
+            value={formatMoney(preview.clearedBalance)}
+          />
+          <SummaryRow
+            label={t('reconciliation.workingBalance')}
+            value={formatMoney(preview.workingBalance)}
+          />
+          <SummaryRow
+            label={t('reconciliation.difference')}
+            strong
+            value={formatMoney(Money.fromCents(differenceCents))}
+          />
+          <Text style={styles.counts}>
+            {t('reconciliation.counts', {
+              cleared: preview.clearedCount,
+              pending: preview.unclearedCount,
+            })}
           </Text>
-          <View style={styles.spacer} />
         </View>
 
-        <View style={styles.content}>
-          <Text style={styles.question}>{t('reconciliation.question')}</Text>
-          <Text style={styles.help}>{t('reconciliation.help')}</Text>
-          <Text style={styles.amount}>
-            {formatMoney(Money.fromCents(actualBalanceCents))}
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+        <Pressable
+          disabled={submitting}
+          onPress={submit}
+          style={[styles.reconcile, submitting && styles.disabled]}
+        >
+          <Text style={styles.reconcileText}>
+            {differenceCents === 0
+              ? t('reconciliation.finish')
+              : t('reconciliation.adjust')}
           </Text>
+        </Pressable>
+      </View>
 
-          <View style={styles.summary}>
-            <SummaryRow
-              label={t('reconciliation.clearedBalance')}
-              value={formatMoney(preview.clearedBalance)}
-            />
-            <SummaryRow
-              label={t('reconciliation.workingBalance')}
-              value={formatMoney(preview.workingBalance)}
-            />
-            <SummaryRow
-              label={t('reconciliation.difference')}
-              strong
-              value={formatMoney(Money.fromCents(differenceCents))}
-            />
-            <Text style={styles.counts}>
-              {t('reconciliation.counts', {
-                cleared: preview.clearedCount,
-                pending: preview.unclearedCount,
-              })}
-            </Text>
-          </View>
-
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-          <Pressable
-            disabled={submitting}
-            onPress={submit}
-            style={[styles.reconcile, submitting && styles.disabled]}
-          >
-            <Text style={styles.reconcileText}>
-              {differenceCents === 0
-                ? t('reconciliation.finish')
-                : t('reconciliation.adjust')}
-            </Text>
-          </Pressable>
-        </View>
-
-        <MoneyKeypad
-          allowNegative
-          onChange={setActualBalanceCents}
-          valueCents={actualBalanceCents}
-        />
-      </SafeAreaView>
-    </FullScreenModal>
+      <MoneyKeypad
+        allowNegative
+        onChange={setActualBalanceCents}
+        valueCents={actualBalanceCents}
+      />
+    </SafeAreaView>
   );
 }
 

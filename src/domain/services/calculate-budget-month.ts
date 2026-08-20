@@ -9,6 +9,7 @@ import { calculateCreditCardPaymentState } from '@/domain/services/calculate-cre
 
 export type BudgetCategoryValues = Readonly<{
   category: Category;
+  availableFromPreviousMonth: Money;
   assigned: Money;
   activity: Money;
   available: Money;
@@ -96,30 +97,36 @@ export function calculateBudgetMonth(
             ? (cardFunding.currentByAccount.get(category.linkedAccountId) ?? 0)
             : 0;
 
-          return {
-            category,
-            assigned: Money.fromCents(
-              categoryAllocations
-                .filter((allocation) => allocation.month === input.month)
-                .reduce((sum, allocation) => sum + allocation.amount.cents, 0),
-            ),
-            activity: Money.fromCents(
-              currentMonthTransactions.reduce(
+          const assigned = Money.fromCents(
+            categoryAllocations
+              .filter((allocation) => allocation.month === input.month)
+              .reduce((sum, allocation) => sum + allocation.amount.cents, 0),
+          );
+          const activity = Money.fromCents(
+            currentMonthTransactions.reduce(
+              (sum, transaction) => sum + transaction.amount.cents,
+              0,
+            ) + currentCreditCardActivity,
+          );
+          const available = Money.fromCents(
+            categoryAllocations.reduce(
+              (sum, allocation) => sum + allocation.amount.cents,
+              0,
+            ) +
+              categoryTransactions.reduce(
                 (sum, transaction) => sum + transaction.amount.cents,
                 0,
-              ) + currentCreditCardActivity,
-            ),
-            available: Money.fromCents(
-              categoryAllocations.reduce(
-                (sum, allocation) => sum + allocation.amount.cents,
-                0,
               ) +
-                categoryTransactions.reduce(
-                  (sum, transaction) => sum + transaction.amount.cents,
-                  0,
-                ) +
-                creditCardActivity,
+              creditCardActivity,
+          );
+          return {
+            category,
+            availableFromPreviousMonth: Money.fromCents(
+              available.cents - assigned.cents - activity.cents,
             ),
+            assigned,
+            activity,
+            available,
             spendingTransactions: category.linkedAccountId
               ? []
               : currentMonthTransactions

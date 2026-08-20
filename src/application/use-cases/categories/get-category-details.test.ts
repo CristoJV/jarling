@@ -16,6 +16,7 @@ const values = {
     createdAt: '2026-07-01T10:00:00.000Z',
     updatedAt: '2026-07-01T10:00:00.000Z',
   },
+  availableFromPreviousMonth: Money.zero(),
   assigned: Money.fromCents(20_000),
   activity: Money.zero(),
   available: Money.fromCents(20_000),
