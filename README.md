@@ -115,7 +115,9 @@ migration runner starts with the first post-release schema change. The first
 release deliberately excludes CSV import, bank connectivity, cloud sync, and
 scheduled transactions.
 
-- [Application plan](docs/application-plan.md)
+- [Documentation index](docs/README.md)
+- [Product specification](docs/product-specification.md)
+- [Interaction design](docs/interaction-design.md)
 - [Architecture decisions](docs/adr/README.md)
 - [First-release checklist](docs/release-checklist.md)
 - [Privacy and data protection](docs/privacy.md)

@@ -35,7 +35,6 @@ npm run export:ios
 - [x] Android, iOS, and web JavaScript bundles are produced in CI.
 - [ ] CI is green on the exact release commit.
 - [ ] Production Android AAB succeeds on the EAS SDK 57 image.
-- [ ] Production iOS archive succeeds on the EAS SDK 57 image.
 
 `npm audit` currently reports high/moderate findings in Expo's Metro/build
 toolchain (`image-size` and `uuid`). npm proposes a forced downgrade to Expo 53,
@@ -54,7 +53,8 @@ patches and upstream advisories must be reviewed before every candidate build.
 - [ ] On a release build, create data, force-close the app, reopen it, and
       verify balances and settings.
 - [ ] Export JSON, create an encrypted `.jarling` backup, delete the plan,
-      restore the backup, and compare balances, targets, links, and settings.
+      restore the backup, and compare balances, targets, links, settings, and a
+      categorized credit-card payment transfer.
 - [ ] Repeat restoration with a wrong password and a malformed/oversized file.
 
 ## Device acceptance matrix

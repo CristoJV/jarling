@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { calculateBudgetCategoryTargetProgress } from '@/domain/services/calculate-target-progress';
-import { EditBudgetModal } from '@/presentation/components/budget/edit-budget-modal';
+import { EditBudgetView } from '@/presentation/components/budget/edit-budget-view';
 import { NameInputModal } from '@/presentation/components/common/name-input-modal';
 import { useBudget } from '@/presentation/hooks/use-budget';
 import { useCategories } from '@/presentation/hooks/use-categories';
@@ -87,7 +87,7 @@ export function EditBudgetScreen() {
 
   return (
     <View style={styles.screen}>
-      <EditBudgetModal
+      <EditBudgetView
         groups={groups}
         monthLabel={formatMonth(month, language)}
         onAddCategory={(groupId) =>

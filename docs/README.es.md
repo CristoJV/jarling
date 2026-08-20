@@ -117,7 +117,9 @@ partir del primer cambio de esquema posterior a la publicación. La primera
 release excluye deliberadamente importación CSV, conexión bancaria,
 sincronización cloud y transacciones programadas.
 
-- [Plan de la aplicación](application-plan.md)
+- [Índice de documentación](README.md)
+- [Especificación del producto](product-specification.md)
+- [Diseño de interacción](interaction-design.md)
 - [Decisiones de arquitectura](adr/README.md)
 - [Checklist de la primera release](release-checklist.md)
 - [Privacidad y protección de datos](privacy.md)

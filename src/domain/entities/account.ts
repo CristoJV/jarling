@@ -14,7 +14,7 @@ export type AccountType = (typeof ACCOUNT_TYPES)[number];
 
 export type AccountClass = 'cash' | 'credit' | 'tracking';
 
-export function accountClassFor(type: AccountType): AccountClass {
+function accountClassFor(type: AccountType): AccountClass {
   if (type === 'credit_card' || type === 'line_of_credit') return 'credit';
   if (type === 'tracking' || type === 'loan') return 'tracking';
   return 'cash';

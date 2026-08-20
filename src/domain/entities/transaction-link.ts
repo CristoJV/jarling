@@ -1,4 +1,4 @@
-export const TRANSACTION_LINK_TYPES = ['related', 'bizum'] as const;
+const TRANSACTION_LINK_TYPES = ['related', 'bizum'] as const;
 export type TransactionLinkType = (typeof TRANSACTION_LINK_TYPES)[number];
 
 export type TransactionLink = Readonly<{

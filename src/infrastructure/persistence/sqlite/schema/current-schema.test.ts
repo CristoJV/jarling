@@ -52,6 +52,7 @@ describe('current database schema', () => {
     expect(currentSchema.up).toContain(
       "CHECK (kind <> 'standard' OR amount >= 0 OR category_id IS NOT NULL)",
     );
+    expect(currentSchema.up).toContain("OR (kind = 'transfer' AND amount < 0)");
     expect(currentSchema.up).toContain('transactions_account_date_idx');
     expect(currentSchema.up).toContain('transactions_category_date_idx');
     expect(currentSchema.up).toContain('transactions_payee_search_idx');

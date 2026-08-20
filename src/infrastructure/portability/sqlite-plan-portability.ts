@@ -240,6 +240,7 @@ function nullableString(row: DataRow, field: string): string | undefined {
 function validateSnapshotSemantics(snapshot: PlanSnapshot): void {
   const accountIds = new Set<string>();
   const accountTypes = new Map<string, string>();
+  const accountBudgetState = new Map<string, boolean>();
   for (const row of snapshot.tables.accounts) {
     const id = requiredText(row, 'id');
     const type = requiredText(row, 'type');
@@ -254,6 +255,7 @@ function validateSnapshotSemantics(snapshot: PlanSnapshot): void {
     }
     accountIds.add(id);
     accountTypes.set(id, type);
+    accountBudgetState.set(id, integer(row, 'on_budget') === 1);
   }
 
   const groupIds = new Set<string>();
@@ -265,6 +267,7 @@ function validateSnapshotSemantics(snapshot: PlanSnapshot): void {
   }
 
   const categoryIds = new Set<string>();
+  const linkedAccountByCategoryId = new Map<string, string>();
   for (const row of snapshot.tables.categories) {
     const id = requiredText(row, 'id');
     const groupId = requiredText(row, 'group_id');
@@ -288,12 +291,19 @@ function validateSnapshotSemantics(snapshot: PlanSnapshot): void {
       throw new Error('The backup contains invalid category notes.');
     }
     categoryIds.add(id);
+    if (linkedAccountId) {
+      linkedAccountByCategoryId.set(id, linkedAccountId);
+    }
   }
 
   const transactionIds = new Set<string>();
   const transferGroups = new Map<
     string,
-    Readonly<{ accountId: string; amount: number }>[]
+    Readonly<{
+      accountId: string;
+      amount: number;
+      categoryId?: string;
+    }>[]
   >();
   for (const row of snapshot.tables.transactions) {
     const id = requiredText(row, 'id');
@@ -315,7 +325,9 @@ function validateSnapshotSemantics(snapshot: PlanSnapshot): void {
       throw new Error('The backup contains an invalid transaction.');
     }
     if (
-      (kind !== 'standard' && categoryId !== undefined) ||
+      (categoryId !== undefined &&
+        kind !== 'standard' &&
+        !(kind === 'transfer' && amount < 0)) ||
       (kind === 'standard' && amount < 0 && categoryId === undefined)
     ) {
       throw new Error('The backup contains an invalid transaction category.');
@@ -324,7 +336,11 @@ function validateSnapshotSemantics(snapshot: PlanSnapshot): void {
       if (!groupId) throw new Error('A transfer is missing its group.');
       transferGroups.set(groupId, [
         ...(transferGroups.get(groupId) ?? []),
-        { accountId, amount },
+        {
+          accountId,
+          amount,
+          ...(categoryId ? { categoryId } : {}),
+        },
       ]);
     } else if (groupId) {
       throw new Error('Only transfers may own a transaction group.');
@@ -332,12 +348,24 @@ function validateSnapshotSemantics(snapshot: PlanSnapshot): void {
     transactionIds.add(id);
   }
   for (const legs of transferGroups.values()) {
+    const source = legs.find(({ amount }) => amount < 0);
+    const destination = legs.find(({ amount }) => amount > 0);
     if (
       legs.length !== 2 ||
       legs[0]?.accountId === legs[1]?.accountId ||
-      legs.reduce((sum, leg) => sum + leg.amount, 0) !== 0
+      legs.reduce((sum, leg) => sum + leg.amount, 0) !== 0 ||
+      !source ||
+      !destination
     ) {
       throw new Error('The backup contains an unbalanced transfer.');
+    }
+    if (
+      source.categoryId &&
+      (linkedAccountByCategoryId.get(source.categoryId) !==
+        destination.accountId ||
+        accountBudgetState.get(source.accountId) !== true)
+    ) {
+      throw new Error('The backup contains an invalid card payment transfer.');
     }
   }
 

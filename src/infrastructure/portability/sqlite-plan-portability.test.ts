@@ -15,6 +15,94 @@ const emptySnapshot = {
   },
 };
 
+const cardPaymentSnapshot = {
+  ...emptySnapshot,
+  tables: {
+    ...emptySnapshot.tables,
+    accounts: [
+      {
+        id: 'checking',
+        name: 'Checking',
+        type: 'checking',
+        on_budget: 1,
+        closed: 0,
+        created_at: '2026-08-19T10:00:00.000Z',
+        updated_at: '2026-08-19T10:00:00.000Z',
+      },
+      {
+        id: 'credit-card',
+        name: 'Credit card',
+        type: 'credit_card',
+        on_budget: 1,
+        closed: 0,
+        created_at: '2026-08-19T10:00:00.000Z',
+        updated_at: '2026-08-19T10:00:00.000Z',
+      },
+      {
+        id: 'savings',
+        name: 'Savings',
+        type: 'savings',
+        on_budget: 1,
+        closed: 0,
+        created_at: '2026-08-19T10:00:00.000Z',
+        updated_at: '2026-08-19T10:00:00.000Z',
+      },
+    ],
+    category_groups: [
+      {
+        id: 'credit-payments',
+        name: 'Credit Card Payments',
+        sort_order: 0,
+        created_at: '2026-08-19T10:00:00.000Z',
+        updated_at: '2026-08-19T10:00:00.000Z',
+      },
+    ],
+    categories: [
+      {
+        id: 'card-payment',
+        group_id: 'credit-payments',
+        name: 'Credit card payment',
+        notes: null,
+        hidden: 0,
+        linked_account_id: 'credit-card',
+        sort_order: 0,
+        created_at: '2026-08-19T10:00:00.000Z',
+        updated_at: '2026-08-19T10:00:00.000Z',
+      },
+    ],
+    transactions: [
+      {
+        id: 'payment-source',
+        account_id: 'checking',
+        category_id: 'card-payment',
+        payee: 'Transfer to Credit card',
+        amount: -10_000,
+        date: '2026-08-19',
+        notes: null,
+        status: 'cleared',
+        kind: 'transfer',
+        transaction_group_id: 'card-payment-transfer',
+        created_at: '2026-08-19T10:00:00.000Z',
+        updated_at: '2026-08-19T10:00:00.000Z',
+      },
+      {
+        id: 'payment-destination',
+        account_id: 'credit-card',
+        category_id: null,
+        payee: 'Transfer from Checking',
+        amount: 10_000,
+        date: '2026-08-19',
+        notes: null,
+        status: 'cleared',
+        kind: 'transfer',
+        transaction_group_id: 'card-payment-transfer',
+        created_at: '2026-08-19T10:00:00.000Z',
+        updated_at: '2026-08-19T10:00:00.000Z',
+      },
+    ],
+  },
+};
+
 describe('Jarling plan snapshots', () => {
   it('accepts the current portable format and optional preferences', () => {
     expect(
@@ -117,6 +205,27 @@ describe('Jarling plan snapshots', () => {
         },
       }),
     ).toThrow('unbalanced transfer');
+  });
+
+  it('accepts a categorized transfer into its linked credit account', () => {
+    expect(parsePlanSnapshot(cardPaymentSnapshot)).toEqual(cardPaymentSnapshot);
+  });
+
+  it('rejects a categorized transfer that does not pay the linked card', () => {
+    expect(() =>
+      parsePlanSnapshot({
+        ...cardPaymentSnapshot,
+        tables: {
+          ...cardPaymentSnapshot.tables,
+          transactions: cardPaymentSnapshot.tables.transactions.map(
+            (transaction) =>
+              transaction.id === 'payment-destination'
+                ? { ...transaction, account_id: 'savings' }
+                : transaction,
+          ),
+        },
+      }),
+    ).toThrow('invalid card payment transfer');
   });
 
   it('rejects category notes above the domain limit', () => {

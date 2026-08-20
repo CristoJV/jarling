@@ -81,7 +81,7 @@ function addMonths(month: string, amount: number): string {
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
-export function targetFundingPeriodStartMonth(
+function targetFundingPeriodStartMonth(
   target: CategoryTarget,
   month: string,
 ): string {

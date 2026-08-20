@@ -39,7 +39,7 @@ const customModes: readonly CustomFundingMode[] = [
   'balance',
 ];
 
-type TargetEditorModalProps = Readonly<{
+type TargetEditorViewProps = Readonly<{
   categoryId: string;
   categoryName: string;
   target?: CategoryTarget;
@@ -53,14 +53,14 @@ function today(): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
-export function TargetEditorModal({
+export function TargetEditorView({
   categoryId,
   categoryName,
   target,
   onDismiss,
   onSave,
   onDelete,
-}: TargetEditorModalProps) {
+}: TargetEditorViewProps) {
   const { language, t } = useTranslation();
   const styles = useThemedStyles(createStyles);
   const localizedTargetTypes = targetTypes.map((kind) => ({

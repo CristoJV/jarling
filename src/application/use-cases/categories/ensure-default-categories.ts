@@ -9,9 +9,7 @@ import {
   UNCATEGORIZED_GROUP_ID,
 } from '@/domain/policies/system-categories';
 
-export { UNCATEGORIZED_CATEGORY_ID, UNCATEGORIZED_GROUP_ID };
-
-export const DEFAULT_CATEGORY_GROUPS = [
+const DEFAULT_CATEGORY_GROUPS = [
   {
     id: UNCATEGORIZED_GROUP_ID,
     name: 'Uncategorized',

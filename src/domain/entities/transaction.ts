@@ -18,10 +18,6 @@ export const TRANSACTION_KINDS = [
 
 export type TransactionKind = (typeof TRANSACTION_KINDS)[number];
 
-export function isProtectedTransactionKind(kind: TransactionKind): boolean {
-  return kind !== 'standard';
-}
-
 type TransactionBase = Readonly<{
   id: string;
   accountId: string;

@@ -17,7 +17,7 @@ import {
   groupDisplayName,
 } from '@/presentation/utils/category-name';
 
-type EditBudgetModalProps = Readonly<{
+type EditBudgetViewProps = Readonly<{
   groups: readonly CategoryGroupSummary[];
   monthLabel: string;
   targetsByCategoryId: ReadonlyMap<string, CategoryTarget>;
@@ -30,7 +30,7 @@ type EditBudgetModalProps = Readonly<{
   onSelectCategory: (values: BudgetCategoryValues) => void;
 }>;
 
-export function EditBudgetModal({
+export function EditBudgetView({
   groups,
   monthLabel,
   targetsByCategoryId,
@@ -41,7 +41,7 @@ export function EditBudgetModal({
   onAddGroup,
   onRenameGroup,
   onSelectCategory,
-}: EditBudgetModalProps) {
+}: EditBudgetViewProps) {
   const { language, t } = useTranslation();
   const styles = useThemedStyles(createStyles);
   const totalTargets = Money.fromCents(

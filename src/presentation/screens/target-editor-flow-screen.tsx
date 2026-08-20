@@ -4,7 +4,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { CategoryDetails } from '@/application/use-cases/categories/get-category-details';
-import { TargetEditorModal } from '@/presentation/components/targets/target-editor-modal';
+import { TargetEditorView } from '@/presentation/components/targets/target-editor-view';
 import { useApplication } from '@/presentation/contexts/application-context';
 import { useTranslation } from '@/presentation/localization/localization-provider';
 import type { AppTheme } from '@/presentation/theme/theme';
@@ -41,7 +41,7 @@ export function TargetEditorFlowScreen() {
 
   if (details) {
     return (
-      <TargetEditorModal
+      <TargetEditorView
         categoryId={id}
         categoryName={categoryDisplayName(details.values.category, t)}
         onDelete={async (categoryId) => {

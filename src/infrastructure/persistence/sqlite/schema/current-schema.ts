@@ -77,7 +77,11 @@ export const currentSchema: Migration = {
         (kind = 'transfer' AND transaction_group_id IS NOT NULL)
         OR (kind <> 'transfer' AND transaction_group_id IS NULL)
       ),
-      CHECK (kind = 'standard' OR category_id IS NULL),
+      CHECK (
+        category_id IS NULL
+        OR kind = 'standard'
+        OR (kind = 'transfer' AND amount < 0)
+      ),
       CHECK (kind <> 'standard' OR amount >= 0 OR category_id IS NOT NULL)
     );
 
