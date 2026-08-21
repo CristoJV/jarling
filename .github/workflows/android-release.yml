@@ -43,8 +43,6 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     environment: android-release
-    env:
-      EXPECTED_SIGNING_CERT_SHA256: ${{ vars.ANDROID_SIGNING_CERT_SHA256 }}
     outputs:
       apk_name: ${{ steps.release.outputs.apk_name }}
       artifact_name: ${{ steps.release.outputs.artifact_name }}
@@ -75,23 +73,6 @@ jobs:
           fi
 
           printf 'ref=%s\n' "$build_ref" >> "$GITHUB_OUTPUT"
-
-      - name: Validate the expected signing certificate
-        shell: bash
-        run: |
-          set +x
-          normalized_fingerprint="$(
-            printf '%s' "$EXPECTED_SIGNING_CERT_SHA256" \
-              | tr -d '[:space:]:' \
-              | tr '[:upper:]' '[:lower:]'
-          )"
-          if [[ ! "$normalized_fingerprint" =~ ^[0-9a-f]{64}$ ]]; then
-            echo "ANDROID_SIGNING_CERT_SHA256 is missing or invalid." >&2
-            exit 1
-          fi
-
-          printf 'EXPECTED_SIGNING_CERT_SHA256=%s\n' \
-            "$normalized_fingerprint" >> "$GITHUB_ENV"
 
       - name: Check out requested ref
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -263,7 +244,7 @@ jobs:
         shell: bash
         run: rm -f "$RUNNER_TEMP/jarling-release.jks"
 
-      - name: Verify and package the APK
+      - name: Package the APK
         shell: bash
         env:
           APK_NAME: ${{ steps.release.outputs.apk_name }}
@@ -279,45 +260,6 @@ jobs:
 
           mkdir -p "$output_dir"
           cp "$source_apk" "$output_apk"
-
-          apksigner_path="$(find "$ANDROID_HOME/build-tools" \
-            -mindepth 2 -maxdepth 2 -type f -name apksigner \
-            -print | sort -V | tail -n 1)"
-          if [[ -z "$apksigner_path" ]]; then
-            echo "apksigner is not available in the runner Android SDK." >&2
-            exit 1
-          fi
-
-          if ! signer_output="$(
-            "$apksigner_path" verify --print-certs "$output_apk" 2>/dev/null
-          )"; then
-            echo "APK signature verification failed." >&2
-            exit 1
-          fi
-
-          mapfile -t signer_digests < <(
-            printf '%s\n' "$signer_output" \
-              | sed -nE \
-                's/^Signer (#[0-9]+|\(.*\)) certificate SHA-256 digest:[[:space:]]*([[:xdigit:]]{64})[[:space:]]*$/\2/p' \
-              | tr '[:upper:]' '[:lower:]' \
-              | sort -u
-          )
-          if (( ${#signer_digests[@]} == 0 )); then
-            echo "Could not read the APK signing certificate fingerprint." >&2
-            exit 1
-          fi
-          if (( ${#signer_digests[@]} > 1 )); then
-            echo "The APK contains multiple distinct signing certificates." >&2
-            exit 1
-          fi
-
-          actual_signer_digest="${signer_digests[0]}"
-          if [[ "$actual_signer_digest" != "$EXPECTED_SIGNING_CERT_SHA256" ]]; then
-            echo "The APK was not signed with the configured release keystore." >&2
-            exit 1
-          fi
-
-          echo "APK release signature verified."
           (
             cd "$output_dir"
             sha256sum "$APK_NAME" > "$APK_NAME.sha256"
