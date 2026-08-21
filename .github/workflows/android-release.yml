@@ -1,6 +1,9 @@
 name: Android release APK
 
 on:
+  push:
+    branches:
+      - chore/release-automation
   workflow_dispatch:
     inputs:
       ref:
