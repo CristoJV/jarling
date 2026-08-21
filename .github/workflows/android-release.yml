@@ -297,11 +297,17 @@ jobs:
 
           mapfile -t signer_digests < <(
             printf '%s\n' "$signer_output" \
-              | sed -n 's/^Signer #[0-9][0-9]* certificate SHA-256 digest: //p' \
-              | tr '[:upper:]' '[:lower:]'
+              | sed -nE \
+                's/^Signer (#[0-9]+|\(.*\)) certificate SHA-256 digest:[[:space:]]*([[:xdigit:]]{64})[[:space:]]*$/\2/p' \
+              | tr '[:upper:]' '[:lower:]' \
+              | sort -u
           )
-          if (( ${#signer_digests[@]} != 1 )); then
-            echo "The APK must contain exactly one signing certificate." >&2
+          if (( ${#signer_digests[@]} == 0 )); then
+            echo "Could not read the APK signing certificate fingerprint." >&2
+            exit 1
+          fi
+          if (( ${#signer_digests[@]} > 1 )); then
+            echo "The APK contains multiple distinct signing certificates." >&2
             exit 1
           fi
 
