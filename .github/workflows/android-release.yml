@@ -87,15 +87,6 @@ jobs:
       - name: Generate the Android project
         run: npx expo prebuild --platform android --no-install
 
-      - name: Install the Android SDK packages
-        shell: bash
-        run: |
-          skdmanager \
-            "platforms;android-36" \
-            "build-tools;36.0.0" \
-            "ndk;27.1.12297006" \
-            "ndk;27.0.12077973"
-
       - name: Restore the release keystore
         shell: bash
         env:
@@ -103,13 +94,13 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: |
+          umask 077
           printf '%s' "$ANDROID_KEYSTORE_BASE64" \
             | base64 --decode \
             > "$RUNNER_TEMP/jarling-release.jks"
-          chmod 600 "$RUNNER_TEMP/jarling-release.jks"
           keytool -list \
             -keystore "$RUNNER_TEMP/jarling-release.jks" \
-            -storepass "$ANDROID_KEYSTORE_PASSWORD" \
+            -storepass:env ANDROID_KEYSTORE_PASSWORD \
             -alias "$ANDROID_KEY_ALIAS" \
             >/dev/null
 
@@ -203,8 +194,16 @@ jobs:
 
           mkdir -p "$output_dir"
           cp "$source_apk" "$output_apk"
-          "$ANDROID_HOME/build-tools/36.0.0/apksigner" \
-            verify --verbose --print-certs "$output_apk"
+
+          apksigner_path="$(find "$ANDROID_HOME/build-tools" \
+            -mindepth 2 -maxdepth 2 -type f -name apksigner \
+            -print | sort -V | tail -n 1)"
+          if [[ -z "$apksigner_path" ]]; then
+            echo "apksigner is not available in the runner Android SDK." >&2
+            exit 1
+          fi
+
+          "$apksigner_path" verify --verbose --print-certs "$output_apk"
           (
             cd "$output_dir"
             sha256sum "$APK_NAME" > "$APK_NAME.sha256"
