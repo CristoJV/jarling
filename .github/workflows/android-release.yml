@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: Git ref to build (branch, tag, or commit)
+        description: Build source (main or a version tag)
         required: true
         default: main
         type: string
@@ -19,7 +19,7 @@ on:
   workflow_call:
     inputs:
       ref:
-        description: Git ref to build (normally the Release Please tag)
+        description: Build source (normally the Release Please version tag)
         required: true
         type: string
       release_tag:
@@ -29,49 +29,84 @@ on:
         type: string
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: android-release-${{ inputs.ref }}
+  group: android-release-${{ github.event_name == 'push' && github.ref || inputs.ref }}
   cancel-in-progress: false
 
 jobs:
   build:
     name: Build signed APK
+    permissions:
+      contents: read
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     environment: android-release
+    env:
+      EXPECTED_SIGNING_CERT_SHA256: ${{ vars.ANDROID_SIGNING_CERT_SHA256 }}
+    outputs:
+      apk_name: ${{ steps.release.outputs.apk_name }}
+      artifact_name: ${{ steps.release.outputs.artifact_name }}
 
     steps:
-      - name: Check out requested ref
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ inputs.ref }}
-
-      - name: Validate signing secrets
+      - name: Resolve the trusted build ref
+        id: source
         shell: bash
         env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          REQUESTED_REF: ${{ inputs.ref }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
-          if [[ -z "$ANDROID_KEYSTORE_BASE64" || \
-                -z "$ANDROID_KEYSTORE_PASSWORD" || \
-                -z "$ANDROID_KEY_ALIAS" || \
-                -z "$ANDROID_KEY_PASSWORD" ]]; then
-            echo "Missing one or more Android signing secrets." >&2
+          if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+            build_ref="$GITHUB_SHA"
+          elif [[ "$REQUESTED_REF" == "main" || \
+                  "$REQUESTED_REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ || \
+                  "$REQUESTED_REF" =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            build_ref="$REQUESTED_REF"
+          else
+            echo "Only main and version tags can be selected manually." >&2
             exit 1
           fi
 
+          normalized_build_ref="${build_ref#refs/tags/}"
+          if [[ -n "$RELEASE_TAG" && "$normalized_build_ref" != "$RELEASE_TAG" ]]; then
+            echo "A GitHub Release can only receive an APK built from its own tag." >&2
+            exit 1
+          fi
+
+          printf 'ref=%s\n' "$build_ref" >> "$GITHUB_OUTPUT"
+
+      - name: Validate the expected signing certificate
+        shell: bash
+        run: |
+          set +x
+          normalized_fingerprint="$(
+            printf '%s' "$EXPECTED_SIGNING_CERT_SHA256" \
+              | tr -d '[:space:]:' \
+              | tr '[:upper:]' '[:lower:]'
+          )"
+          if [[ ! "$normalized_fingerprint" =~ ^[0-9a-f]{64}$ ]]; then
+            echo "ANDROID_SIGNING_CERT_SHA256 is missing or invalid." >&2
+            exit 1
+          fi
+
+          printf 'EXPECTED_SIGNING_CERT_SHA256=%s\n' \
+            "$normalized_fingerprint" >> "$GITHUB_ENV"
+
+      - name: Check out requested ref
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ steps.source.outputs.ref }}
+          persist-credentials: false
+
       - name: Set up Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 22
           cache: npm
 
       - name: Set up Java
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:
           distribution: temurin
           java-version: 17
@@ -86,23 +121,6 @@ jobs:
 
       - name: Generate the Android project
         run: npx expo prebuild --platform android --no-install
-
-      - name: Restore the release keystore
-        shell: bash
-        env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-        run: |
-          umask 077
-          printf '%s' "$ANDROID_KEYSTORE_BASE64" \
-            | base64 --decode \
-            > "$RUNNER_TEMP/jarling-release.jks"
-          keytool -list \
-            -keystore "$RUNNER_TEMP/jarling-release.jks" \
-            -storepass:env ANDROID_KEYSTORE_PASSWORD \
-            -alias "$ANDROID_KEY_ALIAS" \
-            >/dev/null
 
       - name: Configure generated Gradle signing
         shell: bash
@@ -122,7 +140,7 @@ jobs:
           }
           `;
 
-          if (!contents.includes(signingConfigsMarker)) {
+          if (contents.split(signingConfigsMarker).length !== 2) {
             throw new Error('Could not locate signingConfigs in generated build.gradle');
           }
 
@@ -131,15 +149,44 @@ jobs:
             signingConfigsMarker + releaseSigningConfig,
           );
 
-          const releaseBuildType = /(release\s*\{[\s\S]*?)signingConfig signingConfigs\.debug/;
-          if (!releaseBuildType.test(contents)) {
+          const buildTypesPattern = /^    buildTypes \{[\s\S]*?^    \}/m;
+          const buildTypesMatch = contents.match(buildTypesPattern);
+          if (!buildTypesMatch) {
+            throw new Error('Could not locate buildTypes in generated build.gradle');
+          }
+
+          let buildTypes = buildTypesMatch[0];
+          const releaseBuildTypePattern = /^        release \{[\s\S]*?^        \}/m;
+          const releaseBuildTypeMatch = buildTypes.match(releaseBuildTypePattern);
+          if (!releaseBuildTypeMatch) {
             throw new Error('Could not locate the generated release build type');
           }
 
-          contents = contents.replace(
-            releaseBuildType,
-            '$1signingConfig signingConfigs.release',
+          const releaseBuildType = releaseBuildTypeMatch[0];
+          const generatedDebugSigning = 'signingConfig signingConfigs.debug';
+          if (releaseBuildType.split(generatedDebugSigning).length !== 2) {
+            throw new Error('Generated release build type does not use debug signing');
+          }
+
+          const configuredRelease = releaseBuildType.replace(
+            generatedDebugSigning,
+            'signingConfig signingConfigs.release',
           );
+          buildTypes = buildTypes.replace(
+            releaseBuildType,
+            configuredRelease,
+          );
+          contents = contents.replace(buildTypesMatch[0], buildTypes);
+
+          if (!/^        debug \{[\s\S]*?signingConfig signingConfigs\.debug/m.test(buildTypes)) {
+            throw new Error('Debug build type signing was modified unexpectedly');
+          }
+          if (
+            configuredRelease.includes(generatedDebugSigning) ||
+            !configuredRelease.includes('signingConfig signingConfigs.release')
+          ) {
+            throw new Error('Release build type was not configured for release signing');
+          }
 
           fs.writeFileSync(buildFile, contents);
           NODE
@@ -161,8 +208,37 @@ jobs:
             exit 1
           fi
 
-          echo "version=$app_version" >> "$GITHUB_OUTPUT"
           echo "apk_name=Jarling-v$app_version-android.apk" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=jarling-v$app_version-android" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the release keystore
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          set +x
+          if [[ -z "$ANDROID_KEYSTORE_BASE64" || \
+                -z "$ANDROID_KEYSTORE_PASSWORD" || \
+                -z "$ANDROID_KEY_ALIAS" ]]; then
+            echo "Missing Android keystore configuration." >&2
+            exit 1
+          fi
+
+          umask 077
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" \
+            | base64 --decode \
+            > "$RUNNER_TEMP/jarling-release.jks"
+
+          if ! keytool -list \
+            -keystore "$RUNNER_TEMP/jarling-release.jks" \
+            -storepass:env ANDROID_KEYSTORE_PASSWORD \
+            -alias "$ANDROID_KEY_ALIAS" \
+            >/dev/null 2>&1; then
+            echo "The Android release keystore could not be validated." >&2
+            exit 1
+          fi
 
       - name: Build the signed release APK
         working-directory: android
@@ -171,14 +247,23 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: ./gradlew --no-daemon :app:assembleRelease
+        run: |
+          set +x
+          if [[ -z "$ANDROID_KEYSTORE_PASSWORD" || \
+                -z "$ANDROID_KEY_ALIAS" || \
+                -z "$ANDROID_KEY_PASSWORD" ]]; then
+            echo "Missing Android signing configuration." >&2
+            exit 1
+          fi
+
+          ./gradlew --no-daemon :app:assembleRelease
 
       - name: Remove the restored keystore
+        if: ${{ always() }}
         shell: bash
         run: rm -f "$RUNNER_TEMP/jarling-release.jks"
 
       - name: Verify and package the APK
-        id: artifact
         shell: bash
         env:
           APK_NAME: ${{ steps.release.outputs.apk_name }}
@@ -203,39 +288,69 @@ jobs:
             exit 1
           fi
 
-          "$apksigner_path" verify --verbose --print-certs "$output_apk"
+          if ! signer_output="$(
+            "$apksigner_path" verify --print-certs "$output_apk" 2>/dev/null
+          )"; then
+            echo "APK signature verification failed." >&2
+            exit 1
+          fi
+
+          mapfile -t signer_digests < <(
+            printf '%s\n' "$signer_output" \
+              | sed -n 's/^Signer #[0-9][0-9]* certificate SHA-256 digest: //p' \
+              | tr '[:upper:]' '[:lower:]'
+          )
+          if (( ${#signer_digests[@]} != 1 )); then
+            echo "The APK must contain exactly one signing certificate." >&2
+            exit 1
+          fi
+
+          actual_signer_digest="${signer_digests[0]}"
+          if [[ "$actual_signer_digest" != "$EXPECTED_SIGNING_CERT_SHA256" ]]; then
+            echo "The APK was not signed with the configured release keystore." >&2
+            exit 1
+          fi
+
+          echo "APK release signature verified."
           (
             cd "$output_dir"
             sha256sum "$APK_NAME" > "$APK_NAME.sha256"
           )
 
-          echo "apk=$output_apk" >> "$GITHUB_OUTPUT"
-          echo "checksum=$output_apk.sha256" >> "$GITHUB_OUTPUT"
-
       - name: Store the APK temporarily
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: jarling-v${{ steps.release.outputs.version }}-android
+          name: ${{ steps.release.outputs.artifact_name }}
           path: release-artifacts/
           if-no-files-found: error
           retention-days: 1
 
-      - name: Attach APK to an existing GitHub Release
-        if: ${{ inputs.release_tag != '' }}
+  publish:
+    name: Attach APK to GitHub Release
+    if: ${{ inputs.release_tag != '' }}
+    needs: build
+    permissions:
+      contents: write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Download the signed APK
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: ${{ needs.build.outputs.artifact_name }}
+          path: release-artifacts
+
+      - name: Attach APK to the existing GitHub Release
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.release_tag }}
-          APK_PATH: ${{ steps.artifact.outputs.apk }}
-          CHECKSUM_PATH: ${{ steps.artifact.outputs.checksum }}
+          APK_PATH: release-artifacts/${{ needs.build.outputs.apk_name }}
+          CHECKSUM_PATH: release-artifacts/${{ needs.build.outputs.apk_name }}.sha256
         run: |
           gh release view "$RELEASE_TAG" >/dev/null
           gh release upload "$RELEASE_TAG" \
             "$APK_PATH" \
             "$CHECKSUM_PATH" \
             --clobber
-
-      - name: Ensure the restored keystore is removed
-        if: ${{ always() }}
-        shell: bash
-        run: rm -f "$RUNNER_TEMP/jarling-release.jks"
