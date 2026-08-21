@@ -1,0 +1,239 @@
+name: Android release APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Git ref to build (branch, tag, or commit)
+        required: true
+        default: main
+        type: string
+      release_tag:
+        description: Existing GitHub Release tag to receive the APK (optional)
+        required: false
+        default: ''
+        type: string
+  workflow_call:
+    inputs:
+      ref:
+        description: Git ref to build (normally the Release Please tag)
+        required: true
+        type: string
+      release_tag:
+        description: Existing GitHub Release tag to receive the APK
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-release-${{ inputs.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build signed APK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    environment: android-release
+
+    steps:
+      - name: Check out requested ref
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Validate signing secrets
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [[ -z "$ANDROID_KEYSTORE_BASE64" || \
+                -z "$ANDROID_KEYSTORE_PASSWORD" || \
+                -z "$ANDROID_KEY_ALIAS" || \
+                -z "$ANDROID_KEY_PASSWORD" ]]; then
+            echo "Missing one or more Android signing secrets." >&2
+            exit 1
+          fi
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install JavaScript dependencies
+        run: npm ci
+
+      - name: Validate Expo dependencies
+        run: |
+          npx expo install --check
+          npm run doctor
+
+      - name: Generate the Android project
+        run: npx expo prebuild --platform android --no-install
+
+      - name: Install the Android SDK packages
+        shell: bash
+        run: |
+          android sdk install\
+            platforms/android-36 \
+            build-tools/36.0.0 \
+            ndk/27.1.12297006 \
+            ndk/27.0.12077973
+
+      - name: Restore the release keystore
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" \
+            | base64 --decode \
+            > "$RUNNER_TEMP/jarling-release.jks"
+          chmod 600 "$RUNNER_TEMP/jarling-release.jks"
+          keytool -list \
+            -keystore "$RUNNER_TEMP/jarling-release.jks" \
+            -storepass "$ANDROID_KEYSTORE_PASSWORD" \
+            -alias "$ANDROID_KEY_ALIAS" \
+            >/dev/null
+
+      - name: Configure generated Gradle signing
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+
+          const buildFile = 'android/app/build.gradle';
+          let contents = fs.readFileSync(buildFile, 'utf8');
+
+          const signingConfigsMarker = '    signingConfigs {\n';
+          const releaseSigningConfig = `        release {
+              storeFile file(System.getenv('ANDROID_KEYSTORE_PATH'))
+              storePassword System.getenv('ANDROID_KEYSTORE_PASSWORD')
+              keyAlias System.getenv('ANDROID_KEY_ALIAS')
+              keyPassword System.getenv('ANDROID_KEY_PASSWORD')
+          }
+          `;
+
+          if (!contents.includes(signingConfigsMarker)) {
+            throw new Error('Could not locate signingConfigs in generated build.gradle');
+          }
+
+          contents = contents.replace(
+            signingConfigsMarker,
+            signingConfigsMarker + releaseSigningConfig,
+          );
+
+          const releaseBuildType = /(release\s*\{[\s\S]*?)signingConfig signingConfigs\.debug/;
+          if (!releaseBuildType.test(contents)) {
+            throw new Error('Could not locate the generated release build type');
+          }
+
+          contents = contents.replace(
+            releaseBuildType,
+            '$1signingConfig signingConfigs.release',
+          );
+
+          fs.writeFileSync(buildFile, contents);
+          NODE
+
+      - name: Read release metadata
+        id: release
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          app_version="$(node -p "require('./app.json').expo.version")"
+          if [[ ! "$app_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Invalid Expo app version: $app_version" >&2
+            exit 1
+          fi
+
+          if [[ -n "$RELEASE_TAG" && "$RELEASE_TAG" != "v$app_version" ]]; then
+            echo "Release tag $RELEASE_TAG does not match app version v$app_version." >&2
+            exit 1
+          fi
+
+          echo "version=$app_version" >> "$GITHUB_OUTPUT"
+          echo "apk_name=Jarling-v$app_version-android.apk" >> "$GITHUB_OUTPUT"
+
+      - name: Build the signed release APK
+        working-directory: android
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/jarling-release.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew --no-daemon :app:assembleRelease
+
+      - name: Remove the restored keystore
+        shell: bash
+        run: rm -f "$RUNNER_TEMP/jarling-release.jks"
+
+      - name: Verify and package the APK
+        id: artifact
+        shell: bash
+        env:
+          APK_NAME: ${{ steps.release.outputs.apk_name }}
+        run: |
+          source_apk="android/app/build/outputs/apk/release/app-release.apk"
+          output_dir="release-artifacts"
+          output_apk="$output_dir/$APK_NAME"
+
+          if [[ ! -f "$source_apk" ]]; then
+            echo "Gradle did not produce the expected APK: $source_apk" >&2
+            exit 1
+          fi
+
+          mkdir -p "$output_dir"
+          cp "$source_apk" "$output_apk"
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" \
+            verify --verbose --print-certs "$output_apk"
+          (
+            cd "$output_dir"
+            sha256sum "$APK_NAME" > "$APK_NAME.sha256"
+          )
+
+          echo "apk=$output_apk" >> "$GITHUB_OUTPUT"
+          echo "checksum=$output_apk.sha256" >> "$GITHUB_OUTPUT"
+
+      - name: Store the APK temporarily
+        uses: actions/upload-artifact@v7
+        with:
+          name: jarling-v${{ steps.release.outputs.version }}-android
+          path: release-artifacts/
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Attach APK to an existing GitHub Release
+        if: ${{ inputs.release_tag != '' }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          APK_PATH: ${{ steps.artifact.outputs.apk }}
+          CHECKSUM_PATH: ${{ steps.artifact.outputs.checksum }}
+        run: |
+          gh release view "$RELEASE_TAG" >/dev/null
+          gh release upload "$RELEASE_TAG" \
+            "$APK_PATH" \
+            "$CHECKSUM_PATH" \
+            --clobber
+
+      - name: Ensure the restored keystore is removed
+        if: ${{ always() }}
+        shell: bash
+        run: rm -f "$RUNNER_TEMP/jarling-release.jks"
