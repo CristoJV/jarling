@@ -90,11 +90,11 @@ jobs:
       - name: Install the Android SDK packages
         shell: bash
         run: |
-          android sdk install\
-            platforms/android-36 \
-            build-tools/36.0.0 \
-            ndk/27.1.12297006 \
-            ndk/27.0.12077973
+          skdmanager \
+            "platforms;android-36" \
+            "build-tools;36.0.0" \
+            "ndk;27.1.12297006" \
+            "ndk;27.0.12077973"
 
       - name: Restore the release keystore
         shell: bash
