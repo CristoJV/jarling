@@ -58,6 +58,10 @@
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
+    "android:debug:prebuild": "APP_VARIANT=development expo prebuild --clean --platform android",
+    "android:debug": "APP_VARIANT=development expo run:android",
+    "android:release:local:prebuild": "APP_VARIANT=production expo prebuild --clean --platform android",
+    "android:release:local": "APP_VARIANT=production expo run:android --variant release",
     "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "expo lint --max-warnings=0",
