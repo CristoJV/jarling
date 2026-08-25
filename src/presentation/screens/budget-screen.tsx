@@ -333,9 +333,11 @@ export function BudgetScreen() {
           onDismiss={() => setNameEditor(null)}
           onSubmit={submitName}
           submitLabel={
-            nameEditor.kind.startsWith('create')
+            nameEditor.kind === 'create-group'
               ? t('budget.createGroup')
-              : t('common.save')
+              : nameEditor.kind === 'create-category'
+                ? t('budget.createCategory')
+                : t('common.save')
           }
           title={t(editorTitleKey(nameEditor))}
         />

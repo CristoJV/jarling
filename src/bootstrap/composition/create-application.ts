@@ -10,7 +10,10 @@ import { ReconcileAccount } from '@/application/use-cases/accounts/reconcile-acc
 import { RenameAccount } from '@/application/use-cases/accounts/rename-account';
 import { CreateCategoryGroup } from '@/application/use-cases/categories/create-category-group';
 import { CreateCategory } from '@/application/use-cases/categories/create-category';
+import { CreateCategoryReplacement } from '@/application/use-cases/categories/create-category-replacement';
+import { DeleteCategory } from '@/application/use-cases/categories/delete-category';
 import { EnsureDefaultCategories } from '@/application/use-cases/categories/ensure-default-categories';
+import { GetCategoryDeletionImpact } from '@/application/use-cases/categories/get-category-deletion-impact';
 import { GetCategoryGroups } from '@/application/use-cases/categories/get-category-groups';
 import { GetCategoryDetails } from '@/application/use-cases/categories/get-category-details';
 import { RenameCategoryGroup } from '@/application/use-cases/categories/rename-category-group';
@@ -125,6 +128,29 @@ export function createApplication(
         unitOfWork,
         ids,
         clock,
+      ),
+      createReplacement: new CreateCategoryReplacement(
+        categoryGroups,
+        categories,
+        transactions,
+        allocations,
+        targets,
+        unitOfWork,
+        ids,
+        clock,
+      ),
+      delete: new DeleteCategory(
+        categories,
+        transactions,
+        allocations,
+        targets,
+        unitOfWork,
+        clock,
+      ),
+      getDeletionImpact: new GetCategoryDeletionImpact(
+        categories,
+        transactions,
+        allocations,
       ),
       getGroups: new GetCategoryGroups(categoryGroups, categories),
       getDetails: new GetCategoryDetails(getBudgetMonth, targets, clock),

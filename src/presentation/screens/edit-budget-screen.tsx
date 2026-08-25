@@ -119,9 +119,11 @@ export function EditBudgetScreen() {
           onSubmit={submitName}
           placement="center"
           submitLabel={
-            editor.kind.startsWith('create')
+            editor.kind === 'create-group'
               ? t('budget.createGroup')
-              : t('common.save')
+              : editor.kind === 'create-category'
+                ? t('budget.createCategory')
+                : t('common.save')
           }
           title={t(editorTitleKey(editor))}
         />

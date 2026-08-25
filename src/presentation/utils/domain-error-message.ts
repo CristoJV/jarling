@@ -3,6 +3,7 @@ import { AccountBalanceNotZeroError } from '@/domain/errors/account-balance-not-
 import { ProtectedTransactionError } from '@/domain/errors/protected-transaction-error';
 import { CategoryGroupNotFoundError } from '@/domain/errors/category-group-not-found-error';
 import { CategoryNotFoundError } from '@/domain/errors/category-not-found-error';
+import { CategoryReassignmentRequiredError } from '@/domain/errors/category-reassignment-required-error';
 import { CategoryNotAllowedForTrackingAccountError } from '@/domain/errors/category-not-allowed-for-tracking-account-error';
 import { CannotModifyReconciledTransactionError } from '@/domain/errors/cannot-modify-reconciled-transaction-error';
 import { CategoryRequiredForExpenseError } from '@/domain/errors/category-required-for-expense-error';
@@ -14,6 +15,7 @@ import { InvalidBudgetMoveError } from '@/domain/errors/invalid-budget-move-erro
 import { InvalidAccountNameError } from '@/domain/errors/invalid-account-name-error';
 import { InvalidCategoryNameError } from '@/domain/errors/invalid-category-name-error';
 import { InvalidCategoryNotesError } from '@/domain/errors/invalid-category-notes-error';
+import { InvalidCategoryReassignmentError } from '@/domain/errors/invalid-category-reassignment-error';
 import { InvalidCategoryTargetError } from '@/domain/errors/invalid-category-target-error';
 import { InvalidMoneyError } from '@/domain/errors/invalid-money-error';
 import { InvalidReconciliationError } from '@/domain/errors/invalid-reconciliation-error';
@@ -60,6 +62,14 @@ export function domainErrorMessage(error: unknown, t: Translate): string {
 
   if (error instanceof CategoryNotFoundError) {
     return t('errors.categoryNotFound');
+  }
+
+  if (error instanceof CategoryReassignmentRequiredError) {
+    return t('errors.categoryReassignmentRequired');
+  }
+
+  if (error instanceof InvalidCategoryReassignmentError) {
+    return t('errors.invalidCategoryReassignment');
   }
 
   if (error instanceof InvalidTransactionAmountError) {

@@ -1,4 +1,7 @@
-import type { Transaction } from '@/domain/entities/transaction';
+import {
+  updateTransaction,
+  type Transaction,
+} from '@/domain/entities/transaction';
 import type {
   TransactionFilters,
   TransactionRepository,
@@ -120,6 +123,25 @@ export class InMemoryTransactionRepository implements TransactionRepository {
 
   async save(transaction: Transaction): Promise<void> {
     this.transactions.set(transaction.id, transaction);
+  }
+
+  async reassignCategory(
+    sourceCategoryId: string,
+    destinationCategoryId: string,
+    updatedAt: string,
+  ): Promise<void> {
+    for (const transaction of await this.findAll({
+      categoryId: sourceCategoryId,
+    })) {
+      this.transactions.set(
+        transaction.id,
+        updateTransaction(transaction, {
+          ...transaction,
+          categoryId: destinationCategoryId,
+          updatedAt,
+        }),
+      );
+    }
   }
 
   async deleteById(id: string): Promise<void> {

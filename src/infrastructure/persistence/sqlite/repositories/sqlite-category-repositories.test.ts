@@ -148,4 +148,15 @@ describe('SQLite category repositories', () => {
       new SQLiteCategoryRepository(database).findById('missing'),
     ).resolves.toBeNull();
   });
+
+  it('deletes a category by ID', async () => {
+    const { database, runAsync } = databaseMock();
+
+    await new SQLiteCategoryRepository(database).deleteById('category-1');
+
+    expect(runAsync).toHaveBeenCalledWith(
+      'DELETE FROM categories WHERE id = ?',
+      'category-1',
+    );
+  });
 });

@@ -1,5 +1,6 @@
 export const english = {
   'common.cancel': 'Cancel',
+  'common.confirm': 'Confirm',
   'common.close': 'Close',
   'common.delete': 'Delete',
   'common.done': 'Done',
@@ -123,6 +124,7 @@ export const english = {
   'budget.createFirstGroup': 'Create your first group',
   'budget.createFirstGroupHint': 'For example: Needs, Wants or Savings.',
   'budget.createGroup': 'Create group',
+  'budget.createCategory': 'Create Category',
   'budget.addTransaction': 'Transaction',
   'budget.newGroup': 'New group',
   'budget.newCategory': 'New category',
@@ -191,6 +193,21 @@ export const english = {
   'categoryDetails.insufficientFundsTitle': 'Not enough money to assign',
   'categoryDetails.insufficientFundsBody':
     'Ready to Assign cannot cover this allocation. Move {{missing}} from another category or reduce the target allocation.',
+  'categoryDetails.deleteCategory': 'Delete Category',
+  'categoryDetails.deleteTitle': 'Delete “{{name}}”?',
+  'categoryDetails.deleteEmptyBody':
+    'This category has no transactions or money assigned to it. This action cannot be undone.',
+  'categoryDetails.deleteMoneyBody':
+    'This category has money assigned to it. If you delete it, all assigned and available money will be moved back to Ready to Assign.',
+  'categoryDetails.deleteReassignBody':
+    'Before you can delete this category, you need to reassign its past activity. All {{count}} transactions, assigned amount ({{assigned}}), and available amount ({{available}}) will be reassigned to the category you choose.',
+  'categoryDetails.selectCategory': 'Select Category',
+  'categories.selectDestination': 'Select Category',
+  'categories.createNew': 'Create New Category',
+  'categories.createTitle': 'Create Category',
+  'categories.chooseGroup': 'Choose Category Group',
+  'categories.namePlaceholder': 'For example, Restaurants',
+  'categories.noGroups': 'Create a category group first',
   'reports.title': 'Reports',
   'reports.lastSixMonths': 'Last 6 months',
   'reports.spending': 'Spending',
@@ -438,6 +455,10 @@ export const english = {
     'There is not enough money in Ready to Assign for that allocation.',
   'errors.protectedCategory':
     'Uncategorized is managed by Jarling and cannot be changed.',
+  'errors.categoryReassignmentRequired':
+    'Choose another category for the existing transactions first.',
+  'errors.invalidCategoryReassignment':
+    'Choose a different valid destination category.',
   'errors.insufficientAvailable':
     'The source category does not have enough available money.',
   'errors.invalidBudgetMove':
@@ -450,6 +471,7 @@ export type TranslationDictionary = Readonly<Record<TranslationKey, string>>;
 
 export const spanish: TranslationDictionary = {
   'common.cancel': 'Cancelar',
+  'common.confirm': 'Confirmar',
   'common.close': 'Cerrar',
   'common.delete': 'Eliminar',
   'common.done': 'Hecho',
@@ -574,6 +596,7 @@ export const spanish: TranslationDictionary = {
   'budget.createFirstGroup': 'Crea tu primer grupo',
   'budget.createFirstGroupHint': 'Por ejemplo: Necesidades, Deseos o Ahorro.',
   'budget.createGroup': 'Crear grupo',
+  'budget.createCategory': 'Crear categoría',
   'budget.addTransaction': 'Transacción',
   'budget.newGroup': 'Nuevo grupo',
   'budget.newCategory': 'Nueva categoría',
@@ -643,6 +666,21 @@ export const spanish: TranslationDictionary = {
     'No hay suficiente dinero para asignar',
   'categoryDetails.insufficientFundsBody':
     'Disponible para asignar no puede cubrir esta asignación. Mueve {{missing}} desde otra categoría o reduce la asignación del objetivo.',
+  'categoryDetails.deleteCategory': 'Eliminar categoría',
+  'categoryDetails.deleteTitle': '¿Eliminar “{{name}}”?',
+  'categoryDetails.deleteEmptyBody':
+    'Esta categoría no tiene transacciones ni dinero asignado. Esta acción no se puede deshacer.',
+  'categoryDetails.deleteMoneyBody':
+    'Esta categoría tiene dinero asignado. Si la eliminas, todo el dinero asignado y disponible volverá a Disponible para asignar.',
+  'categoryDetails.deleteReassignBody':
+    'Antes de eliminar esta categoría debes reasignar su actividad anterior. Sus {{count}} transacciones, el importe asignado ({{assigned}}) y el disponible ({{available}}) se reasignarán a la categoría que elijas.',
+  'categoryDetails.selectCategory': 'Seleccionar categoría',
+  'categories.selectDestination': 'Seleccionar categoría',
+  'categories.createNew': 'Crear nueva categoría',
+  'categories.createTitle': 'Crear categoría',
+  'categories.chooseGroup': 'Elegir grupo de categorías',
+  'categories.namePlaceholder': 'Por ejemplo, Restaurantes',
+  'categories.noGroups': 'Crea primero un grupo de categorías',
   'reports.title': 'Informes',
   'reports.lastSixMonths': 'Últimos 6 meses',
   'reports.spending': 'Gastos',
@@ -899,6 +937,10 @@ export const spanish: TranslationDictionary = {
     'No hay suficiente dinero en Disponible para asignar para esa asignación.',
   'errors.protectedCategory':
     'Jarling gestiona Uncategorized y no permite modificarla.',
+  'errors.categoryReassignmentRequired':
+    'Elige primero otra categoría para las transacciones existentes.',
+  'errors.invalidCategoryReassignment':
+    'Elige una categoría de destino válida y diferente.',
   'errors.insufficientAvailable':
     'La categoría de origen no tiene suficiente dinero disponible.',
   'errors.invalidBudgetMove':
