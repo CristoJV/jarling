@@ -11,6 +11,8 @@ import {
 
 type PasswordInputModalProps = Readonly<{
   confirm: boolean;
+  errorMessage?: (cause: unknown) => string;
+  onError?: (cause: unknown) => void;
   onDismiss: () => void;
   onSubmit: (password: string) => Promise<void>;
   submitLabel: string;
@@ -19,6 +21,8 @@ type PasswordInputModalProps = Readonly<{
 
 export function PasswordInputModal({
   confirm,
+  errorMessage,
+  onError,
   onDismiss,
   onSubmit,
   submitLabel,
@@ -46,8 +50,9 @@ export function PasswordInputModal({
     try {
       await onSubmit(password);
       onDismiss();
-    } catch {
-      setError(t('settings.backupError'));
+    } catch (cause) {
+      onError?.(cause);
+      setError(errorMessage?.(cause) ?? t('settings.backupError'));
     } finally {
       setSubmitting(false);
     }

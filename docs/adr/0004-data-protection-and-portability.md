@@ -20,13 +20,20 @@ need an accurate privacy model and a safe way to move their data.
 - Each `.jarling` backup is independently encrypted with AES-256-GCM. Its key
   is derived from that backup's password with PBKDF2-HMAC-SHA256, at least
   310,000 iterations, and a unique salt.
+- The portable wrapper stores the nonce, ciphertext, authentication tag, KDF
+  parameters, and a non-secret SHA-256 payload checksum explicitly. The
+  checksum distinguishes a damaged current backup from a wrong password before
+  authentication; AES-GCM remains the security and authenticity boundary.
+- Restore remains compatible with legacy v1/v2 wrappers that stored nonce,
+  ciphertext, and tag as one combined Base64 payload.
 - JSON export and `.jarling` backup contain the same versioned plan snapshot;
   `.jarling` is the canonical user backup and encrypts that snapshot.
 - Restore detects the format from file contents, asks for a password only for
   encrypted input, migrates legacy snapshots, and sends both formats through
   one transactional snapshot restoration path.
 - Restoration validates size, shape, domain relationships, foreign keys, and
-  SQLite integrity before reporting success.
+  SQLite integrity before committing and reporting success. Errors preserve a
+  typed internal cause instead of treating every failure as a bad password.
 - No database-encryption compatibility or recovery code is retained in version 1.
 
 ## Consequences

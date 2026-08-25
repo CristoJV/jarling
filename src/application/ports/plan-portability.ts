@@ -1,6 +1,15 @@
 export type BackupProgressPhase =
   'preparing' | 'snapshot' | 'encrypting' | 'saving';
 
+export type RestoreProgressPhase =
+  | 'reading'
+  | 'deriving-key'
+  | 'decrypting'
+  | 'parsing'
+  | 'migrating'
+  | 'validating'
+  | 'restoring';
+
 export type RestoreResult = Readonly<{
   restored: boolean;
   preferences?: unknown;
@@ -8,7 +17,10 @@ export type RestoreResult = Readonly<{
 
 export interface PlanRestoreSource {
   readonly encrypted: boolean;
-  restore(password?: string): Promise<RestoreResult>;
+  restore(
+    password?: string,
+    onProgress?: (phase: RestoreProgressPhase) => void,
+  ): Promise<RestoreResult>;
 }
 
 export interface PlanPortability {
@@ -18,5 +30,7 @@ export interface PlanPortability {
     preferences?: Readonly<Record<string, unknown>>,
     onProgress?: (phase: BackupProgressPhase) => void,
   ): Promise<void>;
-  selectRestoreSource(): Promise<PlanRestoreSource | null>;
+  selectRestoreSource(
+    onProgress?: (phase: RestoreProgressPhase) => void,
+  ): Promise<PlanRestoreSource | null>;
 }

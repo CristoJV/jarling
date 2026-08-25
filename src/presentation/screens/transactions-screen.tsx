@@ -173,6 +173,8 @@ export function TransactionsScreen() {
             <TextInput
               accessibilityLabel={t('transactions.search')}
               autoFocus
+              autoCorrect={false}
+              cursorColor={theme.colors.primary}
               onChangeText={setSearchDraft}
               onSubmitEditing={() => applySearch('search')}
               placeholder={
@@ -183,6 +185,7 @@ export function TransactionsScreen() {
               placeholderTextColor={theme.colors.textMuted}
               ref={searchInputRef}
               returnKeyType="search"
+              selectionColor={theme.colors.primaryMuted}
               style={styles.search}
               value={searchDraft}
             />
@@ -495,10 +498,18 @@ const createStyles = (theme: AppTheme) =>
     },
     search: {
       flex: 1,
-      minHeight: 44,
-      paddingHorizontal: 10,
+      height: 44,
+      paddingHorizontal: 13,
+      paddingVertical: 0,
       color: theme.colors.text,
+      backgroundColor: theme.colors.surfaceMuted,
+      borderColor: theme.colors.border,
+      borderRadius: 14,
+      borderWidth: 1,
       fontSize: 15,
+      fontWeight: '500',
+      includeFontPadding: false,
+      textAlignVertical: 'center',
     },
     suggestions: {
       position: 'absolute',
