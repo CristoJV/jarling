@@ -10,6 +10,7 @@ export type GetTransactionsInput = Pick<
   TransactionFilters,
   | 'accountId'
   | 'categoryId'
+  | 'uncategorized'
   | 'search'
   | 'payee'
   | 'memo'

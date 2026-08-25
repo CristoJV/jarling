@@ -2,6 +2,10 @@ import type { Href } from 'expo-router';
 
 export const routes = {
   newTransaction: (): Href => '/transaction/new',
+  uncategorizedTransactions: (): Href => ({
+    pathname: '/transactions',
+    params: { category: 'uncategorized' },
+  }),
   transaction: (id: string): Href => ({
     pathname: '/transaction/[id]',
     params: { id },

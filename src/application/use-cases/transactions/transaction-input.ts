@@ -2,7 +2,6 @@ import type { TransactionStatus } from '@/domain/entities/transaction';
 import { AccountNotFoundError } from '@/domain/errors/account-not-found-error';
 import { CategoryNotFoundError } from '@/domain/errors/category-not-found-error';
 import { CategoryNotAllowedForTrackingAccountError } from '@/domain/errors/category-not-allowed-for-tracking-account-error';
-import { CategoryRequiredForExpenseError } from '@/domain/errors/category-required-for-expense-error';
 import { ClosedAccountError } from '@/domain/errors/closed-account-error';
 import { InvalidTransactionAmountError } from '@/domain/errors/invalid-transaction-amount-error';
 import type { AccountRepository } from '@/domain/repositories/account-repository';
@@ -24,7 +23,7 @@ type TransactionInputBase = Readonly<{
 }>;
 
 export type TransactionInput =
-  | (TransactionInputBase & Readonly<{ kind: 'expense'; categoryId: string }>)
+  | (TransactionInputBase & Readonly<{ kind: 'expense'; categoryId?: string }>)
   | (TransactionInputBase & Readonly<{ kind: 'income'; categoryId?: never }>);
 
 export type PreparedTransactionInput = Readonly<{
@@ -59,17 +58,13 @@ export async function prepareTransactionInput(
     if (!account.onBudget) {
       throw new CategoryNotAllowedForTrackingAccountError();
     }
-    if (!input.categoryId) {
-      throw new CategoryRequiredForExpenseError();
-    }
-
-    if (!(await categories.findById(input.categoryId))) {
+    if (input.categoryId && !(await categories.findById(input.categoryId))) {
       throw new CategoryNotFoundError(input.categoryId);
     }
 
     return {
       accountId: input.accountId,
-      categoryId: input.categoryId,
+      ...(input.categoryId ? { categoryId: input.categoryId } : {}),
       payee: input.payee,
       amount: Money.fromCents(-input.amountCents),
       date: input.date,

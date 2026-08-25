@@ -82,7 +82,7 @@ describe('initializeDatabase', () => {
     expect(transactionRunAsync).toHaveBeenCalledWith(
       expect.stringContaining('INSERT INTO schema_migrations'),
       2,
-      'target_monthly_schedule',
+      'monthly_targets_and_uncategorized_transactions',
       expect.any(String),
     );
   });

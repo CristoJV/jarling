@@ -81,8 +81,7 @@ export const currentSchema: Migration = {
         category_id IS NULL
         OR kind = 'standard'
         OR (kind = 'transfer' AND amount < 0)
-      ),
-      CHECK (kind <> 'standard' OR amount >= 0 OR category_id IS NOT NULL)
+      )
     );
 
     CREATE TABLE transaction_links (

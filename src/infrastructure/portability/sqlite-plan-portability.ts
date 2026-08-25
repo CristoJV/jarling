@@ -40,6 +40,8 @@ const PBKDF2_ITERATIONS = 310_000;
 const MAX_BACKUP_BYTES = 100 * 1024 * 1024;
 const MAX_TOTAL_ROWS = 250_000;
 const MAX_TEXT_LENGTH = 100_000;
+const LEGACY_UNCATEGORIZED_GROUP_ID = 'system-group-uncategorized';
+const LEGACY_UNCATEGORIZED_CATEGORY_ID = 'default-category-uncategorized';
 
 function authenticatedContext(version: BackupVersion): Uint8Array {
   return utf8ToBytes(`Jarling backup version ${version}`);
@@ -169,6 +171,31 @@ function isBindValue(value: unknown): value is SQLiteBindValue {
   );
 }
 
+function removeLegacyUncategorized(
+  source: Readonly<Record<TableName, readonly DataRow[]>>,
+): Readonly<Record<TableName, readonly DataRow[]>> {
+  return {
+    ...source,
+    category_groups: source.category_groups.filter(
+      (row) => row.id !== LEGACY_UNCATEGORIZED_GROUP_ID,
+    ),
+    categories: source.categories.filter(
+      (row) => row.id !== LEGACY_UNCATEGORIZED_CATEGORY_ID,
+    ),
+    transactions: source.transactions.map((row) =>
+      row.category_id === LEGACY_UNCATEGORIZED_CATEGORY_ID
+        ? { ...row, category_id: null }
+        : row,
+    ),
+    budget_allocations: source.budget_allocations.filter(
+      (row) => row.category_id !== LEGACY_UNCATEGORIZED_CATEGORY_ID,
+    ),
+    category_targets: source.category_targets.filter(
+      (row) => row.category_id !== LEGACY_UNCATEGORIZED_CATEGORY_ID,
+    ),
+  };
+}
+
 export function parsePlanSnapshot(value: unknown): PlanSnapshot {
   if (
     !isRecord(value) ||
@@ -228,7 +255,7 @@ export function parsePlanSnapshot(value: unknown): PlanSnapshot {
     version,
     exportedAt: value.exportedAt,
     ...(isRecord(value.preferences) ? { preferences: value.preferences } : {}),
-    tables: parsedTables,
+    tables: removeLegacyUncategorized(parsedTables),
   };
   validateSnapshotSemantics(snapshot);
   return snapshot;
@@ -345,10 +372,9 @@ function validateSnapshotSemantics(snapshot: PlanSnapshot): void {
       throw new Error('The backup contains an invalid transaction.');
     }
     if (
-      (categoryId !== undefined &&
-        kind !== 'standard' &&
-        !(kind === 'transfer' && amount < 0)) ||
-      (kind === 'standard' && amount < 0 && categoryId === undefined)
+      categoryId !== undefined &&
+      kind !== 'standard' &&
+      !(kind === 'transfer' && amount < 0)
     ) {
       throw new Error('The backup contains an invalid transaction category.');
     }

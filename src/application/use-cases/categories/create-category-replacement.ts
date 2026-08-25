@@ -5,10 +5,6 @@ import { createCategory, type Category } from '@/domain/entities/category';
 import { CategoryGroupNotFoundError } from '@/domain/errors/category-group-not-found-error';
 import { CategoryNotFoundError } from '@/domain/errors/category-not-found-error';
 import { ProtectedCategoryError } from '@/domain/errors/protected-category-error';
-import {
-  isProtectedCategory,
-  isProtectedCategoryGroup,
-} from '@/domain/policies/system-categories';
 import type { BudgetAllocationRepository } from '@/domain/repositories/budget-allocation-repository';
 import type { CategoryGroupRepository } from '@/domain/repositories/category-group-repository';
 import type { CategoryRepository } from '@/domain/repositories/category-repository';
@@ -37,10 +33,7 @@ export class CreateCategoryReplacement {
   async execute(input: CreateCategoryReplacementInput): Promise<Category> {
     const source = await this.categories.findById(input.sourceCategoryId);
     if (!source) throw new CategoryNotFoundError(input.sourceCategoryId);
-    if (isProtectedCategory(source.id) || source.linkedAccountId) {
-      throw new ProtectedCategoryError();
-    }
-    if (isProtectedCategoryGroup(input.groupId)) {
+    if (source.linkedAccountId) {
       throw new ProtectedCategoryError();
     }
     if (!(await this.groups.findById(input.groupId))) {

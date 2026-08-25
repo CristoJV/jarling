@@ -231,4 +231,18 @@ describe('SQLite repositories', () => {
       'group-1',
     );
   });
+
+  it('uses the persisted null category model for Uncategorized expenses', async () => {
+    const { database, getAllAsync } = databaseMock();
+
+    await new SQLiteTransactionRepository(database).findAll({
+      uncategorized: true,
+    });
+
+    expect(getAllAsync).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "category_id IS NULL AND kind = 'standard' AND amount < 0",
+      ),
+    );
+  });
 });

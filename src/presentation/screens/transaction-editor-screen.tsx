@@ -16,7 +16,6 @@ import {
 
 import type { AccountsOverview } from '@/application/use-cases/accounts/get-accounts';
 import type { CategoryGroupSummary } from '@/application/use-cases/categories/get-category-groups';
-import { UNCATEGORIZED_CATEGORY_ID } from '@/domain/policies/system-categories';
 import type { TransactionSummary } from '@/application/use-cases/transactions/get-transactions';
 import type { TransactionInput } from '@/application/use-cases/transactions/transaction-input';
 import type { TransferInput } from '@/application/use-cases/transfers/transfer-input';
@@ -105,10 +104,7 @@ export function TransactionEditorScreen({
     () =>
       categoryGroups.flatMap(({ group, categories }) =>
         categories
-          .filter(
-            (category) =>
-              !category.hidden || category.id === UNCATEGORIZED_CATEGORY_ID,
-          )
+          .filter((category) => !category.hidden)
           .map((category) => ({
             category,
             groupName: groupDisplayName(group, t),
@@ -132,12 +128,7 @@ export function TransactionEditorScreen({
     availableAccounts.find(({ account }) => account.id !== initialAccountId)
       ?.account.id ??
     '';
-  const initialCategoryId =
-    existing?.categoryId ??
-    availableCategories.find(
-      ({ category }) => category.id === UNCATEGORIZED_CATEGORY_ID,
-    )?.category.id ??
-    '';
+  const initialCategoryId = existing?.categoryId ?? '';
   const initialPayee = existing?.payee ?? '';
   const initialDate = existing?.date ?? today();
   const initialMemo = existing?.notes ?? '';
@@ -273,10 +264,6 @@ export function TransactionEditorScreen({
       setError(t('transactions.accountRequired'));
       return;
     }
-    if (kind === 'expense' && !categoryId) {
-      setError(t('transactions.categoryRequired'));
-      return;
-    }
     if (kind === 'transfer' && !destinationAccountId) {
       setError(t('transactions.destinationRequired'));
       return;
@@ -308,7 +295,7 @@ export function TransactionEditorScreen({
                 ...common,
                 kind,
                 accountId,
-                categoryId,
+                ...(categoryId ? { categoryId } : {}),
                 payee: payee.trim() || undefined,
               }
             : {
@@ -425,11 +412,14 @@ export function TransactionEditorScreen({
           overlay
           onBack={closeEditor}
           onSelect={setCategoryId}
-          options={availableCategories.map(({ category, groupName }) => ({
-            value: category.id,
-            label: categoryDisplayName(category, t),
-            description: groupName,
-          }))}
+          options={[
+            { value: '', label: t('transactions.uncategorized') },
+            ...availableCategories.map(({ category, groupName }) => ({
+              value: category.id,
+              label: categoryDisplayName(category, t),
+              description: groupName,
+            })),
+          ]}
           selectedValue={categoryId}
           title={t('transactions.chooseCategory')}
         />
@@ -524,8 +514,8 @@ export function TransactionEditorScreen({
               ) : null}
               {kind === 'expense' ? (
                 <FormRow
-                  icon="shape-outline"
-                  label={categoryName ?? t('transactions.chooseCategory')}
+                  icon={categoryName ? 'shape-outline' : undefined}
+                  label={categoryName ?? t('transactions.uncategorized')}
                   muted={!categoryName}
                   onPress={() => openEditor('category')}
                 />

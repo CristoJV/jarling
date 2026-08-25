@@ -4,7 +4,6 @@ import { CategoryReassignmentRequiredError } from '@/domain/errors/category-reas
 import { CategoryNotFoundError } from '@/domain/errors/category-not-found-error';
 import { InvalidCategoryReassignmentError } from '@/domain/errors/invalid-category-reassignment-error';
 import { ProtectedCategoryError } from '@/domain/errors/protected-category-error';
-import { isProtectedCategory } from '@/domain/policies/system-categories';
 import type { BudgetAllocationRepository } from '@/domain/repositories/budget-allocation-repository';
 import type { CategoryRepository } from '@/domain/repositories/category-repository';
 import type { CategoryTargetRepository } from '@/domain/repositories/category-target-repository';
@@ -28,7 +27,7 @@ export class DeleteCategory {
   async execute(input: DeleteCategoryInput): Promise<void> {
     const category = await this.categories.findById(input.categoryId);
     if (!category) throw new CategoryNotFoundError(input.categoryId);
-    if (isProtectedCategory(category.id) || category.linkedAccountId) {
+    if (category.linkedAccountId) {
       throw new ProtectedCategoryError();
     }
 

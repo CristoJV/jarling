@@ -2,7 +2,7 @@
 
 ## Status and purpose
 
-This document is the stable functional contract for Jarling 1.0.0. It defines
+This document is the stable functional contract for Jarling 1.1.0. It defines
 what the first public release supports without duplicating implementation
 history or test counts. Architectural rationale lives in the
 [ADRs](adr/README.md), interaction rules in [interaction design](interaction-design.md),
@@ -59,14 +59,14 @@ then keeps that plan accurate through transactions and reconciliation.
 
 ### Categories
 
-- Fresh plans contain the groups Uncategorized, Bills, Needs, Subscriptions,
-  and Wants, with useful emoji-prefixed defaults.
-- `❓ Uncategorized` has a stable system identity and is the default for new
-  expenses. Its group and identity cannot be renamed, hidden, reordered, or
-  deleted.
-- Every standard expense must reference a category, including restored data.
-  Income, opening balances, transfers, and reconciliation adjustments retain
-  their own category rules.
+- Fresh plans contain the groups Bills, Needs, Subscriptions, and Wants, with
+  useful emoji-prefixed defaults.
+- Uncategorized is a transaction state, not a category or category group. A
+  standard expense is uncategorized when its optional `categoryId` is null.
+- Budget surfaces current-month uncategorized expenses directly below Ready to
+  Assign and links to the matching transaction filter for review.
+- Income, opening balances, transfers, and reconciliation adjustments retain
+  their own category rules and are never treated as uncategorized expenses.
 - Credit accounts have linked payment categories whose available balance is
   derived from funded card spending, refunds, allocations, and payments.
 
@@ -114,7 +114,7 @@ Reports are derived without persisted aggregate tables:
 - Optional interface lock using device credentials.
 - Readable JSON export with an explicit privacy warning.
 - Independently password-encrypted `.jarling` backup and transactional restore.
-- Plan deletion with explicit confirmation and recreation of protected default
+- Plan deletion with explicit confirmation and recreation of the starter
   categories.
 
 The active SQLite database is not encrypted by Jarling and lives in the

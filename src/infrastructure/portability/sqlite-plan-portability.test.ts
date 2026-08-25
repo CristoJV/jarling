@@ -340,8 +340,8 @@ describe('Jarling plan snapshots', () => {
     ).toThrow('invalid category notes');
   });
 
-  it('rejects an expense without a category', () => {
-    expect(() =>
+  it('accepts an expense without a category', () => {
+    expect(
       parsePlanSnapshot({
         ...emptySnapshot,
         tables: {
@@ -374,7 +374,71 @@ describe('Jarling plan snapshots', () => {
             },
           ],
         },
-      }),
-    ).toThrow('invalid transaction category');
+      }).tables.transactions[0],
+    ).toEqual(expect.objectContaining({ category_id: null, amount: -1000 }));
+  });
+
+  it('normalizes the legacy Uncategorized envelope into null category ids', () => {
+    const parsed = parsePlanSnapshot({
+      ...emptySnapshot,
+      tables: {
+        ...emptySnapshot.tables,
+        category_groups: [
+          {
+            id: 'system-group-uncategorized',
+            name: 'Uncategorized',
+            sort_order: 0,
+            created_at: '2026-08-19T10:00:00.000Z',
+            updated_at: '2026-08-19T10:00:00.000Z',
+          },
+        ],
+        categories: [
+          {
+            id: 'default-category-uncategorized',
+            group_id: 'system-group-uncategorized',
+            name: 'Uncategorized',
+            notes: null,
+            hidden: 0,
+            linked_account_id: null,
+            sort_order: 0,
+            created_at: '2026-08-19T10:00:00.000Z',
+            updated_at: '2026-08-19T10:00:00.000Z',
+          },
+        ],
+        accounts: [
+          {
+            id: 'account-1',
+            name: 'Cash',
+            type: 'checking',
+            on_budget: 1,
+            closed: 0,
+            created_at: '2026-08-19T10:00:00.000Z',
+            updated_at: '2026-08-19T10:00:00.000Z',
+          },
+        ],
+        transactions: [
+          {
+            id: 'transaction-1',
+            account_id: 'account-1',
+            category_id: 'default-category-uncategorized',
+            payee: 'Shop',
+            amount: -1000,
+            date: '2026-08-19',
+            notes: null,
+            status: 'cleared',
+            kind: 'standard',
+            transaction_group_id: null,
+            created_at: '2026-08-19T10:00:00.000Z',
+            updated_at: '2026-08-19T10:00:00.000Z',
+          },
+        ],
+      },
+    });
+
+    expect(parsed.tables.category_groups).toEqual([]);
+    expect(parsed.tables.categories).toEqual([]);
+    expect(parsed.tables.transactions[0]).toEqual(
+      expect.objectContaining({ category_id: null }),
+    );
   });
 });

@@ -2,11 +2,6 @@ import type { Clock } from '@/application/ports/clock';
 import type { UnitOfWork } from '@/application/ports/unit-of-work';
 import type { ReorderDirection } from '@/application/use-cases/categories/reorder-category-groups';
 import { CategoryNotFoundError } from '@/domain/errors/category-not-found-error';
-import { ProtectedCategoryError } from '@/domain/errors/protected-category-error';
-import {
-  isProtectedCategory,
-  isProtectedCategoryGroup,
-} from '@/domain/policies/system-categories';
 import type { CategoryRepository } from '@/domain/repositories/category-repository';
 
 export class ReorderCategories {
@@ -20,14 +15,10 @@ export class ReorderCategories {
     categoryId: string,
     direction: ReorderDirection,
   ): Promise<void> {
-    if (isProtectedCategory(categoryId)) throw new ProtectedCategoryError();
     const category = await this.categories.findById(categoryId);
 
     if (!category) {
       throw new CategoryNotFoundError(categoryId);
-    }
-    if (isProtectedCategoryGroup(category.groupId)) {
-      throw new ProtectedCategoryError();
     }
 
     const categories = [

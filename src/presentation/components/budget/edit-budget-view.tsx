@@ -6,7 +6,6 @@ import type { CategoryTarget } from '@/domain/entities/category-target';
 import type { BudgetCategoryValues } from '@/domain/services/calculate-budget-month';
 import type { TargetProgress } from '@/domain/services/calculate-target-progress';
 import { Money } from '@/domain/value-objects/money';
-import { isProtectedCategoryGroup } from '@/domain/policies/system-categories';
 import { formatMoney } from '@/presentation/utils/money';
 import { targetDescription } from '@/presentation/utils/target';
 import { useTranslation } from '@/presentation/localization/localization-provider';
@@ -76,7 +75,6 @@ export function EditBudgetView({
           <View key={group.id} style={styles.groupSection}>
             <View style={styles.groupHeader}>
               <Pressable
-                disabled={isProtectedCategoryGroup(group.id)}
                 onPress={() =>
                   onRenameGroup(group.id, groupDisplayName(group, t))
                 }
@@ -85,17 +83,15 @@ export function EditBudgetView({
                   {groupDisplayName(group, t)}
                 </Text>
               </Pressable>
-              {!isProtectedCategoryGroup(group.id) ? (
-                <Pressable
-                  accessibilityLabel={t('budget.addCategoryTo', {
-                    group: groupDisplayName(group, t),
-                  })}
-                  onPress={() => onAddCategory(group.id)}
-                  style={styles.addButton}
-                >
-                  <Text style={styles.addText}>+</Text>
-                </Pressable>
-              ) : null}
+              <Pressable
+                accessibilityLabel={t('budget.addCategoryTo', {
+                  group: groupDisplayName(group, t),
+                })}
+                onPress={() => onAddCategory(group.id)}
+                style={styles.addButton}
+              >
+                <Text style={styles.addText}>+</Text>
+              </Pressable>
             </View>
             <View style={styles.categoryCard}>
               {categories.map((category) => {

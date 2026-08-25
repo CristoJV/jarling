@@ -3,8 +3,6 @@ import type { IdGenerator } from '@/application/ports/id-generator';
 import type { UnitOfWork } from '@/application/ports/unit-of-work';
 import { createCategory, type Category } from '@/domain/entities/category';
 import { CategoryGroupNotFoundError } from '@/domain/errors/category-group-not-found-error';
-import { ProtectedCategoryError } from '@/domain/errors/protected-category-error';
-import { isProtectedCategoryGroup } from '@/domain/policies/system-categories';
 import type { CategoryGroupRepository } from '@/domain/repositories/category-group-repository';
 import type { CategoryRepository } from '@/domain/repositories/category-repository';
 
@@ -23,9 +21,6 @@ export class CreateCategory {
   ) {}
 
   async execute(input: CreateCategoryInput): Promise<Category> {
-    if (isProtectedCategoryGroup(input.groupId)) {
-      throw new ProtectedCategoryError();
-    }
     if (!(await this.groups.findById(input.groupId))) {
       throw new CategoryGroupNotFoundError(input.groupId);
     }

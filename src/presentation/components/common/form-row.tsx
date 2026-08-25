@@ -9,7 +9,7 @@ import {
 } from '@/presentation/theme/theme-provider';
 
 type Props = Readonly<{
-  icon: ComponentProps<typeof MaterialCommunityIcons>['name'];
+  icon?: ComponentProps<typeof MaterialCommunityIcons>['name'];
   label: string;
   muted?: boolean;
   overline?: string;
@@ -29,13 +29,15 @@ export function FormRow({
   const styles = useThemedStyles(createStyles);
   return (
     <Pressable onPress={onPress} style={styles.row} testID={testID}>
-      <View style={styles.icon}>
-        <MaterialCommunityIcons
-          color={theme.colors.textMuted}
-          name={icon}
-          size={23}
-        />
-      </View>
+      {icon ? (
+        <View style={styles.icon}>
+          <MaterialCommunityIcons
+            color={theme.colors.textMuted}
+            name={icon}
+            size={23}
+          />
+        </View>
+      ) : null}
       <View style={styles.copy}>
         {overline ? <Text style={styles.overline}>{overline}</Text> : null}
         <Text style={[styles.label, muted && styles.muted]}>{label}</Text>

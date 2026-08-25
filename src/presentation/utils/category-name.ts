@@ -7,10 +7,6 @@ type Translate = (key: TranslationKey) => string;
 const categoryNames: Readonly<
   Record<string, Readonly<{ source: string; key: TranslationKey }>>
 > = {
-  'default-category-uncategorized': {
-    source: '❓ Uncategorized',
-    key: 'defaults.uncategorized',
-  },
   'default-category-rent-mortgage': {
     source: '🏠 Rent/Mortgage',
     key: 'defaults.rentMortgage',
@@ -36,10 +32,6 @@ const categoryNames: Readonly<
 const groupNames: Readonly<
   Record<string, Readonly<{ source: string; key: TranslationKey }>>
 > = {
-  'system-group-uncategorized': {
-    source: 'Uncategorized',
-    key: 'defaults.uncategorized',
-  },
   'default-group-bills': { source: 'Bills', key: 'defaults.bills' },
   'default-group-needs': { source: 'Needs', key: 'defaults.needs' },
   'default-group-subscriptions': {

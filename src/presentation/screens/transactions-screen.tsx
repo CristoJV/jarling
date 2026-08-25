@@ -1,6 +1,6 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -17,11 +17,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { TransactionSummary } from '@/application/use-cases/transactions/get-transactions';
-import { OverflowMenu } from '@/presentation/components/common/overflow-menu';
 import { TransactionRow } from '@/presentation/components/transactions/transaction-row';
 import { useTransactions } from '@/presentation/hooks/use-transactions';
 import { usePrefetchTransactionReferenceData } from '@/presentation/hooks/use-prefetch-transaction-reference-data';
 import { useTranslation } from '@/presentation/localization/localization-provider';
+import {
+  MAIN_SCREEN_HEADER_HEIGHT,
+  MAIN_SCREEN_HORIZONTAL_PADDING,
+} from '@/presentation/layout/main-screen-layout';
 import { routes } from '@/presentation/navigation/routes';
 import type { AppTheme } from '@/presentation/theme/theme';
 import {
@@ -37,6 +40,7 @@ import { categoryDisplayName } from '@/presentation/utils/category-name';
 
 export function TransactionsScreen() {
   usePrefetchTransactionReferenceData();
+  const parameters = useLocalSearchParams<{ category?: string }>();
   const router = useRouter();
   const { t } = useTranslation();
   const theme = useAppTheme();
@@ -46,13 +50,15 @@ export function TransactionsScreen() {
     payee: t('transactions.payee'),
     memo: t('transactions.memo'),
   };
+  const searchInputRef = useRef<TextInput>(null);
   const [searchDraft, setSearchDraft] = useState('');
-  const [searchFocused, setSearchFocused] = useState(false);
+  const [searchActive, setSearchActive] = useState(false);
   const [appliedSearches, setAppliedSearches] = useState<
     readonly AppliedTransactionSearch[]
   >([]);
   const [accountId, setAccountId] = useState<string | undefined>();
   const [categoryId, setCategoryId] = useState<string | undefined>();
+  const uncategorized = parameters.category === 'uncategorized';
   const filters = useMemo(
     () => ({
       ...Object.fromEntries(
@@ -60,8 +66,9 @@ export function TransactionsScreen() {
       ),
       ...(accountId ? { accountId } : {}),
       ...(categoryId ? { categoryId } : {}),
+      ...(uncategorized ? { uncategorized: true } : {}),
     }),
-    [accountId, appliedSearches, categoryId],
+    [accountId, appliedSearches, categoryId, uncategorized],
   );
   const {
     data,
@@ -74,11 +81,25 @@ export function TransactionsScreen() {
   } = useTransactions(filters);
 
   const hasFilters =
-    appliedSearches.length > 0 || Boolean(accountId) || Boolean(categoryId);
+    appliedSearches.length > 0 ||
+    Boolean(accountId) ||
+    Boolean(categoryId) ||
+    uncategorized;
+
+  function activateSearch() {
+    setSearchActive(true);
+    requestAnimationFrame(() => searchInputRef.current?.focus());
+  }
+
+  function closeSearch() {
+    setSearchDraft('');
+    setSearchActive(false);
+    Keyboard.dismiss();
+  }
 
   function finishSearchStep() {
     setSearchDraft('');
-    setSearchFocused(false);
+    setSearchActive(false);
     Keyboard.dismiss();
   }
 
@@ -135,22 +156,24 @@ export function TransactionsScreen() {
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
       <View style={styles.header}>
-        <View style={styles.titleRow}>
-          <Text style={styles.title}>{t('transactions.title')}</Text>
-          <OverflowMenu />
-        </View>
-        <View style={styles.searchArea}>
-          <View style={styles.searchBox}>
-            <MaterialCommunityIcons
-              color={theme.colors.textMuted}
-              name="magnify"
-              size={21}
-            />
+        {searchActive ? (
+          <>
+            <Pressable
+              accessibilityLabel={t('common.back')}
+              hitSlop={8}
+              onPress={closeSearch}
+              style={styles.headerButton}
+            >
+              <MaterialCommunityIcons
+                color={theme.colors.text}
+                name="arrow-left"
+                size={24}
+              />
+            </Pressable>
             <TextInput
               accessibilityLabel={t('transactions.search')}
-              onBlur={() => setSearchFocused(false)}
+              autoFocus
               onChangeText={setSearchDraft}
-              onFocus={() => setSearchFocused(true)}
               onSubmitEditing={() => applySearch('search')}
               placeholder={
                 hasFilters
@@ -158,124 +181,172 @@ export function TransactionsScreen() {
                   : t('transactions.search')
               }
               placeholderTextColor={theme.colors.textMuted}
+              ref={searchInputRef}
               returnKeyType="search"
               style={styles.search}
               value={searchDraft}
             />
-          </View>
-          {searchFocused ? (
-            <View style={styles.suggestions}>
-              <ScrollView
-                keyboardShouldPersistTaps="always"
-                style={styles.suggestionList}
-              >
-                {searchDraft.trim() ? (
-                  (['search', 'payee', 'memo'] as const).map((field) => (
-                    <Pressable
-                      key={field}
-                      onPress={() => applySearch(field)}
-                      style={styles.suggestion}
-                    >
-                      <MaterialCommunityIcons
-                        color={theme.colors.primary}
-                        name={
-                          field === 'payee'
-                            ? 'currency-eur'
-                            : field === 'memo'
-                              ? 'note-text-outline'
-                              : 'magnify'
-                        }
-                        size={20}
-                      />
-                      <Text style={styles.suggestionText}>
-                        {t('transactions.contains', {
-                          field: searchLabels[field],
-                          value: searchDraft.trim(),
-                        })}
-                      </Text>
-                    </Pressable>
-                  ))
-                ) : (
-                  <>
-                    <SuggestionSection
-                      title={t('transactions.accountsFilter')}
-                    />
-                    {data?.accounts.accounts.map(({ account }) => (
-                      <SuggestionOption
-                        icon="bank-outline"
-                        key={account.id}
-                        label={account.name}
-                        onPress={() => {
-                          setAccountId(account.id);
-                          finishSearchStep();
-                        }}
-                        selected={account.id === accountId}
-                      />
-                    ))}
-                    <SuggestionSection
-                      title={t('transactions.categoriesFilter')}
-                    />
-                    {categories.map((category) => (
-                      <SuggestionOption
-                        icon="shape-outline"
-                        key={category.id}
-                        label={categoryDisplayName(category, t)}
-                        onPress={() => {
-                          setCategoryId(category.id);
-                          finishSearchStep();
-                        }}
-                        selected={category.id === categoryId}
-                      />
-                    ))}
-                  </>
-                )}
-              </ScrollView>
-            </View>
+            <Pressable
+              accessibilityLabel={
+                searchDraft ? t('transactions.clearSearch') : t('common.close')
+              }
+              hitSlop={8}
+              onPress={() => (searchDraft ? setSearchDraft('') : closeSearch())}
+              style={styles.headerButton}
+            >
+              <MaterialCommunityIcons
+                color={theme.colors.text}
+                name="close"
+                size={23}
+              />
+            </Pressable>
+          </>
+        ) : (
+          <>
+            <Text style={styles.title}>{t('transactions.title')}</Text>
+            <Pressable
+              accessibilityLabel={t('transactions.search')}
+              hitSlop={8}
+              onPress={activateSearch}
+              style={styles.headerButton}
+            >
+              <MaterialCommunityIcons
+                color={theme.colors.text}
+                name="magnify"
+                size={25}
+              />
+            </Pressable>
+          </>
+        )}
+      </View>
+
+      {hasFilters ? (
+        <View style={styles.appliedSearches}>
+          {appliedSearches.map(({ field, value }) => (
+            <Pressable
+              key={field}
+              onPress={() => removeSearch(field)}
+              style={styles.appliedSearch}
+            >
+              <Text style={styles.appliedSearchText}>
+                {searchLabels[field]}: {value}
+              </Text>
+              <MaterialCommunityIcons
+                color={theme.colors.primary}
+                name="close"
+                size={16}
+              />
+            </Pressable>
+          ))}
+          {accountId ? (
+            <AppliedFilter
+              label={t('transactions.accountFilter', {
+                value:
+                  data?.accounts.accounts.find(
+                    ({ account }) => account.id === accountId,
+                  )?.account.name ?? accountId,
+              })}
+              onRemove={() => setAccountId(undefined)}
+            />
+          ) : null}
+          {categoryId ? (
+            <AppliedFilter
+              label={t('transactions.categoryFilter', {
+                value:
+                  (selectedCategoryFilter
+                    ? categoryDisplayName(selectedCategoryFilter, t)
+                    : categoryId) ?? '',
+              })}
+              onRemove={() => setCategoryId(undefined)}
+            />
+          ) : null}
+          {uncategorized ? (
+            <AppliedFilter
+              label={t('transactions.categoryFilter', {
+                value: t('transactions.uncategorized'),
+              })}
+              onRemove={() => router.setParams({ category: '' })}
+            />
           ) : null}
         </View>
-        {hasFilters ? (
-          <View style={styles.appliedSearches}>
-            {appliedSearches.map(({ field, value }) => (
-              <Pressable
-                key={field}
-                onPress={() => removeSearch(field)}
-                style={styles.appliedSearch}
-              >
-                <Text style={styles.appliedSearchText}>
-                  {searchLabels[field]}: {value}
-                </Text>
-                <MaterialCommunityIcons
-                  color={theme.colors.primary}
-                  name="close"
-                  size={16}
+      ) : null}
+
+      {searchActive ? (
+        <View style={styles.suggestions}>
+          <ScrollView
+            keyboardShouldPersistTaps="always"
+            style={styles.suggestionList}
+          >
+            {searchDraft.trim() ? (
+              (['search', 'payee', 'memo'] as const).map((field) => (
+                <Pressable
+                  key={field}
+                  onPress={() => applySearch(field)}
+                  style={styles.suggestion}
+                >
+                  <MaterialCommunityIcons
+                    color={theme.colors.primary}
+                    name={
+                      field === 'payee'
+                        ? 'currency-eur'
+                        : field === 'memo'
+                          ? 'note-text-outline'
+                          : 'magnify'
+                    }
+                    size={20}
+                  />
+                  <Text style={styles.suggestionText}>
+                    {t('transactions.contains', {
+                      field: searchLabels[field],
+                      value: searchDraft.trim(),
+                    })}
+                  </Text>
+                </Pressable>
+              ))
+            ) : (
+              <>
+                <SuggestionSection title={t('transactions.accountsFilter')} />
+                {data?.accounts.accounts.map(({ account }) => (
+                  <SuggestionOption
+                    icon="bank-outline"
+                    key={account.id}
+                    label={account.name}
+                    onPress={() => {
+                      setAccountId(account.id);
+                      finishSearchStep();
+                    }}
+                    selected={account.id === accountId}
+                  />
+                ))}
+                <SuggestionSection title={t('transactions.categoriesFilter')} />
+                <SuggestionOption
+                  key="uncategorized"
+                  label={t('transactions.uncategorized')}
+                  onPress={() => {
+                    setCategoryId(undefined);
+                    router.setParams({ category: 'uncategorized' });
+                    finishSearchStep();
+                  }}
+                  selected={uncategorized}
                 />
-              </Pressable>
-            ))}
-            {accountId ? (
-              <AppliedFilter
-                label={t('transactions.accountFilter', {
-                  value:
-                    data?.accounts.accounts.find(
-                      ({ account }) => account.id === accountId,
-                    )?.account.name ?? accountId,
-                })}
-                onRemove={() => setAccountId(undefined)}
-              />
-            ) : null}
-            {categoryId ? (
-              <AppliedFilter
-                label={t('transactions.categoryFilter', {
-                  value:
-                    (selectedCategoryFilter
-                      ? categoryDisplayName(selectedCategoryFilter, t)
-                      : categoryId) ?? '',
-                })}
-                onRemove={() => setCategoryId(undefined)}
-              />
-            ) : null}
-          </View>
-        ) : null}
-      </View>
+                {categories.map((category) => (
+                  <SuggestionOption
+                    icon="shape-outline"
+                    key={category.id}
+                    label={categoryDisplayName(category, t)}
+                    onPress={() => {
+                      router.setParams({ category: '' });
+                      setCategoryId(category.id);
+                      finishSearchStep();
+                    }}
+                    selected={category.id === categoryId && !uncategorized}
+                  />
+                ))}
+              </>
+            )}
+          </ScrollView>
+        </View>
+      ) : null}
 
       <FlatList
         automaticallyAdjustKeyboardInsets
@@ -292,7 +363,7 @@ export function TransactionsScreen() {
                 {t('transactions.noTransactions')}
               </Text>
               <Text style={styles.emptyDescription}>
-                {appliedSearches.length > 0 || accountId || categoryId
+                {hasFilters
                   ? t('transactions.noResults')
                   : t('transactions.emptyHint')}
               </Text>
@@ -352,7 +423,7 @@ function SuggestionOption({
   selected,
   onPress,
 }: Readonly<{
-  icon: 'bank-outline' | 'shape-outline';
+  icon?: 'bank-outline' | 'shape-outline';
   label: string;
   selected: boolean;
   onPress: () => void;
@@ -361,11 +432,13 @@ function SuggestionOption({
   const styles = useThemedStyles(createStyles);
   return (
     <Pressable onPress={onPress} style={styles.suggestion}>
-      <MaterialCommunityIcons
-        color={theme.colors.primary}
-        name={icon}
-        size={20}
-      />
+      {icon ? (
+        <MaterialCommunityIcons
+          color={theme.colors.primary}
+          name={icon}
+          size={20}
+        />
+      ) : null}
       <Text style={styles.suggestionText}>{label}</Text>
       {selected ? (
         <MaterialCommunityIcons
@@ -400,45 +473,38 @@ const createStyles = (theme: AppTheme) =>
   StyleSheet.create({
     safeArea: { flex: 1, backgroundColor: theme.colors.background },
     header: {
-      paddingHorizontal: 20,
-      paddingTop: 12,
-      paddingBottom: 14,
+      minHeight: MAIN_SCREEN_HEADER_HEIGHT,
+      paddingHorizontal: MAIN_SCREEN_HORIZONTAL_PADDING,
       borderBottomColor: theme.colors.border,
       borderBottomWidth: StyleSheet.hairlineWidth,
-      gap: 12,
-    },
-    titleRow: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
     },
     title: {
       color: theme.colors.text,
-      fontSize: 28,
+      fontSize: 24,
       fontWeight: '700',
       letterSpacing: -0.6,
     },
-    searchArea: { position: 'relative', zIndex: 20 },
-    searchBox: {
-      minHeight: 44,
-      paddingHorizontal: 14,
-      backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 12,
-      flexDirection: 'row',
+    headerButton: {
+      width: 42,
+      height: 42,
       alignItems: 'center',
-      gap: 8,
+      justifyContent: 'center',
     },
     search: {
       flex: 1,
       minHeight: 44,
+      paddingHorizontal: 10,
       color: theme.colors.text,
       fontSize: 15,
     },
     suggestions: {
       position: 'absolute',
-      top: 50,
-      left: 0,
-      right: 0,
+      top: MAIN_SCREEN_HEADER_HEIGHT,
+      left: 12,
+      right: 12,
       padding: 8,
       backgroundColor: theme.colors.surface,
       borderColor: theme.colors.border,
@@ -449,6 +515,7 @@ const createStyles = (theme: AppTheme) =>
       shadowOpacity: 0.16,
       shadowRadius: 14,
       elevation: 10,
+      zIndex: 50,
     },
     suggestionList: { maxHeight: 380 },
     suggestion: {
@@ -485,7 +552,16 @@ const createStyles = (theme: AppTheme) =>
       backgroundColor: theme.colors.border,
       flex: 1,
     },
-    appliedSearches: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+    appliedSearches: {
+      minHeight: 44,
+      paddingHorizontal: 16,
+      paddingVertical: 6,
+      borderBottomColor: theme.colors.border,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 7,
+    },
     appliedSearch: {
       minHeight: 32,
       paddingHorizontal: 10,

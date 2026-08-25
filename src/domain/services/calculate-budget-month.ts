@@ -26,6 +26,10 @@ export type BudgetGroupValues = Readonly<{
 export type BudgetMonthValues = Readonly<{
   month: string;
   readyToAssign: Money;
+  uncategorized: Readonly<{
+    amount: Money;
+    transactionCount: number;
+  }>;
   groups: readonly BudgetGroupValues[];
 }>;
 
@@ -177,10 +181,26 @@ export function calculateBudgetMonth(
       ),
     0,
   );
+  const uncategorizedTransactions = transactions.filter(
+    (transaction) =>
+      transaction.date.slice(0, 7) === input.month &&
+      transaction.kind === 'standard' &&
+      transaction.amount.cents < 0 &&
+      !transaction.categoryId,
+  );
 
   return {
     month: input.month,
     readyToAssign: Money.fromCents(budgetableCash - envelopeBalances),
+    uncategorized: {
+      amount: Money.fromCents(
+        uncategorizedTransactions.reduce(
+          (total, transaction) => total + transaction.amount.cents,
+          0,
+        ),
+      ),
+      transactionCount: uncategorizedTransactions.length,
+    },
     groups,
   };
 }

@@ -3,7 +3,6 @@ import {
   createCategoryGroup,
   renameCategoryGroup,
 } from '@/domain/entities/category-group';
-import { createCategory } from '@/domain/entities/category';
 import { ImmediateUnitOfWork } from '@/infrastructure/persistence/in-memory/immediate-unit-of-work';
 import { InMemoryCategoryGroupRepository } from '@/infrastructure/persistence/in-memory/in-memory-category-group-repository';
 import { InMemoryCategoryRepository } from '@/infrastructure/persistence/in-memory/in-memory-category-repository';
@@ -31,20 +30,21 @@ describe('EnsureDefaultCategories', () => {
     await useCase.execute();
 
     expect((await groups.findAll()).map(({ name }) => name)).toEqual([
-      'Uncategorized',
       'Bills',
       'Needs',
       'Subscriptions',
       'Wants',
     ]);
-    expect((await categories.findAll()).map(({ name }) => name)).toContain(
-      '❓ Uncategorized',
+    expect((await categories.findAll()).map(({ name }) => name)).toEqual(
+      expect.arrayContaining([
+        '🏠 Rent/Mortgage',
+        '📱 Phone & Internet',
+        '⚡ Utilities',
+        '🛒 Groceries',
+        '🚗 Transportation',
+      ]),
     );
-    expect(
-      (await categories.findByGroup('system-group-uncategorized')).map(
-        ({ name }) => name,
-      ),
-    ).toEqual(['❓ Uncategorized']);
+    expect(await categories.findAll()).toHaveLength(5);
   });
 
   it('is idempotent and does not overwrite a user rename', async () => {
@@ -67,13 +67,12 @@ describe('EnsureDefaultCategories', () => {
     await useCase.execute();
 
     expect((await groups.findAll()).map(({ name }) => name)).toEqual([
-      'Uncategorized',
       'Facturas',
       'Needs',
       'Subscriptions',
       'Wants',
     ]);
-    expect(await categories.findAll()).toHaveLength(6);
+    expect(await categories.findAll()).toHaveLength(5);
   });
 
   it('appends defaults after existing user groups', async () => {
@@ -97,50 +96,7 @@ describe('EnsureDefaultCategories', () => {
     ).execute();
 
     expect((await groups.findAll()).map(({ sortOrder }) => sortOrder)).toEqual([
-      7, 8, 9, 10, 11, 12,
+      7, 8, 9, 10, 11,
     ]);
-  });
-
-  it('repairs the protected category after restoring a legacy snapshot', async () => {
-    const groups = new InMemoryCategoryGroupRepository();
-    const categories = new InMemoryCategoryRepository();
-    await groups.save(
-      createCategoryGroup({
-        id: 'default-group-needs',
-        name: 'Needs',
-        sortOrder: 0,
-        createdAt: clock.now().instant,
-        updatedAt: clock.now().instant,
-      }),
-    );
-    await categories.save(
-      createCategory({
-        id: 'default-category-uncategorized',
-        groupId: 'default-group-needs',
-        name: 'Changed',
-        hidden: true,
-        sortOrder: 5,
-        createdAt: clock.now().instant,
-        updatedAt: clock.now().instant,
-      }),
-    );
-
-    await new EnsureDefaultCategories(
-      groups,
-      categories,
-      new ImmediateUnitOfWork(),
-      clock,
-    ).execute();
-
-    await expect(
-      categories.findById('default-category-uncategorized'),
-    ).resolves.toEqual(
-      expect.objectContaining({
-        groupId: 'system-group-uncategorized',
-        name: '❓ Uncategorized',
-        hidden: false,
-        sortOrder: 0,
-      }),
-    );
   });
 });

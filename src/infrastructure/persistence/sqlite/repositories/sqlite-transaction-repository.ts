@@ -75,6 +75,12 @@ export class SQLiteTransactionRepository implements TransactionRepository {
       values.push(filters.categoryId);
     }
 
+    if (filters.uncategorized) {
+      conditions.push(
+        "category_id IS NULL AND kind = 'standard' AND amount < 0",
+      );
+    }
+
     if (filters.dateFrom) {
       conditions.push('date >= ?');
       values.push(filters.dateFrom);
