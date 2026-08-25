@@ -1,8 +1,10 @@
 import { useRouter } from 'expo-router';
+import Constants from 'expo-constants';
 import * as LocalAuthentication from 'expo-local-authentication';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Alert,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -16,12 +18,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { SelectionModal } from '@/presentation/components/common/selection-modal';
 import { KeyboardResponsiveScreen } from '@/presentation/components/common/keyboard-responsive-screen';
 import { PasswordInputModal } from '@/presentation/components/common/password-input-modal';
-import { IndeterminateProgressOverlay } from '@/presentation/components/common/indeterminate-progress-overlay';
+import { LongRunningOperationModal } from '@/presentation/components/common/long-running-operation-modal';
 import type {
-  BackupProgressPhase,
   PlanRestoreSource,
   RestoreResult,
 } from '@/application/ports/plan-portability';
+import { PlanPortabilityError } from '@/application/errors/plan-portability-error';
 import { useApplication } from '@/presentation/contexts/application-context';
 import { invalidateTransactionReferenceData } from '@/presentation/cache/transaction-reference-data';
 import { useTranslation } from '@/presentation/localization/localization-provider';
@@ -50,6 +52,8 @@ import { Money } from '@/domain/value-objects/money';
 
 type Selector = 'currency' | 'number' | 'placement' | 'date' | null;
 type DataAction = 'backup' | 'restore' | null;
+type LongOperation = 'backup' | 'restore' | 'reading' | null;
+const PROJECT_URL = 'https://github.com/CristoJV/jarling';
 
 export function SettingsScreen() {
   const router = useRouter();
@@ -79,8 +83,29 @@ export function SettingsScreen() {
   const [restoreSource, setRestoreSource] = useState<PlanRestoreSource | null>(
     null,
   );
-  const [backupProgress, setBackupProgress] =
-    useState<BackupProgressPhase | null>(null);
+  const [longOperation, setLongOperation] = useState<LongOperation>(null);
+  const appName = Constants.expoConfig?.name ?? 'Jarling';
+  const appVersion = Constants.expoConfig?.version ?? '—';
+  const operationMessages = useMemo(
+    () => ({
+      backup: [
+        t('settings.progress.counting'),
+        t('settings.progress.balancing'),
+        t('settings.progress.sofa'),
+        t('settings.progress.behave'),
+        t('settings.progress.evidence'),
+      ],
+      restore: [
+        t('settings.progress.vault'),
+        t('settings.progress.categories'),
+        t('settings.progress.payments'),
+        t('settings.progress.counting'),
+        t('settings.progress.behave'),
+      ],
+      reading: [t('settings.progress.checkingFile')],
+    }),
+    [t],
+  );
 
   function requestExport() {
     Alert.alert(t('settings.exportWarningTitle'), t('settings.exportWarning'), [
@@ -101,15 +126,12 @@ export function SettingsScreen() {
   }
 
   async function createBackup(password: string) {
+    setLongOperation('backup');
     try {
-      await application.planPortability.createBackup(
-        password,
-        preferences,
-        setBackupProgress,
-      );
+      await application.planPortability.createBackup(password, preferences);
       Alert.alert(t('settings.backupCreated'));
     } finally {
-      setBackupProgress(null);
+      setLongOperation(null);
     }
   }
 
@@ -130,25 +152,37 @@ export function SettingsScreen() {
 
   async function restoreSelected(password?: string) {
     if (!restoreSource) return;
-    const result = await restoreSource.restore(password);
-    setRestoreSource(null);
-    await finishRestore(result);
+    setLongOperation('restore');
+    try {
+      const result = await restoreSource.restore(password);
+      setRestoreSource(null);
+      await finishRestore(result);
+    } finally {
+      setLongOperation(null);
+    }
   }
 
   async function selectRestoreFile() {
     try {
-      const source = await application.planPortability.selectRestoreSource();
+      const source = await application.planPortability.selectRestoreSource(() =>
+        setLongOperation('reading'),
+      );
       if (!source) return;
       setRestoreSource(source);
       if (source.encrypted) {
+        setLongOperation(null);
         setDataAction('restore');
       } else {
+        setLongOperation('restore');
         await finishRestore(await source.restore());
         setRestoreSource(null);
       }
-    } catch {
+    } catch (cause) {
+      logPortabilityFailure('select/restore', cause);
       setRestoreSource(null);
-      Alert.alert(t('settings.backupError'));
+      Alert.alert(portabilityErrorMessage(cause, t));
+    } finally {
+      setLongOperation(null);
     }
   }
 
@@ -275,6 +309,14 @@ export function SettingsScreen() {
       await updatePreferences({ theme: themePreference });
     } catch {
       Alert.alert(t('settings.saveError'));
+    }
+  }
+
+  async function openAbout() {
+    try {
+      await Linking.openURL(PROJECT_URL);
+    } catch {
+      Alert.alert(t('settings.aboutError'));
     }
   }
 
@@ -463,6 +505,19 @@ export function SettingsScreen() {
               </View>
             </>
           ) : null}
+
+          <Text style={styles.sectionLabel}>{t('settings.aboutSection')}</Text>
+          <View style={styles.card}>
+            <SettingsRow
+              label={t('settings.about')}
+              onPress={() => void openAbout()}
+              value={t('settings.projectRepository')}
+            />
+          </View>
+          <View style={styles.appIdentity}>
+            <Text style={styles.appName}>{appName}</Text>
+            <Text style={styles.appVersion}>v{appVersion}</Text>
+          </View>
         </ScrollView>
       </KeyboardResponsiveScreen>
 
@@ -535,6 +590,12 @@ export function SettingsScreen() {
       {dataAction ? (
         <PasswordInputModal
           confirm={dataAction === 'backup'}
+          errorMessage={(cause) =>
+            dataAction === 'backup' && !(cause instanceof PlanPortabilityError)
+              ? t('settings.backupError')
+              : portabilityErrorMessage(cause, t)
+          }
+          onError={(cause) => logPortabilityFailure(dataAction, cause)}
           onDismiss={() => {
             setDataAction(null);
             if (dataAction === 'restore') setRestoreSource(null);
@@ -556,13 +617,50 @@ export function SettingsScreen() {
           }
         />
       ) : null}
-      {backupProgress ? (
-        <IndeterminateProgressOverlay
-          label={t(`settings.backupProgress.${backupProgress}`)}
+      {longOperation ? (
+        <LongRunningOperationModal
+          key={longOperation}
+          initialMessage={
+            longOperation === 'backup'
+              ? t('settings.progress.encrypting')
+              : longOperation === 'restore'
+                ? t('settings.progress.decrypting')
+                : t('settings.progress.reading')
+          }
+          messages={operationMessages[longOperation]}
         />
       ) : null}
     </SafeAreaView>
   );
+}
+
+function portabilityErrorMessage(
+  cause: unknown,
+  t: ReturnType<typeof useTranslation>['t'],
+): string {
+  if (!(cause instanceof PlanPortabilityError)) {
+    return t('settings.restoreError');
+  }
+  switch (cause.code) {
+    case 'decryption-failed':
+      return t('settings.decryptError');
+    case 'corrupt-backup':
+      return t('settings.corruptBackup');
+    case 'unsupported-format':
+      return t('settings.unsupportedFormat');
+    case 'unsupported-version':
+      return t('settings.unsupportedVersion');
+    case 'invalid-snapshot':
+      return t('settings.invalidSnapshot');
+    case 'migration-failed':
+      return t('settings.migrationError');
+    case 'restore-failed':
+      return t('settings.restoreError');
+  }
+}
+
+function logPortabilityFailure(operation: string | null, cause: unknown) {
+  console.error(`[Jarling portability:${operation ?? 'unknown'}]`, cause);
 }
 
 function SettingsRow({
@@ -649,6 +747,18 @@ const createStyles = (theme: AppTheme) =>
       borderWidth: 1,
       gap: 14,
     },
+    appIdentity: {
+      paddingTop: 10,
+      paddingBottom: 18,
+      alignItems: 'center',
+      gap: 3,
+    },
+    appName: {
+      color: theme.colors.textSecondary,
+      fontSize: 14,
+      fontWeight: '700',
+    },
+    appVersion: { color: theme.colors.textMuted, fontSize: 12 },
     cardTitle: { color: theme.colors.text, fontSize: 17, fontWeight: '800' },
     field: { gap: 7 },
     fieldLabel: {

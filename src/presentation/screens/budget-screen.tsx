@@ -15,13 +15,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { BudgetCategoryValues } from '@/domain/services/calculate-budget-month';
 import { calculateBudgetCategoryTargetProgress } from '@/domain/services/calculate-target-progress';
 import { CategoryBudgetModal } from '@/presentation/components/budget/category-budget-modal';
+import { BudgetStatusBanner } from '@/presentation/components/budget/budget-status-banner';
 import { CategoryGroupCard } from '@/presentation/components/categories/category-group-card';
 import { MonthYearPickerModal } from '@/presentation/components/common/month-year-picker-modal';
 import { NameInputModal } from '@/presentation/components/common/name-input-modal';
 import { OverflowMenu } from '@/presentation/components/common/overflow-menu';
-import { useBudget } from '@/presentation/hooks/use-budget';
-import { useCategories } from '@/presentation/hooks/use-categories';
-import { useTargets } from '@/presentation/hooks/use-targets';
+import { useBudgetOverview } from '@/presentation/hooks/use-budget-overview';
 import { usePrefetchTransactionReferenceData } from '@/presentation/hooks/use-prefetch-transaction-reference-data';
 import { useTranslation } from '@/presentation/localization/localization-provider';
 import {
@@ -69,27 +68,16 @@ export function BudgetScreen() {
   const styles = useThemedStyles(createStyles);
   const [month, setMonth] = useState(monthKey);
   const {
-    groups,
-    error: categoryError,
-    loading: categoriesLoading,
-    refresh: refreshCategories,
+    budget,
+    targets,
+    error,
+    loading,
+    refresh,
     createGroup,
     createCategory,
     renameGroup,
-  } = useCategories();
-  const {
-    budget,
-    error: budgetError,
-    loading: budgetLoading,
-    refresh: refreshBudget,
     assign,
-  } = useBudget(month);
-  const {
-    targets,
-    error: targetError,
-    loading: targetsLoading,
-    refresh: refreshTargets,
-  } = useTargets();
+  } = useBudgetOverview(month);
   const [selectingMonth, setSelectingMonth] = useState(false);
   const [nameEditor, setNameEditor] = useState<NameEditor | null>(null);
   const [categoryEditor, setCategoryEditor] =
@@ -100,6 +88,14 @@ export function BudgetScreen() {
   const monthLabel = useMemo(
     () => formatMonth(month, language),
     [language, month],
+  );
+  const groups = useMemo(
+    () =>
+      budget?.groups.map(({ group, categories }) => ({
+        group,
+        categories: categories.map(({ category }) => category),
+      })) ?? null,
+    [budget],
   );
   const valuesByCategoryId = useMemo(
     () =>
@@ -141,10 +137,6 @@ export function BudgetScreen() {
     [budgetCategories, month, targetsByCategoryId],
   );
 
-  async function refreshAll() {
-    await Promise.all([refreshCategories(), refreshBudget(), refreshTargets()]);
-  }
-
   async function submitName(name: string) {
     if (!nameEditor) return;
 
@@ -159,7 +151,6 @@ export function BudgetScreen() {
         await renameGroup(nameEditor.id, name);
         break;
     }
-    await refreshBudget();
   }
 
   function openCategoryDetails(
@@ -244,62 +235,42 @@ export function BudgetScreen() {
           <>
             {budget ? (
               <>
-                <View
-                  style={[
-                    styles.rtaCard,
-                    budget.readyToAssign.cents < 0 && styles.rtaCardNegative,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.rtaValue,
-                      budget.readyToAssign.cents < 0 && styles.rtaNegative,
-                    ]}
-                  >
-                    {formatMoney(budget.readyToAssign)}
-                  </Text>
-                  <Text style={styles.rtaLabel}>
-                    {t('budget.readyToAssign')}
-                  </Text>
-                </View>
+                <BudgetStatusBanner
+                  actionLabel={
+                    budget.readyToAssign.cents < 0
+                      ? t('budget.overassigned')
+                      : t('budget.readyToAssign')
+                  }
+                  label={formatMoney(budget.readyToAssign)}
+                  tone={
+                    budget.readyToAssign.cents < 0 ? 'negative' : 'positive'
+                  }
+                />
                 {budget.uncategorized.transactionCount > 0 ? (
-                  <View style={styles.uncategorizedRow}>
-                    <Text numberOfLines={1} style={styles.uncategorizedCopy}>
-                      <Text style={styles.uncategorizedAmount}>
-                        {formatMoney(budget.uncategorized.amount)}
-                      </Text>
-                      {' · '}
-                      {t(
-                        budget.uncategorized.transactionCount === 1
-                          ? 'budget.newTransactionCount'
-                          : 'budget.newTransactionsCount',
-                        { count: budget.uncategorized.transactionCount },
-                      )}
-                    </Text>
-                    <Pressable
-                      accessibilityRole="button"
-                      onPress={() =>
-                        router.navigate(routes.uncategorizedTransactions())
-                      }
-                      style={styles.reviewButton}
-                    >
-                      <Text style={styles.reviewText}>
-                        {t('budget.review')}
-                      </Text>
-                    </Pressable>
-                  </View>
+                  <BudgetStatusBanner
+                    actionLabel={t('budget.review')}
+                    label={`${formatMoney(budget.uncategorized.amount)} · ${t(
+                      budget.uncategorized.transactionCount === 1
+                        ? 'budget.newTransactionCount'
+                        : 'budget.newTransactionsCount',
+                      { count: budget.uncategorized.transactionCount },
+                    )}`}
+                    onPress={() =>
+                      router.navigate(routes.uncategorizedTransactions())
+                    }
+                    tone="notice"
+                  />
                 ) : null}
               </>
             ) : null}
 
-            {categoryError || budgetError || targetError ? (
+            {error ? (
               <Text accessibilityLiveRegion="polite" style={styles.error}>
-                {categoryError ?? budgetError ?? targetError}
+                {error}
               </Text>
             ) : null}
 
-            {(categoriesLoading || budgetLoading || targetsLoading) &&
-            !groups ? (
+            {loading && !budget ? (
               <ActivityIndicator
                 accessibilityLabel={t('common.loading')}
                 color={theme.colors.primary}
@@ -309,11 +280,8 @@ export function BudgetScreen() {
         }
         refreshControl={
           <RefreshControl
-            onRefresh={() => void refreshAll()}
-            refreshing={
-              (categoriesLoading || budgetLoading || targetsLoading) &&
-              groups !== null
-            }
+            onRefresh={() => void refresh()}
+            refreshing={loading && budget !== null}
           />
         }
         renderItem={({ item: summary }) => (
@@ -461,60 +429,6 @@ const createStyles = (theme: AppTheme) =>
       paddingBottom: 120,
       alignSelf: 'center',
       gap: 8,
-    },
-    rtaCard: {
-      minHeight: 56,
-      paddingHorizontal: 18,
-      backgroundColor: theme.colors.positiveMuted,
-      borderRadius: 28,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: 12,
-    },
-    rtaCardNegative: { backgroundColor: theme.colors.negativeMuted },
-    rtaLabel: {
-      color: theme.colors.positive,
-      fontSize: 14,
-      fontWeight: '700',
-    },
-    rtaValue: {
-      color: theme.colors.positive,
-      fontSize: 22,
-      fontVariant: ['tabular-nums'],
-      fontWeight: '800',
-    },
-    rtaNegative: { color: theme.colors.negative },
-    uncategorizedRow: {
-      minHeight: 46,
-      paddingHorizontal: 8,
-      borderBottomColor: theme.colors.border,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: 10,
-    },
-    uncategorizedCopy: {
-      flex: 1,
-      color: theme.colors.textSecondary,
-      fontSize: 13,
-      fontWeight: '600',
-    },
-    uncategorizedAmount: {
-      color: theme.colors.negative,
-      fontVariant: ['tabular-nums'],
-      fontWeight: '800',
-    },
-    reviewButton: {
-      minHeight: 36,
-      paddingHorizontal: 10,
-      justifyContent: 'center',
-    },
-    reviewText: {
-      color: theme.colors.primary,
-      fontSize: 13,
-      fontWeight: '800',
     },
     error: {
       padding: 12,

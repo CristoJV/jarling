@@ -262,13 +262,13 @@ export function createApplication(
       exportData: (preferences) => planPortability.exportData(preferences),
       createBackup: (password, preferences, onProgress) =>
         planPortability.createBackup(password, preferences, onProgress),
-      selectRestoreSource: async () => {
-        const source = await planPortability.selectRestoreSource();
+      selectRestoreSource: async (onProgress) => {
+        const source = await planPortability.selectRestoreSource(onProgress);
         if (!source) return null;
         return {
           encrypted: source.encrypted,
-          restore: async (password?: string) => {
-            const result = await source.restore(password);
+          restore: async (password, restoreProgress) => {
+            const result = await source.restore(password, restoreProgress);
             if (result.restored) await ensureDefaults.execute();
             return result;
           },
