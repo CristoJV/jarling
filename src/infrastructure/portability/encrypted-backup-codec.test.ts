@@ -10,7 +10,9 @@ import {
   decryptEncryptedBackupDocument,
   type EncryptedBackupDocument,
   type EncryptedPayload,
+  NobleBackupCipher,
   parseEncryptedBackupDocument,
+  verifyEncryptedBackupDocument,
 } from './encrypted-backup-codec';
 import { parsePlanSnapshot } from './sqlite-plan-portability';
 
@@ -139,7 +141,35 @@ const emptySnapshot = {
 
 describe('encrypted Jarling backup codec', () => {
   const cipher = new WebCryptoTestCipher();
+  const productionCipher = new NobleBackupCipher(async (length) =>
+    cryptoProvider.getRandomValues(new Uint8Array(length)),
+  );
   const password = 'correct horse battery staple';
+
+  it('interoperates between the production cipher and standard Web Crypto', async () => {
+    const serialized = JSON.stringify(emptySnapshot);
+    const productionBackup = await createEncryptedBackupDocument(
+      serialized,
+      password,
+      productionCipher,
+    );
+    await expect(
+      decryptEncryptedBackupDocument(productionBackup, password, cipher),
+    ).resolves.toEqual({ version: 2, snapshotJson: serialized });
+
+    const standardBackup = await createEncryptedBackupDocument(
+      serialized,
+      password,
+      cipher,
+    );
+    await expect(
+      decryptEncryptedBackupDocument(
+        standardBackup,
+        password,
+        productionCipher,
+      ),
+    ).resolves.toEqual({ version: 2, snapshotJson: serialized });
+  });
 
   it('round-trips the current portable snapshot', async () => {
     const serialized = JSON.stringify(emptySnapshot);
@@ -157,6 +187,20 @@ describe('encrypted Jarling backup codec', () => {
     expect(parsePlanSnapshot(JSON.parse(decoded.snapshotJson))).toEqual(
       emptySnapshot,
     );
+    await expect(
+      verifyEncryptedBackupDocument(backup, password, serialized, cipher),
+    ).resolves.toBeUndefined();
+  });
+
+  it('fails verification when the decrypted snapshot differs from its source', async () => {
+    const backup = await createEncryptedBackupDocument(
+      JSON.stringify(emptySnapshot),
+      password,
+      cipher,
+    );
+    await expect(
+      verifyEncryptedBackupDocument(backup, password, '{}', cipher),
+    ).rejects.toMatchObject({ code: 'backup-verification-failed' });
   });
 
   it('distinguishes a wrong password from an encrypted payload mutation', async () => {
@@ -202,7 +246,12 @@ describe('encrypted Jarling backup codec', () => {
   it.each([1, 2] as const)(
     'decrypts version %s and lets the snapshot migration chain normalize it',
     async (version) => {
-      const legacySnapshot = { ...emptySnapshot, version };
+      const { transaction_links: _, ...legacyTables } = emptySnapshot.tables;
+      const legacySnapshot = {
+        ...emptySnapshot,
+        version,
+        tables: version === 1 ? legacyTables : emptySnapshot.tables,
+      };
       const encrypted = await cipher.encrypt(
         JSON.stringify(legacySnapshot),
         password,

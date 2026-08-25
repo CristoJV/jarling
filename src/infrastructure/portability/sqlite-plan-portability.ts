@@ -33,6 +33,7 @@ import {
   createEncryptedBackupDocument,
   decryptEncryptedBackupDocument,
   parseEncryptedBackupDocument,
+  verifyEncryptedBackupDocument,
 } from '@/infrastructure/portability/encrypted-backup-codec';
 
 const MAX_BACKUP_BYTES = 100 * 1024 * 1024;
@@ -220,6 +221,9 @@ function migrateSnapshotDocument(value: unknown): unknown {
         : rows,
     ]),
   );
+  if (!Array.isArray(migratedTables.transaction_links)) {
+    migratedTables.transaction_links = [];
+  }
   return {
     ...value,
     version: CURRENT_BACKUP_VERSION,
@@ -614,16 +618,37 @@ export class SQLitePlanPortability implements PlanPortability {
     await reportProgress(onProgress, 'preparing');
     await reportProgress(onProgress, 'snapshot');
     const snapshot = await this.snapshot(preferences);
+    const snapshotJson = JSON.stringify(snapshot);
     await reportProgress(onProgress, 'encrypting');
-    const backup = await createEncryptedBackupDocument(
-      JSON.stringify(snapshot),
-      password,
-    );
+    const backup = await createEncryptedBackupDocument(snapshotJson, password);
     await reportProgress(onProgress, 'saving');
     const file = temporaryFile(
       `jarling-backup-${snapshot.exportedAt.slice(0, 10)}.jarling`,
       JSON.stringify(backup),
     );
+    try {
+      await reportProgress(onProgress, 'verifying');
+      const writtenBackup: unknown = JSON.parse(await file.text());
+      await verifyEncryptedBackupDocument(
+        writtenBackup,
+        password,
+        snapshotJson,
+      );
+      parsePlanSnapshot(JSON.parse(snapshotJson));
+    } catch (cause) {
+      if (file.exists) file.delete();
+      if (
+        cause instanceof PlanPortabilityError &&
+        cause.code === 'backup-verification-failed'
+      ) {
+        throw cause;
+      }
+      throw new PlanPortabilityError(
+        'backup-verification-failed',
+        'The encrypted backup failed its read-back verification.',
+        { cause },
+      );
+    }
     await shareFile(file, 'application/vnd.jarling.backup');
   }
 

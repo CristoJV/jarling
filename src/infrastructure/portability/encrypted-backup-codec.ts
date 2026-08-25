@@ -1,15 +1,20 @@
+import { gcm } from '@noble/ciphers/aes';
 import { pbkdf2Async } from '@noble/hashes/pbkdf2';
 import { sha256 } from '@noble/hashes/sha256';
-import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils';
 import {
-  AESEncryptionKey,
-  AESSealedData,
-  aesDecryptAsync,
-  aesEncryptAsync,
-  getRandomBytesAsync,
-} from 'expo-crypto';
+  bytesToHex,
+  bytesToUtf8,
+  concatBytes,
+  hexToBytes,
+  utf8ToBytes,
+} from '@noble/hashes/utils';
+import { getRandomBytesAsync } from 'expo-crypto';
 
 import { PlanPortabilityError } from '@/application/errors/plan-portability-error';
+import {
+  decodeBase64,
+  encodeBase64,
+} from '@/infrastructure/portability/base64';
 
 export const BACKUP_FORMAT = 'com.cristojv.jarling.backup';
 export const CURRENT_BACKUP_VERSION = 2;
@@ -74,36 +79,43 @@ async function deriveKey(
   password: string,
   salt: Uint8Array,
   iterations: number,
-): Promise<AESEncryptionKey> {
-  const bytes = await pbkdf2Async(
-    sha256,
-    utf8ToBytes(normalizePassword(password)),
-    salt,
-    { c: iterations, dkLen: 32, asyncTick: 8 },
-  );
-  return AESEncryptionKey.import(bytes);
+): Promise<Uint8Array> {
+  return pbkdf2Async(sha256, utf8ToBytes(normalizePassword(password)), salt, {
+    c: iterations,
+    dkLen: 32,
+    asyncTick: 8,
+  });
 }
 
-export class ExpoBackupCipher implements BackupCipher {
+type RandomBytes = (length: number) => Promise<Uint8Array>;
+
+export class NobleBackupCipher implements BackupCipher {
+  constructor(
+    private readonly randomBytes: RandomBytes = getRandomBytesAsync,
+  ) {}
+
   async encrypt(
     plaintext: string,
     password: string,
     version: BackupVersion,
     iterations: number,
   ): Promise<EncryptedPayload> {
-    const salt = await getRandomBytesAsync(16);
+    const salt = await this.randomBytes(16);
+    const nonce = await this.randomBytes(12);
     const key = await deriveKey(password, salt, iterations);
-    const sealed = await aesEncryptAsync(utf8ToBytes(plaintext), key, {
-      additionalData: authenticatedContext(version),
-      nonce: { length: 12 },
-      tagLength: 16,
-    });
-    return {
-      salt: bytesToHex(salt),
-      nonce: await sealed.iv('base64'),
-      payload: await sealed.ciphertext({ encoding: 'base64' }),
-      authenticationTag: await sealed.tag('base64'),
-    };
+    try {
+      const sealed = gcm(key, nonce, authenticatedContext(version)).encrypt(
+        utf8ToBytes(plaintext),
+      );
+      return {
+        salt: bytesToHex(salt),
+        nonce: encodeBase64(nonce),
+        payload: encodeBase64(sealed.subarray(0, -16)),
+        authenticationTag: encodeBase64(sealed.subarray(-16)),
+      };
+    } finally {
+      key.fill(0);
+    }
   }
 
   async decrypt(
@@ -116,21 +128,20 @@ export class ExpoBackupCipher implements BackupCipher {
         hexToBytes(backup.kdf.salt),
         backup.kdf.iterations,
       );
-      const sealed =
-        backup.nonce && backup.authenticationTag
-          ? AESSealedData.fromParts(
-              backup.nonce,
-              backup.payload,
-              backup.authenticationTag,
-            )
-          : AESSealedData.fromCombined(backup.payload, {
-              ivLength: 12,
-              tagLength: 16,
-            });
-      const decrypted = await aesDecryptAsync(sealed, key, {
-        additionalData: authenticatedContext(backup.version),
-      });
-      return new TextDecoder().decode(decrypted);
+      try {
+        const combined = decodeBase64(backup.payload);
+        const nonce = backup.nonce
+          ? decodeBase64(backup.nonce)
+          : combined.subarray(0, 12);
+        const sealed = backup.authenticationTag
+          ? concatBytes(combined, decodeBase64(backup.authenticationTag))
+          : combined.subarray(12);
+        return bytesToUtf8(
+          gcm(key, nonce, authenticatedContext(backup.version)).decrypt(sealed),
+        );
+      } finally {
+        key.fill(0);
+      }
     } catch (cause) {
       if (cause instanceof PlanPortabilityError) throw cause;
       throw new PlanPortabilityError(
@@ -238,7 +249,7 @@ export function parseEncryptedBackupDocument(
 export async function createEncryptedBackupDocument(
   snapshotJson: string,
   password: string,
-  cipher: BackupCipher = new ExpoBackupCipher(),
+  cipher: BackupCipher = new NobleBackupCipher(),
 ): Promise<EncryptedBackupDocument> {
   const encrypted = await cipher.encrypt(
     snapshotJson,
@@ -268,7 +279,7 @@ export async function createEncryptedBackupDocument(
 export async function decryptEncryptedBackupDocument(
   value: unknown,
   password: string,
-  cipher: BackupCipher = new ExpoBackupCipher(),
+  cipher: BackupCipher = new NobleBackupCipher(),
 ): Promise<Readonly<{ version: BackupVersion; snapshotJson: string }>> {
   const backup = parseEncryptedBackupDocument(value);
   try {
@@ -281,6 +292,30 @@ export async function decryptEncryptedBackupDocument(
     throw new PlanPortabilityError(
       'decryption-failed',
       'The backup could not be authenticated or decrypted.',
+      { cause },
+    );
+  }
+}
+
+export async function verifyEncryptedBackupDocument(
+  value: unknown,
+  password: string,
+  expectedSnapshotJson: string,
+  cipher: BackupCipher = new NobleBackupCipher(),
+): Promise<void> {
+  try {
+    const decrypted = await decryptEncryptedBackupDocument(
+      value,
+      password,
+      cipher,
+    );
+    if (decrypted.snapshotJson !== expectedSnapshotJson) {
+      throw new Error('The decrypted snapshot differs from the source.');
+    }
+  } catch (cause) {
+    throw new PlanPortabilityError(
+      'backup-verification-failed',
+      'The encrypted backup failed its read-back verification.',
       { cause },
     );
   }

@@ -1,5 +1,5 @@
 export type BackupProgressPhase =
-  'preparing' | 'snapshot' | 'encrypting' | 'saving';
+  'preparing' | 'snapshot' | 'encrypting' | 'saving' | 'verifying';
 
 export type RestoreProgressPhase =
   | 'reading'
