@@ -1,0 +1,68 @@
+name: Release Please
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release-baseline:
+    name: Check initial release baseline
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      ready: ${{ steps.baseline.outputs.ready }}
+
+    steps:
+      - name: Require the manually reviewed v1.0.0 release
+        id: baseline
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view v1.0.0 >/dev/null 2>&1; then
+            echo 'ready=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'ready=false' >> "$GITHUB_OUTPUT"
+            echo 'Release Please remains inactive until v1.0.0 exists.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  release-please:
+    name: Prepare or create release
+    if: ${{ needs.release-baseline.outputs.ready == 'true' }}
+    needs: release-baseline
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+
+    steps:
+      - name: Run Release Please
+        id: release
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          token: ${{ github.token }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  android-release:
+    name: Build Android release
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    needs: release-please
+    permissions:
+      contents: write
+    uses: ./.github/workflows/android-release.yml
+    with:
+      ref: ${{ needs.release-please.outputs.tag_name }}
+      release_tag: ${{ needs.release-please.outputs.tag_name }}
