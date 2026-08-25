@@ -1,0 +1,9 @@
+# Release automation and build inputs require explicit maintainer review.
+/.github/workflows/** @CristoJV
+/.github/dependabot.yml @CristoJV
+/app.config.ts @CristoJV
+/app.json @CristoJV
+/package.json @CristoJV
+/package-lock.json @CristoJV
+/release-please-config.json @CristoJV
+/.release-please-manifest.json @CristoJV
