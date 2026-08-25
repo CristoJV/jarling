@@ -58,7 +58,8 @@ boundary between routes and modals.
 - Type, payee, account, and category selectors are full-screen flow views owned
   by the editor. The editor remains mounted, so the complete draft and keypad
   state survive the round trip.
-- New expenses initially select `❓ Uncategorized`.
+- New expenses initially show Uncategorized without creating or referencing a
+  synthetic category record.
 - The amount keypad is visible only while the amount has focus. Memo uses a
   spacious central editor and keeps Save visible above the native keyboard.
 - Show more reveals secondary fields such as cleared status without permanently

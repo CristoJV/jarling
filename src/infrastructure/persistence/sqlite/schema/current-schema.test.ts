@@ -50,7 +50,7 @@ describe('current database schema', () => {
     expect(currentSchema.up).toContain(
       'CHECK (source_transaction_id < target_transaction_id)',
     );
-    expect(currentSchema.up).toContain(
+    expect(currentSchema.up).not.toContain(
       "CHECK (kind <> 'standard' OR amount >= 0 OR category_id IS NOT NULL)",
     );
     expect(currentSchema.up).toContain("OR (kind = 'transfer' AND amount < 0)");

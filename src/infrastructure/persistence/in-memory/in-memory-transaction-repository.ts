@@ -37,6 +37,13 @@ export class InMemoryTransactionRepository implements TransactionRepository {
       )
       .filter(
         (transaction) =>
+          !filters.uncategorized ||
+          (transaction.kind === 'standard' &&
+            transaction.amount.cents < 0 &&
+            !transaction.categoryId),
+      )
+      .filter(
+        (transaction) =>
           !filters.dateFrom || transaction.date >= filters.dateFrom,
       )
       .filter(

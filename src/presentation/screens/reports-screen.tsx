@@ -19,6 +19,10 @@ import { Money } from '@/domain/value-objects/money';
 import { OverflowMenu } from '@/presentation/components/common/overflow-menu';
 import { useReports } from '@/presentation/hooks/use-reports';
 import { useTranslation } from '@/presentation/localization/localization-provider';
+import {
+  MAIN_SCREEN_HEADER_HEIGHT,
+  MAIN_SCREEN_HORIZONTAL_PADDING,
+} from '@/presentation/layout/main-screen-layout';
 import type { SupportedLanguage } from '@/presentation/localization/translator';
 import type { AppTheme } from '@/presentation/theme/theme';
 import {
@@ -345,13 +349,13 @@ const createStyles = (theme: AppTheme) =>
   StyleSheet.create({
     safeArea: { flex: 1, backgroundColor: theme.colors.background },
     header: {
-      minHeight: 78,
-      paddingHorizontal: 20,
+      minHeight: MAIN_SCREEN_HEADER_HEIGHT,
+      paddingHorizontal: MAIN_SCREEN_HORIZONTAL_PADDING,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
     },
-    title: { color: theme.colors.text, fontSize: 28, fontWeight: '800' },
+    title: { color: theme.colors.text, fontSize: 24, fontWeight: '800' },
     period: {
       marginTop: 2,
       color: theme.colors.textMuted,

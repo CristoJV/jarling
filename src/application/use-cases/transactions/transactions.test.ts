@@ -6,7 +6,6 @@ import type { Category } from '@/domain/entities/category';
 import type { Transaction } from '@/domain/entities/transaction';
 import { CannotModifyReconciledTransactionError } from '@/domain/errors/cannot-modify-reconciled-transaction-error';
 import { CategoryNotFoundError } from '@/domain/errors/category-not-found-error';
-import { CategoryRequiredForExpenseError } from '@/domain/errors/category-required-for-expense-error';
 import { InvalidTransactionAmountError } from '@/domain/errors/invalid-transaction-amount-error';
 import { InvalidTransactionDateError } from '@/domain/errors/invalid-transaction-date-error';
 import { TransactionNotFoundError } from '@/domain/errors/transaction-not-found-error';
@@ -185,18 +184,19 @@ describe('transaction use cases', () => {
     ).rejects.toThrow(CategoryNotFoundError);
   });
 
-  it('rejects an expense without a category at the application boundary', async () => {
+  it('stores an expense without a category as Uncategorized', async () => {
     const { create } = await setup();
 
-    await expect(
-      create.execute({
-        kind: 'expense',
-        accountId: account.id,
-        amountCents: 100,
-        date: '2026-08-18',
-        status: 'uncleared',
-      } as never),
-    ).rejects.toThrow(CategoryRequiredForExpenseError);
+    const result = await create.execute({
+      kind: 'expense',
+      accountId: account.id,
+      amountCents: 100,
+      date: '2026-08-18',
+      status: 'uncleared',
+    });
+
+    expect(result.amount).toEqual(Money.fromCents(-100));
+    expect(result).not.toHaveProperty('categoryId');
   });
 
   it('filters and enriches transactions for presentation', async () => {
@@ -227,6 +227,42 @@ describe('transaction use cases', () => {
         accountName: 'imagin',
         categoryName: 'Groceries',
       }),
+    ]);
+  });
+
+  it('filters Uncategorized without including income or categorized expenses', async () => {
+    const { accounts, categories, transactions, create } = await setup();
+    await create.execute({
+      kind: 'expense',
+      accountId: account.id,
+      amountCents: 1_000,
+      payee: 'Unsorted expense',
+      date: '2026-08-18',
+      status: 'uncleared',
+    });
+    const uncategorized = await transactions.findById('transaction-1');
+    if (!uncategorized) throw new Error('Expected uncategorized transaction.');
+    await transactions.save({
+      ...uncategorized,
+      id: 'income',
+      amount: Money.fromCents(2_000),
+      payee: 'Income',
+    });
+    await transactions.save({
+      ...uncategorized,
+      id: 'categorized',
+      categoryId: category.id,
+      payee: 'Categorized expense',
+    });
+
+    const result = await new GetTransactions(
+      transactions,
+      accounts,
+      categories,
+    ).execute({ uncategorized: true });
+
+    expect(result.map(({ transaction }) => transaction.id)).toEqual([
+      'transaction-1',
     ]);
   });
 

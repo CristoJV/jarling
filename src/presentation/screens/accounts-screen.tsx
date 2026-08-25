@@ -16,6 +16,10 @@ import { useAccounts } from '@/presentation/hooks/use-accounts';
 import { routes } from '@/presentation/navigation/routes';
 import { formatMoney } from '@/presentation/utils/money';
 import { useTranslation } from '@/presentation/localization/localization-provider';
+import {
+  MAIN_SCREEN_HEADER_HEIGHT,
+  MAIN_SCREEN_HORIZONTAL_PADDING,
+} from '@/presentation/layout/main-screen-layout';
 import type { AppTheme } from '@/presentation/theme/theme';
 import {
   useAppTheme,
@@ -120,8 +124,8 @@ const createStyles = (theme: AppTheme) =>
       backgroundColor: theme.colors.background,
     },
     header: {
-      minHeight: 68,
-      paddingHorizontal: 24,
+      minHeight: MAIN_SCREEN_HEADER_HEIGHT,
+      paddingHorizontal: MAIN_SCREEN_HORIZONTAL_PADDING,
       borderBottomColor: theme.colors.border,
       borderBottomWidth: StyleSheet.hairlineWidth,
       flexDirection: 'row',
@@ -130,7 +134,7 @@ const createStyles = (theme: AppTheme) =>
     },
     title: {
       color: theme.colors.text,
-      fontSize: 28,
+      fontSize: 24,
       fontWeight: '700',
       letterSpacing: -0.6,
     },

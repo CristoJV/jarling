@@ -6,7 +6,6 @@ import { CategoryNotFoundError } from '@/domain/errors/category-not-found-error'
 import { CategoryReassignmentRequiredError } from '@/domain/errors/category-reassignment-required-error';
 import { CategoryNotAllowedForTrackingAccountError } from '@/domain/errors/category-not-allowed-for-tracking-account-error';
 import { CannotModifyReconciledTransactionError } from '@/domain/errors/cannot-modify-reconciled-transaction-error';
-import { CategoryRequiredForExpenseError } from '@/domain/errors/category-required-for-expense-error';
 import { ClosedAccountError } from '@/domain/errors/closed-account-error';
 import { InsufficientReadyToAssignError } from '@/domain/errors/insufficient-ready-to-assign-error';
 import { ProtectedCategoryError } from '@/domain/errors/protected-category-error';
@@ -86,10 +85,6 @@ export function domainErrorMessage(error: unknown, t: Translate): string {
 
   if (error instanceof InvalidReconciliationError) {
     return t('errors.invalidReconciliation');
-  }
-
-  if (error instanceof CategoryRequiredForExpenseError) {
-    return t('errors.categoryRequired');
   }
 
   if (error instanceof CategoryNotAllowedForTrackingAccountError) {

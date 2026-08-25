@@ -24,6 +24,10 @@ import { useCategories } from '@/presentation/hooks/use-categories';
 import { useTargets } from '@/presentation/hooks/use-targets';
 import { usePrefetchTransactionReferenceData } from '@/presentation/hooks/use-prefetch-transaction-reference-data';
 import { useTranslation } from '@/presentation/localization/localization-provider';
+import {
+  MAIN_SCREEN_HEADER_HEIGHT,
+  MAIN_SCREEN_HORIZONTAL_PADDING,
+} from '@/presentation/layout/main-screen-layout';
 import { routes } from '@/presentation/navigation/routes';
 import type { TranslationKey } from '@/presentation/localization/translations';
 import { usePreferences } from '@/presentation/preferences/preferences-provider';
@@ -239,34 +243,54 @@ export function BudgetScreen() {
         ListHeaderComponent={
           <>
             {budget ? (
-              <View
-                style={[
-                  styles.rtaCard,
-                  budget.readyToAssign.cents < 0 && styles.rtaCardNegative,
-                ]}
-              >
-                <Text
+              <>
+                <View
                   style={[
-                    styles.rtaValue,
-                    budget.readyToAssign.cents < 0 && styles.rtaNegative,
+                    styles.rtaCard,
+                    budget.readyToAssign.cents < 0 && styles.rtaCardNegative,
                   ]}
                 >
-                  {formatMoney(budget.readyToAssign)}
-                </Text>
-                <Text style={styles.rtaLabel}>{t('budget.readyToAssign')}</Text>
-              </View>
+                  <Text
+                    style={[
+                      styles.rtaValue,
+                      budget.readyToAssign.cents < 0 && styles.rtaNegative,
+                    ]}
+                  >
+                    {formatMoney(budget.readyToAssign)}
+                  </Text>
+                  <Text style={styles.rtaLabel}>
+                    {t('budget.readyToAssign')}
+                  </Text>
+                </View>
+                {budget.uncategorized.transactionCount > 0 ? (
+                  <View style={styles.uncategorizedRow}>
+                    <Text numberOfLines={1} style={styles.uncategorizedCopy}>
+                      <Text style={styles.uncategorizedAmount}>
+                        {formatMoney(budget.uncategorized.amount)}
+                      </Text>
+                      {' · '}
+                      {t(
+                        budget.uncategorized.transactionCount === 1
+                          ? 'budget.newTransactionCount'
+                          : 'budget.newTransactionsCount',
+                        { count: budget.uncategorized.transactionCount },
+                      )}
+                    </Text>
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() =>
+                        router.navigate(routes.uncategorizedTransactions())
+                      }
+                      style={styles.reviewButton}
+                    >
+                      <Text style={styles.reviewText}>
+                        {t('budget.review')}
+                      </Text>
+                    </Pressable>
+                  </View>
+                ) : null}
+              </>
             ) : null}
-
-            <View style={styles.sectionHeading}>
-              <View>
-                <Text style={styles.sectionTitle}>
-                  {t('budget.categories')}
-                </Text>
-                <Text style={styles.sectionDescription}>
-                  {t('budget.categoryHint')}
-                </Text>
-              </View>
-            </View>
 
             {categoryError || budgetError || targetError ? (
               <Text accessibilityLiveRegion="polite" style={styles.error}>
@@ -387,24 +411,29 @@ const createStyles = (theme: AppTheme) =>
   StyleSheet.create({
     safeArea: { flex: 1, backgroundColor: theme.colors.background },
     header: {
-      minHeight: 82,
-      paddingHorizontal: 20,
+      minHeight: MAIN_SCREEN_HEADER_HEIGHT,
+      paddingHorizontal: MAIN_SCREEN_HORIZONTAL_PADDING,
       borderBottomColor: theme.colors.border,
       borderBottomWidth: StyleSheet.hairlineWidth,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
     },
-    headerCopy: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+    headerCopy: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
     title: {
       color: theme.colors.text,
-      fontSize: 28,
+      fontSize: 24,
       fontWeight: '700',
       letterSpacing: -0.6,
     },
     monthSelector: {
-      minHeight: 42,
-      paddingHorizontal: 12,
+      minHeight: 38,
+      paddingHorizontal: 10,
       backgroundColor: theme.colors.surfaceMuted,
       borderRadius: 13,
       flexDirection: 'row',
@@ -427,16 +456,17 @@ const createStyles = (theme: AppTheme) =>
     content: {
       width: '100%',
       maxWidth: 820,
-      padding: 20,
+      paddingHorizontal: 12,
+      paddingTop: 10,
       paddingBottom: 120,
       alignSelf: 'center',
-      gap: 14,
+      gap: 8,
     },
     rtaCard: {
-      minHeight: 74,
-      paddingHorizontal: 22,
+      minHeight: 56,
+      paddingHorizontal: 18,
       backgroundColor: theme.colors.positiveMuted,
-      borderRadius: 37,
+      borderRadius: 28,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
@@ -445,29 +475,46 @@ const createStyles = (theme: AppTheme) =>
     rtaCardNegative: { backgroundColor: theme.colors.negativeMuted },
     rtaLabel: {
       color: theme.colors.positive,
-      fontSize: 15,
+      fontSize: 14,
       fontWeight: '700',
     },
     rtaValue: {
       color: theme.colors.positive,
-      fontSize: 28,
+      fontSize: 22,
       fontVariant: ['tabular-nums'],
       fontWeight: '800',
     },
     rtaNegative: { color: theme.colors.negative },
-    sectionHeading: {
-      marginTop: 4,
+    uncategorizedRow: {
+      minHeight: 46,
+      paddingHorizontal: 8,
+      borderBottomColor: theme.colors.border,
+      borderBottomWidth: StyleSheet.hairlineWidth,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      gap: 16,
+      gap: 10,
     },
-    sectionTitle: { color: theme.colors.text, fontSize: 20, fontWeight: '700' },
-    sectionDescription: {
-      maxWidth: 430,
-      marginTop: 3,
-      color: theme.colors.textMuted,
-      fontSize: 12,
+    uncategorizedCopy: {
+      flex: 1,
+      color: theme.colors.textSecondary,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    uncategorizedAmount: {
+      color: theme.colors.negative,
+      fontVariant: ['tabular-nums'],
+      fontWeight: '800',
+    },
+    reviewButton: {
+      minHeight: 36,
+      paddingHorizontal: 10,
+      justifyContent: 'center',
+    },
+    reviewText: {
+      color: theme.colors.primary,
+      fontSize: 13,
+      fontWeight: '800',
     },
     error: {
       padding: 12,

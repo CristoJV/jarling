@@ -4,6 +4,7 @@ import type { Money } from '@/domain/value-objects/money';
 export type TransactionFilters = Readonly<{
   accountId?: string;
   categoryId?: string;
+  uncategorized?: boolean;
   search?: string;
   payee?: string;
   memo?: string;

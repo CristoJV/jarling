@@ -31,6 +31,7 @@ const values = {
 const budget: BudgetMonthValues = {
   month: '2026-08',
   readyToAssign: Money.fromCents(100_000),
+  uncategorized: { amount: Money.zero(), transactionCount: 0 },
   groups: [
     {
       group: {

@@ -32,7 +32,6 @@ export const english = {
   'defaults.utilities': '⚡ Utilities',
   'defaults.groceries': '🛒 Groceries',
   'defaults.transportation': '🚗 Transportation',
-  'defaults.uncategorized': '❓ Uncategorized',
   'settings.title': 'Settings',
   'settings.development': 'DEVELOPMENT',
   'settings.sampleData': 'Sample data',
@@ -118,9 +117,9 @@ export const english = {
   'budget.chooseMonth': 'Choose budget month',
   'budget.edit': 'Edit Budget',
   'budget.readyToAssign': 'Ready to Assign',
-  'budget.categories': 'Categories',
-  'budget.categoryHint':
-    'Tap a category to assign, move money or view details.',
+  'budget.newTransactionCount': '{{count}} new transaction',
+  'budget.newTransactionsCount': '{{count}} new transactions',
+  'budget.review': 'Review',
   'budget.createFirstGroup': 'Create your first group',
   'budget.createFirstGroupHint': 'For example: Needs, Wants or Savings.',
   'budget.createGroup': 'Create group',
@@ -332,6 +331,7 @@ export const english = {
   'transactions.inflowDescription': 'Money entering an account.',
   'transactions.transferDescription': 'Move money between two accounts.',
   'transactions.readyToAssign': 'Ready to Assign',
+  'transactions.uncategorized': 'Uncategorized',
   'transactions.memo': 'Memo',
   'transactions.addMemo': 'Add Memo',
   'transactions.memoTitle': 'Transaction Memo',
@@ -351,6 +351,7 @@ export const english = {
   'transactions.categoriesFilter': 'Categories',
   'transactions.accountFilter': 'Account: {{value}}',
   'transactions.categoryFilter': 'Category: {{value}}',
+  'transactions.clearSearch': 'Clear search',
   'transactions.deleteTransfer': 'Delete transfer?',
   'transactions.deleteTransferBody':
     'Both linked movements will be permanently deleted.',
@@ -358,7 +359,6 @@ export const english = {
   'transactions.reconciledBody': 'A reconciled transaction cannot be changed.',
   'transactions.amountRequired': 'Enter an amount greater than zero.',
   'transactions.accountRequired': 'Choose an account.',
-  'transactions.categoryRequired': 'Choose a category for the expense.',
   'transactions.destinationRequired': 'Choose a destination account.',
   'transactions.differentAccounts':
     'The source and destination accounts must be different.',
@@ -444,7 +444,6 @@ export const english = {
     'Choose two different accounts and a positive amount.',
   'errors.invalidReconciliation':
     'The confirmed balance does not match. Review the amount or authorize the adjustment.',
-  'errors.categoryRequired': 'Choose a category for the expense.',
   'errors.trackingCategory':
     'Budget categories can only be used with accounts included in the budget.',
   'errors.closedAccount': 'Transactions cannot be added to a closed account.',
@@ -454,7 +453,7 @@ export const english = {
   'errors.insufficientReadyToAssign':
     'There is not enough money in Ready to Assign for that allocation.',
   'errors.protectedCategory':
-    'Uncategorized is managed by Jarling and cannot be changed.',
+    'This category is managed by Jarling and cannot be changed.',
   'errors.categoryReassignmentRequired':
     'Choose another category for the existing transactions first.',
   'errors.invalidCategoryReassignment':
@@ -503,7 +502,6 @@ export const spanish: TranslationDictionary = {
   'defaults.utilities': '⚡ Suministros',
   'defaults.groceries': '🛒 Supermercado',
   'defaults.transportation': '🚗 Transporte',
-  'defaults.uncategorized': '❓ Sin categoría',
   'settings.title': 'Ajustes',
   'settings.development': 'DESARROLLO',
   'settings.sampleData': 'Datos de ejemplo',
@@ -590,9 +588,9 @@ export const spanish: TranslationDictionary = {
   'budget.chooseMonth': 'Elegir mes del presupuesto',
   'budget.edit': 'Editar presupuesto',
   'budget.readyToAssign': 'Disponible para asignar',
-  'budget.categories': 'Categorías',
-  'budget.categoryHint':
-    'Pulsa una categoría para asignar, mover dinero o ver detalles.',
+  'budget.newTransactionCount': '{{count}} transacción nueva',
+  'budget.newTransactionsCount': '{{count}} transacciones nuevas',
+  'budget.review': 'Revisar',
   'budget.createFirstGroup': 'Crea tu primer grupo',
   'budget.createFirstGroupHint': 'Por ejemplo: Necesidades, Deseos o Ahorro.',
   'budget.createGroup': 'Crear grupo',
@@ -810,6 +808,7 @@ export const spanish: TranslationDictionary = {
   'transactions.inflowDescription': 'Dinero que entra en una cuenta.',
   'transactions.transferDescription': 'Mover dinero entre dos cuentas.',
   'transactions.readyToAssign': 'Disponible para asignar',
+  'transactions.uncategorized': 'Sin categoría',
   'transactions.memo': 'Nota',
   'transactions.addMemo': 'Añadir nota',
   'transactions.memoTitle': 'Nota de la transacción',
@@ -829,6 +828,7 @@ export const spanish: TranslationDictionary = {
   'transactions.categoriesFilter': 'Categorías',
   'transactions.accountFilter': 'Cuenta: {{value}}',
   'transactions.categoryFilter': 'Categoría: {{value}}',
+  'transactions.clearSearch': 'Borrar búsqueda',
   'transactions.deleteTransfer': '¿Eliminar transferencia?',
   'transactions.deleteTransferBody':
     'Se eliminarán definitivamente los dos movimientos enlazados.',
@@ -837,7 +837,6 @@ export const spanish: TranslationDictionary = {
     'No se puede modificar una transacción conciliada.',
   'transactions.amountRequired': 'Introduce un importe mayor que cero.',
   'transactions.accountRequired': 'Selecciona una cuenta.',
-  'transactions.categoryRequired': 'Selecciona una categoría para el gasto.',
   'transactions.destinationRequired': 'Selecciona una cuenta de destino.',
   'transactions.differentAccounts':
     'Las cuentas de origen y destino deben ser diferentes.',
@@ -925,7 +924,6 @@ export const spanish: TranslationDictionary = {
     'Elige dos cuentas distintas y un importe positivo.',
   'errors.invalidReconciliation':
     'El saldo confirmado no coincide. Revisa el importe o autoriza el ajuste.',
-  'errors.categoryRequired': 'Selecciona una categoría para el gasto.',
   'errors.trackingCategory':
     'Las categorías solo se pueden usar con cuentas incluidas en el presupuesto.',
   'errors.closedAccount':
@@ -936,7 +934,7 @@ export const spanish: TranslationDictionary = {
   'errors.insufficientReadyToAssign':
     'No hay suficiente dinero en Disponible para asignar para esa asignación.',
   'errors.protectedCategory':
-    'Jarling gestiona Uncategorized y no permite modificarla.',
+    'Jarling gestiona esta categoría y no permite modificarla.',
   'errors.categoryReassignmentRequired':
     'Elige primero otra categoría para las transacciones existentes.',
   'errors.invalidCategoryReassignment':

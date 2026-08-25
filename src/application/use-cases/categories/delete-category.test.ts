@@ -6,7 +6,6 @@ import type { Transaction } from '@/domain/entities/transaction';
 import { CategoryReassignmentRequiredError } from '@/domain/errors/category-reassignment-required-error';
 import { InvalidCategoryReassignmentError } from '@/domain/errors/invalid-category-reassignment-error';
 import { ProtectedCategoryError } from '@/domain/errors/protected-category-error';
-import { UNCATEGORIZED_CATEGORY_ID } from '@/domain/policies/system-categories';
 import { Money } from '@/domain/value-objects/money';
 import { InMemoryBudgetAllocationRepository } from '@/infrastructure/persistence/in-memory/in-memory-budget-allocation-repository';
 import { InMemoryCategoryRepository } from '@/infrastructure/persistence/in-memory/in-memory-category-repository';
@@ -277,19 +276,13 @@ describe('category deletion', () => {
     ).rejects.toThrow(InvalidCategoryReassignmentError);
   });
 
-  it('never deletes Uncategorized or linked payment categories', async () => {
+  it('never deletes linked payment categories', async () => {
     const { categories, remove } = setup();
-    await categories.save(
-      category(UNCATEGORIZED_CATEGORY_ID, '❓ Uncategorized'),
-    );
     await categories.save({
       ...category('linked', 'Card payment'),
       linkedAccountId: 'account-1',
     });
 
-    await expect(
-      remove.execute({ categoryId: UNCATEGORIZED_CATEGORY_ID }),
-    ).rejects.toThrow(ProtectedCategoryError);
     await expect(remove.execute({ categoryId: 'linked' })).rejects.toThrow(
       ProtectedCategoryError,
     );

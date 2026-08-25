@@ -1,5 +1,5 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -12,7 +12,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { CategoryGroupSummary } from '@/application/use-cases/categories/get-category-groups';
 import type { Category } from '@/domain/entities/category';
-import { isProtectedCategoryGroup } from '@/domain/policies/system-categories';
 import { AnimatedFlowScreen } from '@/presentation/components/common/animated-flow-screen';
 import { FullScreenSelectionScreen } from '@/presentation/components/common/full-screen-selection-screen';
 import { KeyboardResponsiveScreen } from '@/presentation/components/common/keyboard-responsive-screen';
@@ -37,10 +36,7 @@ export function CreateCategoryScreen({ groups, onBack, onCreate }: Props) {
   const { t } = useTranslation();
   const theme = useAppTheme();
   const styles = useThemedStyles(createStyles);
-  const selectableGroups = useMemo(
-    () => groups.filter(({ group }) => !isProtectedCategoryGroup(group.id)),
-    [groups],
-  );
+  const selectableGroups = groups;
   const [groupId, setGroupId] = useState(selectableGroups[0]?.group.id ?? '');
   const [name, setName] = useState('');
   const [choosingGroup, setChoosingGroup] = useState(false);

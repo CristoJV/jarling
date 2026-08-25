@@ -19,7 +19,6 @@ import type { CategoryGroupSummary } from '@/application/use-cases/categories/ge
 import type { Category } from '@/domain/entities/category';
 import { CATEGORY_NOTES_MAX_LENGTH } from '@/domain/entities/category';
 import { InsufficientReadyToAssignError } from '@/domain/errors/insufficient-ready-to-assign-error';
-import { isProtectedCategory } from '@/domain/policies/system-categories';
 import { Money } from '@/domain/value-objects/money';
 import { NameInputModal } from '@/presentation/components/common/name-input-modal';
 import { KeyboardResponsiveScreen } from '@/presentation/components/common/keyboard-responsive-screen';
@@ -333,7 +332,7 @@ export function CategoryDetailsScreen() {
   }
 
   const { values, target, progress } = details;
-  const protectedCategory = isProtectedCategory(values.category.id);
+  const protectedCategory = Boolean(values.category.linkedAccountId);
   const needsAssignment = (progress?.recommended.cents ?? 0) > 0;
   const toGo = progress
     ? Money.fromCents(

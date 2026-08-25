@@ -65,15 +65,7 @@ export function CategoryGroupCard({
   );
 
   return (
-    <View
-      style={[
-        styles.card,
-        {
-          backgroundColor: theme.colors.surface,
-          borderColor: theme.colors.border,
-        },
-      ]}
-    >
+    <View style={styles.card}>
       <Pressable
         accessibilityRole="button"
         accessibilityState={{ expanded }}
@@ -82,10 +74,7 @@ export function CategoryGroupCard({
             ? onToggleExpanded()
             : setLocalExpanded((current) => !current)
         }
-        style={[
-          styles.groupHeader,
-          { backgroundColor: theme.colors.surfaceMuted },
-        ]}
+        style={styles.groupHeader}
       >
         <View style={styles.groupCopy}>
           <Text
@@ -427,16 +416,12 @@ function SummaryValue({
 const createStyles = (theme: AppTheme) =>
   StyleSheet.create({
     card: {
-      backgroundColor: theme.colors.surface,
-      borderColor: theme.colors.border,
-      borderRadius: 18,
-      borderWidth: 1,
-      overflow: 'hidden',
+      backgroundColor: theme.colors.background,
     },
     groupHeader: {
-      minHeight: 68,
-      paddingHorizontal: 16,
-      backgroundColor: theme.colors.surfaceMuted,
+      minHeight: 48,
+      paddingHorizontal: 6,
+      backgroundColor: theme.colors.background,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
@@ -453,8 +438,10 @@ const createStyles = (theme: AppTheme) =>
     groupName: {
       flex: 1,
       color: theme.colors.text,
-      fontSize: 17,
+      fontSize: 15,
       fontWeight: '800',
+      letterSpacing: 0.4,
+      textTransform: 'uppercase',
     },
     groupTotals: { flexDirection: 'row', gap: 16 },
     summaryValue: { alignItems: 'flex-end', gap: 2 },
@@ -470,10 +457,11 @@ const createStyles = (theme: AppTheme) =>
       fontWeight: '600',
     },
     summaryAmountStrong: { color: theme.colors.positive, fontWeight: '800' },
-    empty: { padding: 18, color: theme.colors.textMuted, fontSize: 14 },
+    empty: { padding: 12, color: theme.colors.textMuted, fontSize: 14 },
     categoryRow: {
-      minHeight: 68,
-      padding: 16,
+      minHeight: 62,
+      paddingHorizontal: 8,
+      paddingVertical: 11,
       borderTopColor: theme.colors.border,
       borderTopWidth: StyleSheet.hairlineWidth,
     },

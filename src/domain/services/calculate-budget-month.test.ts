@@ -207,6 +207,30 @@ describe('calculateBudgetMonth', () => {
     expect(after.readyToAssign).toEqual(before.readyToAssign);
   });
 
+  it('summarizes only current-month on-budget uncategorized expenses', () => {
+    const result = calculate({
+      transactions: [
+        transaction('current-expense', -12_700, '2026-08-18'),
+        transaction('second-expense', -300, '2026-08-19'),
+        transaction('previous-expense', -5_000, '2026-07-31'),
+        transaction('income', 20_000, '2026-08-20'),
+        transaction(
+          'tracking-expense',
+          -50_000,
+          '2026-08-20',
+          undefined,
+          trackingAccount.id,
+        ),
+        transaction('categorized', -2_000, '2026-08-20', groceries.id),
+      ],
+    });
+
+    expect(result.uncategorized).toEqual({
+      amount: Money.fromCents(-13_000),
+      transactionCount: 2,
+    });
+  });
+
   it('rolls Available forward across any number of months', () => {
     const result = calculate({
       month: '2026-10',

@@ -148,7 +148,9 @@ export function TransactionRow({
                 : undefined) ??
                 (transaction.transactionGroupId
                   ? t('transactions.transfer')
-                  : t('transactions.readyToAssign'))}
+                  : transaction.amount.cents < 0
+                    ? t('transactions.uncategorized')
+                    : t('transactions.readyToAssign'))}
             </Text>
           </View>
           <View

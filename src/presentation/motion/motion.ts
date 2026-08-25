@@ -1,9 +1,9 @@
 export const motion = {
-  routeEnter: 160,
-  routeExit: 140,
-  transactionEnter: 105,
-  flowEnter: 140,
-  flowExit: 120,
+  routeEnter: 140,
+  routeExit: 120,
+  transactionEnter: 90,
+  flowEnter: 125,
+  flowExit: 105,
   bottomSheet: 170,
   dialog: 140,
 } as const;
