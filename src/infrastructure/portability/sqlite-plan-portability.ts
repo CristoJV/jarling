@@ -13,7 +13,11 @@ import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import type { SQLiteBindValue, SQLiteDatabase } from 'expo-sqlite';
 
-import type { PlanPortability } from '@/application/ports/plan-portability';
+import type {
+  BackupProgressPhase,
+  PlanPortability,
+  PlanRestoreSource,
+} from '@/application/ports/plan-portability';
 import { ACCOUNT_TYPES } from '@/domain/entities/account';
 import { isValidBudgetMonth } from '@/domain/entities/budget-allocation';
 import { CATEGORY_NOTES_MAX_LENGTH } from '@/domain/entities/category';
@@ -140,7 +144,7 @@ type TableName = (typeof tables)[number]['name'];
 type DataRow = Readonly<Record<string, SQLiteBindValue>>;
 type PlanSnapshot = Readonly<{
   format: typeof BACKUP_FORMAT;
-  version: BackupVersion;
+  version: typeof BACKUP_VERSION;
   exportedAt: string;
   preferences?: Readonly<Record<string, unknown>>;
   tables: Readonly<Record<TableName, readonly DataRow[]>>;
@@ -196,23 +200,67 @@ function removeLegacyUncategorized(
   };
 }
 
+function migrateSnapshotDocument(value: unknown): unknown {
+  if (!isRecord(value) || value.version !== 1 || !isRecord(value.tables)) {
+    return value;
+  }
+  const migratedTables = Object.fromEntries(
+    Object.entries(value.tables).map(([name, rows]) => [
+      name,
+      Array.isArray(rows)
+        ? rows.map((row) => {
+            if (!isRecord(row)) return row;
+            if (name === 'categories') {
+              return {
+                ...row,
+                notes: Object.prototype.hasOwnProperty.call(row, 'notes')
+                  ? row.notes
+                  : null,
+              };
+            }
+            if (name === 'category_targets') {
+              return {
+                ...row,
+                starts_on:
+                  typeof row.starts_on === 'string'
+                    ? row.starts_on
+                    : typeof row.created_at === 'string'
+                      ? row.created_at.slice(0, 10)
+                      : undefined,
+                include_previous_weeks: Object.prototype.hasOwnProperty.call(
+                  row,
+                  'include_previous_weeks',
+                )
+                  ? row.include_previous_weeks
+                  : row.kind === 'weekly'
+                    ? 0
+                    : null,
+              };
+            }
+            return row;
+          })
+        : rows,
+    ]),
+  );
+  return { ...value, version: BACKUP_VERSION, tables: migratedTables };
+}
+
 export function parsePlanSnapshot(value: unknown): PlanSnapshot {
+  const migrated = migrateSnapshotDocument(value);
   if (
-    !isRecord(value) ||
-    value.format !== BACKUP_FORMAT ||
-    !SUPPORTED_BACKUP_VERSIONS.includes(value.version as BackupVersion) ||
-    typeof value.exportedAt !== 'string' ||
-    !isRecord(value.tables)
+    !isRecord(migrated) ||
+    migrated.format !== BACKUP_FORMAT ||
+    migrated.version !== BACKUP_VERSION ||
+    typeof migrated.exportedAt !== 'string' ||
+    !isRecord(migrated.tables)
   ) {
     throw new Error('The file is not a supported Jarling backup.');
   }
 
-  const version = value.version as BackupVersion;
-
   const parsedTables = {} as Record<TableName, readonly DataRow[]>;
   let totalRows = 0;
   for (const table of tables) {
-    const rows = value.tables[table.name];
+    const rows = migrated.tables[table.name];
     if (!Array.isArray(rows)) {
       throw new Error(`Backup table ${table.name} is missing.`);
     }
@@ -225,22 +273,7 @@ export function parsePlanSnapshot(value: unknown): PlanSnapshot {
       const parsed: Record<string, SQLiteBindValue> = {};
       for (const column of table.columns) {
         const hasField = Object.prototype.hasOwnProperty.call(row, column);
-        const field = hasField
-          ? row[column]
-          : table.name === 'categories' && column === 'notes'
-            ? null
-            : version === 1 &&
-                table.name === 'category_targets' &&
-                column === 'starts_on' &&
-                typeof row.created_at === 'string'
-              ? row.created_at.slice(0, 10)
-              : version === 1 &&
-                  table.name === 'category_targets' &&
-                  column === 'include_previous_weeks'
-                ? row.kind === 'weekly'
-                  ? 0
-                  : null
-                : undefined;
+        const field = hasField ? row[column] : undefined;
         if (!isBindValue(field)) {
           throw new Error(`Invalid ${table.name}.${column} value.`);
         }
@@ -252,13 +285,53 @@ export function parsePlanSnapshot(value: unknown): PlanSnapshot {
 
   const snapshot: PlanSnapshot = {
     format: BACKUP_FORMAT,
-    version,
-    exportedAt: value.exportedAt,
-    ...(isRecord(value.preferences) ? { preferences: value.preferences } : {}),
+    version: BACKUP_VERSION,
+    exportedAt: migrated.exportedAt,
+    ...(isRecord(migrated.preferences)
+      ? { preferences: migrated.preferences }
+      : {}),
     tables: removeLegacyUncategorized(parsedTables),
   };
   validateSnapshotSemantics(snapshot);
   return snapshot;
+}
+
+function parseEncryptedBackup(value: unknown): EncryptedBackup {
+  if (
+    !isRecord(value) ||
+    value.format !== BACKUP_FORMAT ||
+    !SUPPORTED_BACKUP_VERSIONS.includes(value.version as BackupVersion) ||
+    value.encryption !== 'AES-256-GCM' ||
+    !isRecord(value.kdf) ||
+    value.kdf.name !== 'PBKDF2-HMAC-SHA256' ||
+    typeof value.kdf.iterations !== 'number' ||
+    !Number.isSafeInteger(value.kdf.iterations) ||
+    value.kdf.iterations < PBKDF2_ITERATIONS ||
+    value.kdf.iterations > 10_000_000 ||
+    typeof value.kdf.salt !== 'string' ||
+    typeof value.payload !== 'string'
+  ) {
+    throw new Error('The file is not a supported encrypted backup.');
+  }
+  if (
+    !/^[A-Fa-f0-9]{32}$/.test(value.kdf.salt) ||
+    value.payload.length < 40 ||
+    !/^[A-Za-z0-9+/]+={0,2}$/.test(value.payload)
+  ) {
+    throw new Error('The encrypted backup is malformed.');
+  }
+  return value as EncryptedBackup;
+}
+
+export function detectPortablePlanFormat(
+  value: unknown,
+): 'encrypted' | 'snapshot' {
+  if (isRecord(value) && 'encryption' in value && 'payload' in value) {
+    parseEncryptedBackup(value);
+    return 'encrypted';
+  }
+  parsePlanSnapshot(value);
+  return 'snapshot';
 }
 
 function requiredText(row: DataRow, field: string): string {
@@ -547,6 +620,14 @@ async function checkSQLiteIntegrity(database: SQLiteDatabase): Promise<void> {
   }
 }
 
+async function reportProgress(
+  onProgress: ((phase: BackupProgressPhase) => void) | undefined,
+  phase: BackupProgressPhase,
+): Promise<void> {
+  onProgress?.(phase);
+  await new Promise<void>((resolve) => setTimeout(resolve, 0));
+}
+
 export class SQLitePlanPortability implements PlanPortability {
   constructor(private readonly database: SQLiteDatabase) {}
 
@@ -564,8 +645,13 @@ export class SQLitePlanPortability implements PlanPortability {
   async createBackup(
     password: string,
     preferences?: Readonly<Record<string, unknown>>,
+    onProgress?: (phase: BackupProgressPhase) => void,
   ): Promise<void> {
+    assertPassword(password);
+    await reportProgress(onProgress, 'preparing');
+    await reportProgress(onProgress, 'snapshot');
     const snapshot = await this.snapshot(preferences);
+    await reportProgress(onProgress, 'encrypting');
     const salt = await getRandomBytesAsync(16);
     const key = await deriveBackupKey(password, salt);
     const sealed = await aesEncryptAsync(
@@ -584,6 +670,7 @@ export class SQLitePlanPortability implements PlanPortability {
       },
       payload: await sealed.combined('base64'),
     };
+    await reportProgress(onProgress, 'saving');
     const file = temporaryFile(
       `jarling-backup-${snapshot.exportedAt.slice(0, 10)}.jarling`,
       JSON.stringify(backup),
@@ -591,19 +678,13 @@ export class SQLitePlanPortability implements PlanPortability {
     await shareFile(file, 'application/vnd.jarling.backup');
   }
 
-  async restoreBackup(password: string): Promise<
-    Readonly<{
-      restored: boolean;
-      preferences?: unknown;
-    }>
-  > {
-    assertPassword(password);
+  async selectRestoreSource(): Promise<PlanRestoreSource | null> {
     const result = await DocumentPicker.getDocumentAsync({
-      type: ['application/vnd.jarling.backup', 'application/json'],
+      type: '*/*',
       copyToCacheDirectory: true,
       multiple: false,
     });
-    if (result.canceled) return { restored: false };
+    if (result.canceled) return null;
     const asset = result.assets[0];
     if (!asset || (asset.size ?? 0) > MAX_BACKUP_BYTES) {
       throw new Error('The selected backup is too large.');
@@ -613,44 +694,61 @@ export class SQLitePlanPortability implements PlanPortability {
     if ((selectedFile.size ?? 0) > MAX_BACKUP_BYTES) {
       throw new Error('The selected backup is too large.');
     }
-    const raw: unknown = JSON.parse(await selectedFile.text());
-    if (
-      !isRecord(raw) ||
-      raw.format !== BACKUP_FORMAT ||
-      !SUPPORTED_BACKUP_VERSIONS.includes(raw.version as BackupVersion) ||
-      raw.encryption !== 'AES-256-GCM' ||
-      !isRecord(raw.kdf) ||
-      raw.kdf.name !== 'PBKDF2-HMAC-SHA256' ||
-      typeof raw.kdf.iterations !== 'number' ||
-      raw.kdf.iterations !== PBKDF2_ITERATIONS ||
-      typeof raw.kdf.salt !== 'string' ||
-      typeof raw.payload !== 'string'
-    ) {
-      throw new Error('The file is not a supported encrypted backup.');
+    let raw: unknown;
+    try {
+      raw = JSON.parse(await selectedFile.text());
+    } catch {
+      throw new Error('The selected file is not valid JSON.');
+    }
+    const format = detectPortablePlanFormat(raw);
+    if (format === 'snapshot') {
+      const snapshot = parsePlanSnapshot(raw);
+      return {
+        encrypted: false,
+        restore: async () => this.restoreSnapshot(snapshot),
+      };
     }
 
-    const version = raw.version as BackupVersion;
+    const backup = parseEncryptedBackup(raw);
+    return {
+      encrypted: true,
+      restore: async (password) => {
+        if (password === undefined) {
+          throw new Error('A password is required for this backup.');
+        }
+        const snapshot = await this.decryptBackup(backup, password);
+        return this.restoreSnapshot(snapshot);
+      },
+    };
+  }
 
+  private async decryptBackup(
+    backup: EncryptedBackup,
+    password: string,
+  ): Promise<PlanSnapshot> {
+    const version = backup.version;
     const key = await deriveBackupKey(
       password,
-      hexToBytes(raw.kdf.salt),
-      raw.kdf.iterations,
+      hexToBytes(backup.kdf.salt),
+      backup.kdf.iterations,
     );
-    const sealed = AESSealedData.fromCombined(raw.payload, {
+    const sealed = AESSealedData.fromCombined(backup.payload, {
       ivLength: 12,
       tagLength: 16,
     });
     const decrypted = await aesDecryptAsync(sealed, key, {
       additionalData: authenticatedContext(version),
     });
-    const snapshot = parsePlanSnapshot(
-      JSON.parse(new TextDecoder().decode(decrypted)),
-    );
-    if (snapshot.version !== version) {
+    const decoded: unknown = JSON.parse(new TextDecoder().decode(decrypted));
+    if (!isRecord(decoded) || decoded.version !== version) {
       throw new Error(
         'The encrypted backup version does not match its payload.',
       );
     }
+    return parsePlanSnapshot(decoded);
+  }
+
+  private async restoreSnapshot(snapshot: PlanSnapshot) {
     await this.restore(snapshot);
     await checkSQLiteIntegrity(this.database);
     return {

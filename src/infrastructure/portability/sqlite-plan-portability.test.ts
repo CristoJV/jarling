@@ -1,4 +1,7 @@
-import { parsePlanSnapshot } from './sqlite-plan-portability';
+import {
+  detectPortablePlanFormat,
+  parsePlanSnapshot,
+} from './sqlite-plan-portability';
 
 const emptySnapshot = {
   format: 'com.cristojv.jarling.backup',
@@ -112,6 +115,7 @@ describe('Jarling plan snapshots', () => {
       }),
     ).toEqual({
       ...emptySnapshot,
+      version: 2,
       preferences: { currency: 'EUR', theme: 'dark' },
     });
   });
@@ -287,7 +291,33 @@ describe('Jarling plan snapshots', () => {
   });
 
   it('accepts a categorized transfer into its linked credit account', () => {
-    expect(parsePlanSnapshot(cardPaymentSnapshot)).toEqual(cardPaymentSnapshot);
+    expect(parsePlanSnapshot(cardPaymentSnapshot)).toEqual({
+      ...cardPaymentSnapshot,
+      version: 2,
+    });
+  });
+
+  it('detects portable formats from content instead of file extensions', () => {
+    expect(detectPortablePlanFormat(emptySnapshot)).toBe('snapshot');
+    expect(
+      detectPortablePlanFormat({
+        format: 'com.cristojv.jarling.backup',
+        version: 2,
+        encryption: 'AES-256-GCM',
+        kdf: {
+          name: 'PBKDF2-HMAC-SHA256',
+          iterations: 310_000,
+          salt: '00'.repeat(16),
+        },
+        payload: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==',
+      }),
+    ).toBe('encrypted');
+  });
+
+  it('rejects unrecognized portable content', () => {
+    expect(() => detectPortablePlanFormat({ version: 2 })).toThrow(
+      'not a supported Jarling backup',
+    );
   });
 
   it('rejects a categorized transfer that does not pay the linked card', () => {

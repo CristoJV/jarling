@@ -46,8 +46,7 @@ function ThemedRoot() {
         <Stack.Screen
           name="transaction/new"
           options={{
-            animation: reducedMotion ? 'fade' : 'slide_from_right',
-            animationDuration: reducedMotion ? 50 : motion.transactionEnter,
+            animation: 'none',
             contentStyle: { backgroundColor: 'transparent' },
             gestureEnabled: false,
             presentation: 'transparentModal',
@@ -56,8 +55,7 @@ function ThemedRoot() {
         <Stack.Screen
           name="transaction/[id]"
           options={{
-            animation: reducedMotion ? 'fade' : 'slide_from_right',
-            animationDuration: reducedMotion ? 50 : motion.transactionEnter,
+            animation: 'none',
             contentStyle: { backgroundColor: 'transparent' },
             gestureEnabled: false,
             presentation: 'transparentModal',

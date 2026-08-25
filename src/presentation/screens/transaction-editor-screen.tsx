@@ -19,7 +19,9 @@ import type { CategoryGroupSummary } from '@/application/use-cases/categories/ge
 import type { TransactionSummary } from '@/application/use-cases/transactions/get-transactions';
 import type { TransactionInput } from '@/application/use-cases/transactions/transaction-input';
 import type { TransferInput } from '@/application/use-cases/transfers/transfer-input';
+import type { Category } from '@/domain/entities/category';
 import { Money } from '@/domain/value-objects/money';
+import { SelectCategoryScreen } from '@/presentation/components/categories/select-category-screen';
 import { BlinkingCursor } from '@/presentation/components/common/blinking-cursor';
 import {
   MoneyKeypad,
@@ -38,10 +40,7 @@ import {
   useThemedStyles,
 } from '@/presentation/theme/theme-provider';
 import { formatDate, formatMoney } from '@/presentation/utils/money';
-import {
-  categoryDisplayName,
-  groupDisplayName,
-} from '@/presentation/utils/category-name';
+import { categoryDisplayName } from '@/presentation/utils/category-name';
 
 type TransactionEditorScreenProps = Readonly<{
   accounts: AccountsOverview;
@@ -49,6 +48,10 @@ type TransactionEditorScreenProps = Readonly<{
   payees: readonly string[];
   transaction?: TransactionSummary;
   linkedTransaction?: TransactionSummary;
+  onCreateCategory: (input: {
+    groupId: string;
+    name: string;
+  }) => Promise<Category>;
   onDismiss: () => void;
   onSave: (input: TransactionInput | TransferInput) => Promise<void>;
 }>;
@@ -77,6 +80,7 @@ export function TransactionEditorScreen({
   payees,
   transaction: summary,
   linkedTransaction: linkedSummary,
+  onCreateCategory,
   onDismiss,
   onSave,
 }: TransactionEditorScreenProps) {
@@ -102,15 +106,10 @@ export function TransactionEditorScreen({
   );
   const availableCategories = useMemo(
     () =>
-      categoryGroups.flatMap(({ group, categories }) =>
-        categories
-          .filter((category) => !category.hidden)
-          .map((category) => ({
-            category,
-            groupName: groupDisplayName(group, t),
-          })),
+      categoryGroups.flatMap(({ categories }) =>
+        categories.filter((category) => !category.hidden),
       ),
-    [categoryGroups, t],
+    [categoryGroups],
   );
   const initialKind: TransactionKind = existingTransfer
     ? 'transfer'
@@ -172,8 +171,8 @@ export function TransactionEditorScreen({
       ? availableAccounts.filter(({ account }) => account.onBudget)
       : availableAccounts;
   const selectedCategory = availableCategories.find(
-    ({ category }) => category.id === categoryId,
-  )?.category;
+    (category) => category.id === categoryId,
+  );
   const categoryName = selectedCategory
     ? categoryDisplayName(selectedCategory, t)
     : undefined;
@@ -408,19 +407,20 @@ export function TransactionEditorScreen({
 
     if (editor === 'category') {
       return (
-        <FullScreenSelectionScreen
+        <SelectCategoryScreen
+          allowCreateCategory
+          groups={categoryGroups}
           overlay
           onBack={closeEditor}
-          onSelect={setCategoryId}
-          options={[
-            { value: '', label: t('transactions.uncategorized') },
-            ...availableCategories.map(({ category, groupName }) => ({
-              value: category.id,
-              label: categoryDisplayName(category, t),
-              description: groupName,
-            })),
-          ]}
-          selectedValue={categoryId}
+          onCreateCategory={onCreateCategory}
+          onSelect={(selection) =>
+            setCategoryId(
+              selection.kind === 'category' ? selection.category.id : '',
+            )
+          }
+          selectedCategoryId={categoryId || undefined}
+          selectedSpecial={categoryId ? undefined : 'uncategorized'}
+          showUncategorized
           title={t('transactions.chooseCategory')}
         />
       );

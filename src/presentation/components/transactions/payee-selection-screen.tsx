@@ -10,12 +10,17 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AnimatedFlowScreen } from '@/presentation/components/common/animated-flow-screen';
+import { SearchableSelectionInput } from '@/presentation/components/common/searchable-selection-input';
 import { useTranslation } from '@/presentation/localization/localization-provider';
 import type { AppTheme } from '@/presentation/theme/theme';
 import {
   useAppTheme,
   useThemedStyles,
 } from '@/presentation/theme/theme-provider';
+import {
+  filterSearchableItems,
+  hasExactSelectionMatch,
+} from '@/presentation/utils/searchable-selection';
 
 type PayeeSelectionScreenProps = Readonly<{
   payees: readonly string[];
@@ -39,17 +44,14 @@ export function PayeeSelectionScreen({
   const inputRef = useRef<TextInput>(null);
   const query = search.trim();
   const visible = useMemo(
-    () =>
-      payees.filter((payee) =>
-        payee
-          .toLocaleLowerCase(language)
-          .includes(query.toLocaleLowerCase(language)),
-      ),
+    () => filterSearchableItems(payees, query, language, (payee) => payee),
     [language, payees, query],
   );
-  const exactMatch = payees.some(
-    (payee) =>
-      payee.toLocaleLowerCase(language) === query.toLocaleLowerCase(language),
+  const exactMatch = hasExactSelectionMatch(
+    payees,
+    query,
+    language,
+    (payee) => payee,
   );
 
   useEffect(() => {
@@ -81,24 +83,13 @@ export function PayeeSelectionScreen({
             <Text style={styles.title}>{t('payees.choose')}</Text>
             <View style={styles.spacer} />
           </View>
-          <View style={styles.searchWrap}>
-            <MaterialCommunityIcons
-              color={theme.colors.textMuted}
-              name="magnify"
-              size={22}
-            />
-            <TextInput
-              autoCapitalize="words"
-              onChangeText={setSearch}
-              placeholder={t('payees.searchOrCreate')}
-              placeholderTextColor={theme.colors.textMuted}
-              ref={inputRef}
-              returnKeyType="done"
-              onSubmitEditing={() => query && choose(query, goBack)}
-              style={styles.search}
-              value={search}
-            />
-          </View>
+          <SearchableSelectionInput
+            inputRef={inputRef}
+            onChangeText={setSearch}
+            onSubmit={() => query && choose(query, goBack)}
+            placeholder={t('payees.searchOrCreate')}
+            value={search}
+          />
           <FlatList
             automaticallyAdjustKeyboardInsets
             keyboardDismissMode="on-drag"
@@ -184,22 +175,6 @@ const createStyles = (theme: AppTheme) =>
       textAlign: 'center',
     },
     spacer: { width: 44 },
-    searchWrap: {
-      marginHorizontal: 20,
-      marginBottom: 12,
-      paddingHorizontal: 14,
-      backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 14,
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    search: {
-      flex: 1,
-      minHeight: 50,
-      paddingHorizontal: 10,
-      color: theme.colors.text,
-      fontSize: 16,
-    },
     content: {
       paddingHorizontal: 20,
       paddingBottom: 36,

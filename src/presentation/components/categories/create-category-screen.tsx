@@ -26,19 +26,27 @@ import { domainErrorMessage } from '@/presentation/utils/domain-error-message';
 
 type Props = Readonly<{
   groups: readonly CategoryGroupSummary[];
+  initialName?: string;
   onBack: () => void;
   onCreate: (
     input: Readonly<{ groupId: string; name: string }>,
   ) => Promise<Category>;
+  onCreated?: (category: Category) => void;
 }>;
 
-export function CreateCategoryScreen({ groups, onBack, onCreate }: Props) {
+export function CreateCategoryScreen({
+  groups,
+  initialName = '',
+  onBack,
+  onCreate,
+  onCreated,
+}: Props) {
   const { t } = useTranslation();
   const theme = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const selectableGroups = groups;
   const [groupId, setGroupId] = useState(selectableGroups[0]?.group.id ?? '');
-  const [name, setName] = useState('');
+  const [name, setName] = useState(initialName);
   const [choosingGroup, setChoosingGroup] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +59,8 @@ export function CreateCategoryScreen({ groups, onBack, onCreate }: Props) {
     setSaving(true);
     setError(null);
     try {
-      await onCreate({ groupId, name });
+      const category = await onCreate({ groupId, name });
+      onCreated?.(category);
     } catch (cause) {
       setError(domainErrorMessage(cause, t));
       setSaving(false);
