@@ -16,7 +16,9 @@ export type CategoryTargetRow = {
   category_id: string;
   kind: TargetKind;
   amount: number;
+  starts_on: string;
   day_of_week: number | null;
+  include_previous_weeks: number | null;
   funding_mode: RecurringFundingMode | null;
   day_of_month: number | null;
   target_date: string | null;
@@ -31,8 +33,12 @@ export function categoryTargetFromRow(row: CategoryTargetRow): CategoryTarget {
     categoryId: row.category_id,
     kind: row.kind,
     amount: Money.fromCents(row.amount),
+    startsOn: row.starts_on,
     ...(row.day_of_week !== null
       ? { dayOfWeek: row.day_of_week as IsoDayOfWeek }
+      : {}),
+    ...(row.include_previous_weeks !== null
+      ? { includePreviousWeeks: row.include_previous_weeks === 1 }
       : {}),
     ...(row.funding_mode !== null ? { fundingMode: row.funding_mode } : {}),
     ...(row.day_of_month !== null ? { dayOfMonth: row.day_of_month } : {}),
@@ -46,7 +52,7 @@ export function categoryTargetFromRow(row: CategoryTargetRow): CategoryTarget {
 }
 
 const columns = `
-  id, category_id, kind, amount, day_of_week, funding_mode,
+  id, category_id, kind, amount, starts_on, day_of_week, include_previous_weeks, funding_mode,
   day_of_month, target_date, custom_funding_mode, created_at, updated_at
 `;
 
@@ -71,13 +77,15 @@ export class SQLiteCategoryTargetRepository implements CategoryTargetRepository 
   async save(target: CategoryTarget): Promise<void> {
     await this.database.runAsync(
       `INSERT INTO category_targets (
-         id, category_id, kind, amount, day_of_week, funding_mode,
+         id, category_id, kind, amount, starts_on, day_of_week, include_previous_weeks, funding_mode,
          day_of_month, target_date, custom_funding_mode, created_at, updated_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(category_id) DO UPDATE SET
          kind = excluded.kind,
          amount = excluded.amount,
+         starts_on = excluded.starts_on,
          day_of_week = excluded.day_of_week,
+         include_previous_weeks = excluded.include_previous_weeks,
          funding_mode = excluded.funding_mode,
          day_of_month = excluded.day_of_month,
          target_date = excluded.target_date,
@@ -87,7 +95,11 @@ export class SQLiteCategoryTargetRepository implements CategoryTargetRepository 
       target.categoryId,
       target.kind,
       target.amount.cents,
+      target.startsOn,
       target.dayOfWeek ?? null,
+      target.includePreviousWeeks === undefined
+        ? null
+        : Number(target.includePreviousWeeks),
       target.fundingMode ?? null,
       target.dayOfMonth ?? null,
       target.targetDate ?? null,

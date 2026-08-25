@@ -12,7 +12,9 @@ export type CategoryTarget = Readonly<{
   categoryId: string;
   kind: TargetKind;
   amount: Money;
+  startsOn: string;
   dayOfWeek?: IsoDayOfWeek;
+  includePreviousWeeks?: boolean;
   fundingMode?: RecurringFundingMode;
   dayOfMonth?: number; // 0 means last day; otherwise 1..31
   targetDate?: string;
@@ -43,6 +45,7 @@ function hasOnlyWeeklyFields(target: CategoryTarget): boolean {
 function hasOnlyMonthlyFields(target: CategoryTarget): boolean {
   return (
     target.dayOfWeek === undefined &&
+    target.includePreviousWeeks === undefined &&
     target.targetDate === undefined &&
     target.customFundingMode === undefined
   );
@@ -51,6 +54,7 @@ function hasOnlyMonthlyFields(target: CategoryTarget): boolean {
 function hasOnlyYearlyFields(target: CategoryTarget): boolean {
   return (
     target.dayOfWeek === undefined &&
+    target.includePreviousWeeks === undefined &&
     target.dayOfMonth === undefined &&
     target.customFundingMode === undefined
   );
@@ -59,6 +63,7 @@ function hasOnlyYearlyFields(target: CategoryTarget): boolean {
 function hasOnlyCustomFields(target: CategoryTarget): boolean {
   return (
     target.dayOfWeek === undefined &&
+    target.includePreviousWeeks === undefined &&
     target.fundingMode === undefined &&
     target.dayOfMonth === undefined
   );
@@ -67,18 +72,28 @@ function hasOnlyCustomFields(target: CategoryTarget): boolean {
 export function createCategoryTarget(
   properties: CategoryTarget,
 ): CategoryTarget {
-  if (properties.amount.cents <= 0) {
+  const target: CategoryTarget =
+    properties.kind === 'weekly' &&
+    properties.includePreviousWeeks === undefined
+      ? { ...properties, includePreviousWeeks: false }
+      : properties;
+
+  if (target.amount.cents <= 0) {
     throw new InvalidCategoryTargetError('amount must be positive');
   }
+  if (!isValidDate(target.startsOn)) {
+    throw new InvalidCategoryTargetError('startsOn must be a valid date');
+  }
 
-  switch (properties.kind) {
+  switch (target.kind) {
     case 'weekly':
       if (
-        !properties.dayOfWeek ||
-        properties.dayOfWeek < 1 ||
-        properties.dayOfWeek > 7 ||
-        !['set_aside', 'refill_up_to'].includes(properties.fundingMode ?? '') ||
-        !hasOnlyWeeklyFields(properties)
+        !target.dayOfWeek ||
+        target.dayOfWeek < 1 ||
+        target.dayOfWeek > 7 ||
+        typeof target.includePreviousWeeks !== 'boolean' ||
+        !['set_aside', 'refill_up_to'].includes(target.fundingMode ?? '') ||
+        !hasOnlyWeeklyFields(target)
       ) {
         throw new InvalidCategoryTargetError(
           'weekly targets require a weekday and funding mode',
@@ -87,12 +102,12 @@ export function createCategoryTarget(
       break;
     case 'monthly':
       if (
-        properties.dayOfMonth === undefined ||
-        !['set_aside', 'refill_up_to'].includes(properties.fundingMode ?? '') ||
-        !Number.isInteger(properties.dayOfMonth) ||
-        properties.dayOfMonth < 0 ||
-        properties.dayOfMonth > 31 ||
-        !hasOnlyMonthlyFields(properties)
+        target.dayOfMonth === undefined ||
+        !['set_aside', 'refill_up_to'].includes(target.fundingMode ?? '') ||
+        !Number.isInteger(target.dayOfMonth) ||
+        target.dayOfMonth < 0 ||
+        target.dayOfMonth > 31 ||
+        !hasOnlyMonthlyFields(target)
       ) {
         throw new InvalidCategoryTargetError(
           'monthly targets require a day from 1 to 31 or last day',
@@ -101,10 +116,10 @@ export function createCategoryTarget(
       break;
     case 'yearly':
       if (
-        !properties.targetDate ||
-        !['set_aside', 'refill_up_to'].includes(properties.fundingMode ?? '') ||
-        !isValidDate(properties.targetDate) ||
-        !hasOnlyYearlyFields(properties)
+        !target.targetDate ||
+        !['set_aside', 'refill_up_to'].includes(target.fundingMode ?? '') ||
+        !isValidDate(target.targetDate) ||
+        !hasOnlyYearlyFields(target)
       ) {
         throw new InvalidCategoryTargetError(
           'yearly targets require only a valid date',
@@ -114,11 +129,10 @@ export function createCategoryTarget(
     case 'custom':
       if (
         !['set_aside', 'fill_up_to', 'balance'].includes(
-          properties.customFundingMode ?? '',
+          target.customFundingMode ?? '',
         ) ||
-        (properties.targetDate !== undefined &&
-          !isValidDate(properties.targetDate)) ||
-        !hasOnlyCustomFields(properties)
+        (target.targetDate !== undefined && !isValidDate(target.targetDate)) ||
+        !hasOnlyCustomFields(target)
       ) {
         throw new InvalidCategoryTargetError(
           'custom targets require a funding mode and an optional valid date',
@@ -127,7 +141,7 @@ export function createCategoryTarget(
       break;
   }
 
-  return { ...properties };
+  return { ...target };
 }
 
 export function updateCategoryTarget(

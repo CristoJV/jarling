@@ -7,6 +7,7 @@ const base = {
   id: 'target-1',
   categoryId: 'category-1',
   amount: Money.fromCents(10_000),
+  startsOn: '2026-08-20',
   createdAt: '2026-08-20T10:00:00.000Z',
   updatedAt: '2026-08-20T10:00:00.000Z',
 } as const;

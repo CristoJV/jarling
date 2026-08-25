@@ -144,12 +144,29 @@ export function CategoryGroupCard({
                 ]}
               >
                 <View style={styles.rowTop}>
-                  <Text
-                    numberOfLines={1}
-                    style={[styles.categoryName, { color: theme.colors.text }]}
-                  >
-                    {categoryDisplayName(category, t)}
-                  </Text>
+                  <View style={styles.categoryCopy}>
+                    <Text
+                      numberOfLines={1}
+                      style={[
+                        styles.categoryName,
+                        { color: theme.colors.text },
+                      ]}
+                    >
+                      {categoryDisplayName(category, t)}
+                    </Text>
+                    {target?.kind === 'weekly' && progress ? (
+                      <Text
+                        numberOfLines={1}
+                        style={[
+                          styles.targetCaption,
+                          { color: theme.colors.textMuted },
+                        ]}
+                      >
+                        {formatMoney(progress.monthlyTarget)} ·{' '}
+                        {formatMoney(target.amount)} {t('targets.weekly')}
+                      </Text>
+                    ) : null}
+                  </View>
                   <View style={styles.budgetValues}>
                     <Text
                       style={[
@@ -224,7 +241,15 @@ export function categoryStatus(
   const bar = buildBudgetProgress({
     spendingCents: values.spendingTransactions.map((amount) => amount.cents),
     availableCents: values.available.cents,
-    ...(progress ? { goalCents: progress.goal.cents } : {}),
+    ...(progress
+      ? {
+          targetCents: progress.monthlyTarget.cents,
+          targetFundedCents: progress.fundedThisMonth.cents,
+          ...(progress.occurrenceCount === undefined
+            ? {}
+            : { targetOccurrences: progress.occurrenceCount }),
+        }
+      : {}),
     underfunded,
   });
 
@@ -252,9 +277,9 @@ export function categoryStatus(
     return {
       label: t('budget.funded', {
         funded: formatMoney(
-          Money.fromCents(Math.max(0, progress.funded.cents)),
+          Money.fromCents(Math.max(0, progress.fundedThisMonth.cents)),
         ),
-        goal: formatMoney(progress.goal),
+        goal: formatMoney(progress.monthlyTarget),
       }),
       bar,
       tone: progress.status === 'overdue' ? 'negative' : 'positive',
@@ -278,15 +303,15 @@ export function categoryStatus(
 function segmentColor(tone: BudgetProgressTone, theme: AppTheme): string {
   switch (tone) {
     case 'available':
-      return theme.colors.positive;
+      return theme.colors.progressFunded;
     case 'warningSpent':
-      return theme.colors.warningMuted;
+      return theme.colors.progressWarningSpent;
     case 'warningAvailable':
-      return theme.colors.warning;
+      return theme.colors.progressWarningFunded;
     case 'overspent':
       return theme.colors.negative;
     default:
-      return theme.colors.primary;
+      return theme.colors.progressSpent;
   }
 }
 
@@ -305,7 +330,11 @@ function ProgressStatus({ label, bar, tone }: CategoryStatus) {
         {bar.segments.map((segment, index) => (
           <View
             key={`${segment.tone}-${index}`}
-            style={[styles.segmentSlot, { flex: segment.cents }]}
+            style={[
+              styles.segmentSlot,
+              bar.boundariesCents && styles.targetSegmentSlot,
+              { flex: segment.cents },
+            ]}
           >
             <View
               style={[
@@ -316,6 +345,19 @@ function ProgressStatus({ label, bar, tone }: CategoryStatus) {
           </View>
         ))}
         {emptyCents > 0 ? <View style={{ flex: emptyCents }} /> : null}
+        {bar.boundariesCents?.map((boundary) => (
+          <View
+            key={boundary}
+            pointerEvents="none"
+            style={[
+              styles.slotBoundary,
+              {
+                backgroundColor: theme.colors.surface,
+                left: `${(boundary / bar.totalCents) * 100}%`,
+              },
+            ]}
+          />
+        ))}
       </View>
       <Text
         style={[
@@ -415,12 +457,13 @@ const createStyles = (theme: AppTheme) =>
     },
     categoryRowPressed: { backgroundColor: theme.colors.surfacePressed },
     rowTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    categoryCopy: { flex: 1, gap: 2 },
     categoryName: {
-      flex: 1,
       color: theme.colors.text,
       fontSize: 16,
       fontWeight: '500',
     },
+    targetCaption: { fontSize: 11, fontWeight: '600' },
     budgetValues: { flexDirection: 'row', alignItems: 'center', gap: 13 },
     assigned: {
       minWidth: 72,
@@ -457,7 +500,14 @@ const createStyles = (theme: AppTheme) =>
       flexDirection: 'row',
     },
     segmentSlot: { height: '100%', paddingRight: 2 },
+    targetSegmentSlot: { paddingRight: 0 },
     segment: { height: '100%', borderRadius: 3 },
+    slotBoundary: {
+      position: 'absolute',
+      top: 0,
+      bottom: 0,
+      width: 2,
+    },
     progressLabel: {
       color: theme.colors.textMuted,
       fontSize: 11,

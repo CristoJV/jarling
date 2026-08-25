@@ -116,6 +116,85 @@ describe('Jarling plan snapshots', () => {
     });
   });
 
+  it('upgrades target schedule defaults from a version 1 backup', () => {
+    const parsed = parsePlanSnapshot({
+      ...emptySnapshot,
+      tables: {
+        ...emptySnapshot.tables,
+        category_groups: [
+          {
+            id: 'group-1',
+            name: 'Bills',
+            sort_order: 0,
+            created_at: '2026-08-19T10:00:00.000Z',
+            updated_at: '2026-08-19T10:00:00.000Z',
+          },
+        ],
+        categories: [
+          {
+            id: 'category-1',
+            group_id: 'group-1',
+            name: 'Rent',
+            hidden: 0,
+            linked_account_id: null,
+            sort_order: 0,
+            created_at: '2026-08-19T10:00:00.000Z',
+            updated_at: '2026-08-19T10:00:00.000Z',
+          },
+        ],
+        category_targets: [
+          {
+            id: 'target-1',
+            category_id: 'category-1',
+            kind: 'weekly',
+            amount: 10_000,
+            day_of_week: 5,
+            funding_mode: 'set_aside',
+            day_of_month: null,
+            target_date: null,
+            custom_funding_mode: null,
+            created_at: '2026-08-19T10:00:00.000Z',
+            updated_at: '2026-08-19T10:00:00.000Z',
+          },
+        ],
+      },
+    });
+
+    expect(parsed.tables.category_targets[0]).toEqual(
+      expect.objectContaining({
+        starts_on: '2026-08-19',
+        include_previous_weeks: 0,
+      }),
+    );
+  });
+
+  it('requires explicit target schedule fields in version 2 backups', () => {
+    expect(() =>
+      parsePlanSnapshot({
+        ...emptySnapshot,
+        version: 2,
+        tables: {
+          ...emptySnapshot.tables,
+          category_targets: [
+            {
+              id: 'target-1',
+              category_id: 'category-1',
+              kind: 'weekly',
+              amount: 10_000,
+              day_of_week: 5,
+              funding_mode: 'set_aside',
+              day_of_month: null,
+              target_date: null,
+              custom_funding_mode: null,
+              created_at: '2026-08-19T10:00:00.000Z',
+              updated_at: '2026-08-19T10:00:00.000Z',
+            },
+          ],
+        },
+      }),
+    ).toThrow('Invalid category_targets.starts_on value.');
+  });
+
   it('rejects an incomplete backup before touching SQLite', () => {
     expect(() =>
       parsePlanSnapshot({

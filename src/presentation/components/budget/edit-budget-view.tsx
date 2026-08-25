@@ -46,7 +46,7 @@ export function EditBudgetView({
   const styles = useThemedStyles(createStyles);
   const totalTargets = Money.fromCents(
     [...progressByCategoryId.values()].reduce(
-      (total, progress) => total + progress.goal.cents,
+      (total, progress) => total + progress.monthlyTarget.cents,
       0,
     ),
   );
@@ -101,6 +101,7 @@ export function EditBudgetView({
               {categories.map((category) => {
                 const values = valuesByCategoryId.get(category.id);
                 const target = targetsByCategoryId.get(category.id);
+                const progress = progressByCategoryId.get(category.id);
                 return (
                   <Pressable
                     disabled={!values}
@@ -120,13 +121,17 @@ export function EditBudgetView({
                       {target ? (
                         <>
                           <Text style={styles.targetAmount}>
-                            {formatMoney(target.amount)}
+                            {formatMoney(
+                              progress?.monthlyTarget ?? target.amount,
+                            )}
                           </Text>
                           <Text
                             numberOfLines={1}
                             style={styles.targetDescription}
                           >
-                            {targetDescription(target, language)}
+                            {target.kind === 'weekly'
+                              ? `${formatMoney(target.amount)} ${t('targets.weekly')}`
+                              : targetDescription(target, language)}
                           </Text>
                         </>
                       ) : (

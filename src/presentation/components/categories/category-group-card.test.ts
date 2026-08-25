@@ -21,6 +21,7 @@ const target: CategoryTarget = {
   categoryId: category.id,
   kind: 'monthly',
   amount: Money.fromCents(10_000),
+  startsOn: '2026-08-01',
   dayOfMonth: 0,
   fundingMode: 'set_aside',
   createdAt: category.createdAt,
@@ -42,10 +43,14 @@ describe('categoryStatus', () => {
       spendingTransactions: [Money.fromCents(2_000)],
     };
     const progress: TargetProgress = {
-      goal: Money.fromCents(10_000),
-      funded: Money.fromCents(10_000),
+      totalTarget: Money.fromCents(10_000),
+      monthlyTarget: Money.fromCents(10_000),
+      fundedTowardTotal: Money.fromCents(10_000),
+      fundedThisMonth: Money.fromCents(10_000),
+      eligibleRollover: Money.zero(),
       recommended: Money.zero(),
-      progress: 1,
+      monthlyProgress: 1,
+      totalProgress: 1,
       status: 'complete',
     };
 

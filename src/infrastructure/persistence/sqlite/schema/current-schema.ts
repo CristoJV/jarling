@@ -10,7 +10,7 @@ export const FIRST_RELEASE_SCHEMA_VERSION = 1;
  * baseline SQL whenever a forward migration is added. Fresh installations can
  * then start at the latest version without replaying historical migrations.
  */
-export const CURRENT_SCHEMA_VERSION = 1;
+export const CURRENT_SCHEMA_VERSION = 2;
 
 /**
  * Fresh installations create this schema directly instead of replaying the
@@ -117,7 +117,12 @@ export const currentSchema: Migration = {
       category_id TEXT NOT NULL UNIQUE,
       kind TEXT NOT NULL CHECK (kind IN ('weekly', 'monthly', 'yearly', 'custom')),
       amount INTEGER NOT NULL CHECK (typeof(amount) = 'integer' AND amount > 0),
+      starts_on TEXT NOT NULL CHECK (
+        length(starts_on) = 10
+        AND starts_on GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'
+      ),
       day_of_week INTEGER CHECK (day_of_week BETWEEN 1 AND 7),
+      include_previous_weeks INTEGER CHECK (include_previous_weeks IN (0, 1)),
       funding_mode TEXT CHECK (funding_mode IN ('set_aside', 'refill_up_to')),
       day_of_month INTEGER CHECK (day_of_month BETWEEN 0 AND 31),
       target_date TEXT CHECK (
@@ -133,13 +138,17 @@ export const currentSchema: Migration = {
       updated_at TEXT NOT NULL,
       FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE RESTRICT,
       CHECK (
-        (kind = 'weekly' AND day_of_week IS NOT NULL AND funding_mode IS NOT NULL
+        (kind = 'weekly' AND day_of_week IS NOT NULL
+          AND include_previous_weeks IS NOT NULL AND funding_mode IS NOT NULL
           AND day_of_month IS NULL AND target_date IS NULL AND custom_funding_mode IS NULL)
-        OR (kind = 'monthly' AND day_of_week IS NULL AND funding_mode IS NOT NULL
+        OR (kind = 'monthly' AND day_of_week IS NULL
+          AND include_previous_weeks IS NULL AND funding_mode IS NOT NULL
           AND day_of_month IS NOT NULL AND target_date IS NULL AND custom_funding_mode IS NULL)
-        OR (kind = 'yearly' AND day_of_week IS NULL AND funding_mode IS NOT NULL
+        OR (kind = 'yearly' AND day_of_week IS NULL
+          AND include_previous_weeks IS NULL AND funding_mode IS NOT NULL
           AND day_of_month IS NULL AND target_date IS NOT NULL AND custom_funding_mode IS NULL)
-        OR (kind = 'custom' AND day_of_week IS NULL AND funding_mode IS NULL
+        OR (kind = 'custom' AND day_of_week IS NULL
+          AND include_previous_weeks IS NULL AND funding_mode IS NULL
           AND day_of_month IS NULL AND custom_funding_mode IS NOT NULL)
       )
     );

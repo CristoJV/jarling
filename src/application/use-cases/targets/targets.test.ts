@@ -2,7 +2,9 @@ import type { Clock } from '@/application/ports/clock';
 import type { IdGenerator } from '@/application/ports/id-generator';
 import type { UnitOfWork } from '@/application/ports/unit-of-work';
 import { createCategory } from '@/domain/entities/category';
+import { createCategoryTarget } from '@/domain/entities/category-target';
 import { CategoryNotFoundError } from '@/domain/errors/category-not-found-error';
+import { Money } from '@/domain/value-objects/money';
 import { InMemoryCategoryRepository } from '@/infrastructure/persistence/in-memory/in-memory-category-repository';
 import { InMemoryCategoryTargetRepository } from '@/infrastructure/persistence/in-memory/in-memory-category-target-repository';
 
@@ -85,6 +87,65 @@ describe('target use cases', () => {
       updated,
     ]);
     expect(unitOfWork.executions).toBe(2);
+  });
+
+  it('records the weekly start and defaults earlier occurrences to excluded', async () => {
+    const { categories, set } = setup();
+    await seedCategory(categories);
+
+    await expect(
+      set.execute({
+        categoryId: 'category-1',
+        kind: 'weekly',
+        amountCents: 10_000,
+        dayOfWeek: 5,
+        fundingMode: 'refill_up_to',
+      }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        startsOn: '2026-08-18',
+        includePreviousWeeks: false,
+      }),
+    );
+  });
+
+  it('preserves the schedule start unless the weekly schedule changes', async () => {
+    const { categories, targets, set } = setup();
+    await seedCategory(categories);
+    await targets.save(
+      createCategoryTarget({
+        id: 'target-1',
+        categoryId: 'category-1',
+        kind: 'weekly',
+        amount: Money.fromCents(10_000),
+        startsOn: '2026-07-01',
+        dayOfWeek: 5,
+        includePreviousWeeks: false,
+        fundingMode: 'set_aside',
+        createdAt: '2026-07-01T10:00:00.000Z',
+        updatedAt: '2026-07-01T10:00:00.000Z',
+      }),
+    );
+
+    const sameSchedule = await set.execute({
+      categoryId: 'category-1',
+      kind: 'weekly',
+      amountCents: 20_000,
+      dayOfWeek: 5,
+      includePreviousWeeks: true,
+      fundingMode: 'refill_up_to',
+    });
+    const changedWeekday = await set.execute({
+      categoryId: 'category-1',
+      kind: 'weekly',
+      amountCents: 20_000,
+      dayOfWeek: 6,
+      includePreviousWeeks: false,
+      fundingMode: 'refill_up_to',
+    });
+
+    expect(sameSchedule.startsOn).toBe('2026-07-01');
+    expect(changedWeekday.startsOn).toBe('2026-08-18');
   });
 
   it('deletes a target without affecting its category', async () => {

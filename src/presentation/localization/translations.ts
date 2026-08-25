@@ -365,6 +365,11 @@ export const english = {
   'targets.amount': 'Amount',
   'targets.iNeed': 'I need',
   'targets.every': 'Every',
+  'targets.weeklyMonthlyModel':
+    'Weekly occurrences calculate this month’s target. Your budget still rolls over monthly.',
+  'targets.includePreviousWeeks': 'Include previous weeks',
+  'targets.includePreviousWeeksDescription':
+    'Also count occurrences earlier in this month. Future months always include the full month.',
   'targets.nextMonth': 'Next month I want to',
   'targets.by': 'By',
   'targets.lastDay': 'Last day',
@@ -375,9 +380,9 @@ export const english = {
   'targets.setAsideAmount': 'Set aside another {{amount}}/{{period}}',
   'targets.refillAmount': 'Refill up to {{amount}}/{{period}}',
   'targets.setAsideDescription':
-    'Add this amount every {{period}} regardless of the current balance.',
+    'At the start of each month, leftover money does not reduce this month’s target.',
   'targets.refillDescription':
-    'Count existing money and replace only what was spent.',
+    'At monthly rollover, leftover available money reduces what you need to assign. There is no weekly reset.',
   'targets.customSetAsideDescription':
     'Use for bills and subscriptions. Add this amount regardless of the current balance.',
   'targets.customFillDescription':
@@ -819,6 +824,11 @@ export const spanish: TranslationDictionary = {
   'targets.amount': 'Importe',
   'targets.iNeed': 'Necesito',
   'targets.every': 'Cada',
+  'targets.weeklyMonthlyModel':
+    'Las ocurrencias semanales calculan el objetivo de este mes. El presupuesto sigue haciendo rollover mensual.',
+  'targets.includePreviousWeeks': 'Incluir semanas anteriores',
+  'targets.includePreviousWeeksDescription':
+    'Cuenta también las ocurrencias anteriores de este mes. Los meses futuros siempre incluyen el mes completo.',
   'targets.nextMonth': 'El próximo mes quiero',
   'targets.by': 'Antes de',
   'targets.lastDay': 'Último día',
@@ -829,9 +839,9 @@ export const spanish: TranslationDictionary = {
   'targets.setAsideAmount': 'Apartar otros {{amount}}/{{period}}',
   'targets.refillAmount': 'Rellenar hasta {{amount}}/{{period}}',
   'targets.setAsideDescription':
-    'Añade este importe cada {{period}} independientemente del saldo actual.',
+    'Al comenzar cada mes, el dinero sobrante no reduce el objetivo de ese mes.',
   'targets.refillDescription':
-    'Cuenta el dinero existente y repone solamente lo gastado.',
+    'En el rollover mensual, el dinero disponible sobrante reduce lo que debes asignar. No hay reinicio semanal.',
   'targets.customSetAsideDescription':
     'Úsalo para facturas y suscripciones. Añade este importe sin importar el saldo actual.',
   'targets.customFillDescription':

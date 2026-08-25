@@ -6,14 +6,15 @@ import {
 import { migrations } from '../migrations/migrations';
 
 describe('current database schema', () => {
-  it('is a direct first-release baseline with no historical migrations', () => {
+  it('installs the current baseline directly and retains forward migrations', () => {
     expect(currentSchema).toEqual(
       expect.objectContaining({
         version: CURRENT_SCHEMA_VERSION,
         name: `schema_v${CURRENT_SCHEMA_VERSION}`,
       }),
     );
-    expect(migrations).toEqual([]);
+    expect(migrations.map(({ version }) => version)).toEqual([2]);
+    expect(migrations.at(-1)?.version).toBe(CURRENT_SCHEMA_VERSION);
   });
 
   it('does not predate the first public database contract', () => {
