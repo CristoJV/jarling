@@ -20,12 +20,20 @@ need an accurate privacy model and a safe way to move their data.
 - Each `.jarling` backup is independently encrypted with AES-256-GCM. Its key
   is derived from that backup's password with PBKDF2-HMAC-SHA256, at least
   310,000 iterations, and a unique salt.
+- AES-GCM and PBKDF2 use the audited Noble JavaScript implementations so the
+  exact encryption code exercised by automated tests also runs on Android,
+  iOS, and web. Platform crypto remains the source of secure random salt and
+  nonce bytes.
 - The portable wrapper stores the nonce, ciphertext, authentication tag, KDF
   parameters, and a non-secret SHA-256 payload checksum explicitly. The
   checksum distinguishes a damaged current backup from a wrong password before
   authentication; AES-GCM remains the security and authenticity boundary.
 - Restore remains compatible with legacy v1/v2 wrappers that stored nonce,
   ciphertext, and tag as one combined Base64 payload.
+- Before a new backup is shared, Jarling reads the file back from storage,
+  decrypts it with the supplied password, and verifies that the recovered
+  snapshot is byte-for-byte equal to the source. A backup that fails this
+  native round-trip is never offered to the user.
 - JSON export and `.jarling` backup contain the same versioned plan snapshot;
   `.jarling` is the canonical user backup and encrypts that snapshot.
 - Restore detects the format from file contents, asks for a password only for

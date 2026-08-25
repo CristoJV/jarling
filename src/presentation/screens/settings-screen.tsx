@@ -654,6 +654,8 @@ function portabilityErrorMessage(
       return t('settings.invalidSnapshot');
     case 'migration-failed':
       return t('settings.migrationError');
+    case 'backup-verification-failed':
+      return t('settings.backupError');
     case 'restore-failed':
       return t('settings.restoreError');
   }

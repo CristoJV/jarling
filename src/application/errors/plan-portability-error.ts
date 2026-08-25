@@ -5,6 +5,7 @@ export type PlanPortabilityErrorCode =
   | 'unsupported-version'
   | 'invalid-snapshot'
   | 'migration-failed'
+  | 'backup-verification-failed'
   | 'restore-failed';
 
 export class PlanPortabilityError extends Error {

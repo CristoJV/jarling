@@ -172,6 +172,14 @@ describe('Jarling plan snapshots', () => {
     );
   });
 
+  it('adds the transaction links table missing from genuine version 1 backups', () => {
+    const { transaction_links: _, ...legacyTables } = emptySnapshot.tables;
+    expect(
+      parsePlanSnapshot({ ...emptySnapshot, tables: legacyTables }).tables
+        .transaction_links,
+    ).toEqual([]);
+  });
+
   it('requires explicit target schedule fields in version 2 backups', () => {
     expect(() =>
       parsePlanSnapshot({

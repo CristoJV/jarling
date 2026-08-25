@@ -8,6 +8,7 @@ type BannerTone = 'positive' | 'negative' | 'notice';
 type Props = Readonly<{
   actionLabel: string;
   label: string;
+  labelTone?: BannerTone;
   onPress?: () => void;
   tone: BannerTone;
 }>;
@@ -17,14 +18,27 @@ export function BudgetStatusBanner({
   label,
   onPress,
   tone,
+  labelTone = tone,
 }: Props) {
   const styles = useThemedStyles(createStyles);
   const content = (
     <>
-      <Text numberOfLines={1} style={[styles.label, styles[`${tone}Text`]]}>
+      <Text
+        numberOfLines={1}
+        style={[styles.label, styles[`${labelTone}Text`]]}
+      >
         {label}
       </Text>
-      <Text style={[styles.action, styles[`${tone}Text`]]}>{actionLabel}</Text>
+      <View style={onPress ? styles.actionButton : undefined}>
+        <Text
+          style={[
+            styles.action,
+            onPress ? styles.actionButtonText : styles[`${tone}Text`],
+          ]}
+        >
+          {actionLabel}
+        </Text>
+      </View>
     </>
   );
   const style = [styles.banner, styles[`${tone}Banner`]];
@@ -56,9 +70,9 @@ const createStyles = (theme: AppTheme) =>
     positiveBanner: { backgroundColor: theme.colors.positiveMuted },
     negativeBanner: { backgroundColor: theme.colors.negativeMuted },
     noticeBanner: {
-      backgroundColor: theme.colors.surface,
+      backgroundColor: theme.colors.surfaceMuted,
       borderColor: theme.colors.border,
-      borderWidth: 1,
+      borderWidth: StyleSheet.hairlineWidth,
     },
     label: {
       flex: 1,
@@ -66,9 +80,18 @@ const createStyles = (theme: AppTheme) =>
       fontVariant: ['tabular-nums'],
       fontWeight: '800',
     },
+    actionButton: {
+      minHeight: 38,
+      paddingHorizontal: 16,
+      backgroundColor: theme.colors.primary,
+      borderRadius: 19,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     action: { flexShrink: 0, fontSize: 14, fontWeight: '800' },
+    actionButtonText: { color: theme.colors.onPrimary },
     positiveText: { color: theme.colors.positive },
     negativeText: { color: theme.colors.negative },
-    noticeText: { color: theme.colors.primary },
+    noticeText: { color: theme.colors.textSecondary },
     pressed: { opacity: 0.72 },
   });

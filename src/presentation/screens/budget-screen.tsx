@@ -255,6 +255,7 @@ export function BudgetScreen() {
                         : 'budget.newTransactionsCount',
                       { count: budget.uncategorized.transactionCount },
                     )}`}
+                    labelTone="negative"
                     onPress={() =>
                       router.navigate(routes.uncategorizedTransactions())
                     }
