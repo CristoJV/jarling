@@ -5,4 +5,5 @@ export interface CategoryRepository {
   findByGroup(groupId: string): Promise<readonly Category[]>;
   findById(id: string): Promise<Category | null>;
   save(category: Category): Promise<void>;
+  deleteById(id: string): Promise<void>;
 }

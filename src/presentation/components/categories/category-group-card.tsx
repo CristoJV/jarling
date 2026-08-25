@@ -9,6 +9,7 @@ import { Money } from '@/domain/value-objects/money';
 import {
   buildBudgetProgress,
   type BudgetProgressBar,
+  type BudgetProgressSegment,
   type BudgetProgressTone,
 } from '@/presentation/utils/budget-progress';
 import { formatMoney } from '@/presentation/utils/money';
@@ -315,47 +316,32 @@ function segmentColor(tone: BudgetProgressTone, theme: AppTheme): string {
   }
 }
 
+function segmentBorderColor(
+  tone: BudgetProgressBar['segments'][number]['borderTone'],
+  theme: AppTheme,
+): string {
+  switch (tone) {
+    case 'positive':
+      return theme.colors.progressFunded;
+    case 'warning':
+      return theme.colors.progressWarningFunded;
+    case 'negative':
+      return theme.colors.negative;
+    default:
+      return theme.colors.track;
+  }
+}
+
 function ProgressStatus({ label, bar, tone }: CategoryStatus) {
   const theme = useAppTheme();
   const styles = useThemedStyles(createStyles);
-  const usedCents = bar.segments.reduce(
-    (sum, segment) => sum + segment.cents,
-    0,
-  );
-  const emptyCents = Math.max(0, bar.totalCents - usedCents);
-
   return (
     <View style={styles.progressSection}>
-      <View style={[styles.track, { backgroundColor: theme.colors.track }]}>
+      <View style={styles.track}>
         {bar.segments.map((segment, index) => (
-          <View
-            key={`${segment.tone}-${index}`}
-            style={[
-              styles.segmentSlot,
-              bar.boundariesCents && styles.targetSegmentSlot,
-              { flex: segment.cents },
-            ]}
-          >
-            <View
-              style={[
-                styles.segment,
-                { backgroundColor: segmentColor(segment.tone, theme) },
-              ]}
-            />
-          </View>
-        ))}
-        {emptyCents > 0 ? <View style={{ flex: emptyCents }} /> : null}
-        {bar.boundariesCents?.map((boundary) => (
-          <View
-            key={boundary}
-            pointerEvents="none"
-            style={[
-              styles.slotBoundary,
-              {
-                backgroundColor: theme.colors.surface,
-                left: `${(boundary / bar.totalCents) * 100}%`,
-              },
-            ]}
+          <VisualProgressSegment
+            key={`${segment.overflow ? 'overflow' : 'base'}-${index}`}
+            segment={segment}
           />
         ))}
       </View>
@@ -371,6 +357,42 @@ function ProgressStatus({ label, bar, tone }: CategoryStatus) {
       >
         {label}
       </Text>
+    </View>
+  );
+}
+
+function VisualProgressSegment({
+  segment,
+}: Readonly<{ segment: BudgetProgressSegment }>) {
+  const theme = useAppTheme();
+  const styles = useThemedStyles(createStyles);
+  const filledCents = segment.regions.reduce(
+    (total, region) => total + region.cents,
+    0,
+  );
+  const emptyCents = Math.max(0, segment.cents - filledCents);
+
+  return (
+    <View
+      style={[
+        styles.visualSegment,
+        {
+          flex: segment.cents,
+          backgroundColor: theme.colors.track,
+          borderColor: segmentBorderColor(segment.borderTone, theme),
+        },
+      ]}
+    >
+      {segment.regions.map((region, index) => (
+        <View
+          key={`${region.tone}-${index}`}
+          style={{
+            backgroundColor: segmentColor(region.tone, theme),
+            flex: region.cents,
+          }}
+        />
+      ))}
+      {emptyCents > 0 ? <View style={{ flex: emptyCents }} /> : null}
     </View>
   );
 }
@@ -493,20 +515,16 @@ const createStyles = (theme: AppTheme) =>
     availableNegative: { color: theme.colors.negative },
     progressSection: { marginTop: 10, gap: 5 },
     track: {
-      height: 6,
-      backgroundColor: theme.colors.track,
-      borderRadius: 3,
+      height: 8,
+      flexDirection: 'row',
+      gap: 3,
+    },
+    visualSegment: {
+      height: '100%',
+      borderRadius: 4,
+      borderWidth: 1,
       overflow: 'hidden',
       flexDirection: 'row',
-    },
-    segmentSlot: { height: '100%', paddingRight: 2 },
-    targetSegmentSlot: { paddingRight: 0 },
-    segment: { height: '100%', borderRadius: 3 },
-    slotBoundary: {
-      position: 'absolute',
-      top: 0,
-      bottom: 0,
-      width: 2,
     },
     progressLabel: {
       color: theme.colors.textMuted,

@@ -22,4 +22,8 @@ export class InMemoryCategoryRepository implements CategoryRepository {
   async save(category: Category): Promise<void> {
     this.categories.set(category.id, category);
   }
+
+  async deleteById(id: string): Promise<void> {
+    this.categories.delete(id);
+  }
 }

@@ -67,10 +67,52 @@ class TransactionalAllocationStore
     return [...this.allocations.values()].filter((item) => item.month <= month);
   }
 
+  async findByCategory(categoryId: string) {
+    return [...this.allocations.values()].filter(
+      (item) => item.categoryId === categoryId,
+    );
+  }
+
   async save(allocation: BudgetAllocation) {
     this.writeCount += 1;
     if (this.writeCount === this.failingWrite) throw new Error('write failed');
     this.allocations.set(allocation.id, allocation);
+  }
+
+  async reassignCategory(
+    sourceCategoryId: string,
+    destinationCategoryId: string,
+    updatedAt: string,
+  ) {
+    const source = await this.findByCategory(sourceCategoryId);
+    for (const allocation of source) {
+      const destination = await this.findByCategoryAndMonth(
+        destinationCategoryId,
+        allocation.month,
+      );
+      if (destination) {
+        this.allocations.set(destination.id, {
+          ...destination,
+          amount: Money.fromCents(
+            destination.amount.cents + allocation.amount.cents,
+          ),
+          updatedAt,
+        });
+        this.allocations.delete(allocation.id);
+      } else {
+        this.allocations.set(allocation.id, {
+          ...allocation,
+          categoryId: destinationCategoryId,
+          updatedAt,
+        });
+      }
+    }
+  }
+
+  async deleteByCategory(categoryId: string) {
+    for (const allocation of await this.findByCategory(categoryId)) {
+      this.allocations.delete(allocation.id);
+    }
   }
 }
 

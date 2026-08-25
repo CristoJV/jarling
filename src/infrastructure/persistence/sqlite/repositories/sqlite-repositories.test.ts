@@ -206,6 +206,18 @@ describe('SQLite repositories', () => {
       'opening-1',
     );
 
+    await repository.reassignCategory(
+      'category-1',
+      'category-2',
+      '2026-08-25T10:00:00.000Z',
+    );
+    expect(runAsync).toHaveBeenLastCalledWith(
+      expect.stringContaining('SET category_id = ?, updated_at = ?'),
+      'category-2',
+      '2026-08-25T10:00:00.000Z',
+      'category-1',
+    );
+
     await expect(repository.findByGroup('group-1')).resolves.toEqual([
       transactionFromRow(transactionRow),
     ]);

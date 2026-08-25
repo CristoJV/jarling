@@ -22,6 +22,11 @@ export interface TransactionRepository {
   findDistinctPayees(): Promise<readonly string[]>;
   findBalancesByAccount(): Promise<ReadonlyMap<string, Money>>;
   save(transaction: Transaction): Promise<void>;
+  reassignCategory(
+    sourceCategoryId: string,
+    destinationCategoryId: string,
+    updatedAt: string,
+  ): Promise<void>;
   deleteById(id: string): Promise<void>;
   deleteByGroup(groupId: string): Promise<void>;
 }

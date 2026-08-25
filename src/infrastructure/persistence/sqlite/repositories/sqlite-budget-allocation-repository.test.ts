@@ -89,4 +89,47 @@ describe('SQLiteBudgetAllocationRepository', () => {
       '2026-08-01T10:00:00.000Z',
     );
   });
+
+  it('loads, reassigns, merges, and deletes category allocation history', async () => {
+    const { database, getAllAsync, runAsync } = databaseMock({
+      allRows: [row],
+    });
+    const repository = new SQLiteBudgetAllocationRepository(database);
+
+    await expect(repository.findByCategory('category-1')).resolves.toEqual([
+      allocation,
+    ]);
+    expect(getAllAsync).toHaveBeenCalledWith(
+      expect.stringContaining('WHERE category_id = ?'),
+      'category-1',
+    );
+
+    await repository.reassignCategory(
+      'category-1',
+      'category-2',
+      '2026-08-25T10:00:00.000Z',
+    );
+    expect(runAsync).toHaveBeenCalledTimes(3);
+    expect(runAsync).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining('SET amount = amount +'),
+      'category-1',
+      '2026-08-25T10:00:00.000Z',
+      'category-2',
+      'category-1',
+    );
+    expect(runAsync).toHaveBeenNthCalledWith(
+      3,
+      expect.stringContaining('SET category_id = ?, updated_at = ?'),
+      'category-2',
+      '2026-08-25T10:00:00.000Z',
+      'category-1',
+    );
+
+    await repository.deleteByCategory('category-2');
+    expect(runAsync).toHaveBeenLastCalledWith(
+      'DELETE FROM budget_allocations WHERE category_id = ?',
+      'category-2',
+    );
+  });
 });

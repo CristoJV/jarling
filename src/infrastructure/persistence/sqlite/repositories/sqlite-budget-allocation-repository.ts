@@ -56,6 +56,19 @@ export class SQLiteBudgetAllocationRepository implements BudgetAllocationReposit
     return rows.map(budgetAllocationFromRow);
   }
 
+  async findByCategory(
+    categoryId: string,
+  ): Promise<readonly BudgetAllocation[]> {
+    const rows = await this.database.getAllAsync<BudgetAllocationRow>(
+      `SELECT id, category_id, month, amount, created_at, updated_at
+       FROM budget_allocations
+       WHERE category_id = ?
+       ORDER BY month ASC`,
+      categoryId,
+    );
+    return rows.map(budgetAllocationFromRow);
+  }
+
   async save(allocation: BudgetAllocation): Promise<void> {
     await this.database.runAsync(
       `INSERT INTO budget_allocations (
@@ -70,6 +83,56 @@ export class SQLiteBudgetAllocationRepository implements BudgetAllocationReposit
       allocation.amount.cents,
       allocation.createdAt,
       allocation.updatedAt,
+    );
+  }
+
+  async reassignCategory(
+    sourceCategoryId: string,
+    destinationCategoryId: string,
+    updatedAt: string,
+  ): Promise<void> {
+    await this.database.runAsync(
+      `UPDATE budget_allocations AS destination
+       SET amount = amount + (
+         SELECT source.amount
+         FROM budget_allocations AS source
+         WHERE source.category_id = ? AND source.month = destination.month
+       ), updated_at = ?
+       WHERE destination.category_id = ?
+         AND EXISTS (
+           SELECT 1 FROM budget_allocations AS source
+           WHERE source.category_id = ? AND source.month = destination.month
+         )`,
+      sourceCategoryId,
+      updatedAt,
+      destinationCategoryId,
+      sourceCategoryId,
+    );
+    await this.database.runAsync(
+      `DELETE FROM budget_allocations
+       WHERE category_id = ?
+         AND EXISTS (
+           SELECT 1 FROM budget_allocations AS destination
+           WHERE destination.category_id = ?
+             AND destination.month = budget_allocations.month
+         )`,
+      sourceCategoryId,
+      destinationCategoryId,
+    );
+    await this.database.runAsync(
+      `UPDATE budget_allocations
+       SET category_id = ?, updated_at = ?
+       WHERE category_id = ?`,
+      destinationCategoryId,
+      updatedAt,
+      sourceCategoryId,
+    );
+  }
+
+  async deleteByCategory(categoryId: string): Promise<void> {
+    await this.database.runAsync(
+      'DELETE FROM budget_allocations WHERE category_id = ?',
+      categoryId,
     );
   }
 }

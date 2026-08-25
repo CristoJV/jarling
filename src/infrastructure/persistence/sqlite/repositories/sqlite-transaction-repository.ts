@@ -231,6 +231,21 @@ export class SQLiteTransactionRepository implements TransactionRepository {
     );
   }
 
+  async reassignCategory(
+    sourceCategoryId: string,
+    destinationCategoryId: string,
+    updatedAt: string,
+  ): Promise<void> {
+    await this.database.runAsync(
+      `UPDATE transactions
+       SET category_id = ?, updated_at = ?
+       WHERE category_id = ?`,
+      destinationCategoryId,
+      updatedAt,
+      sourceCategoryId,
+    );
+  }
+
   async deleteById(id: string): Promise<void> {
     await this.database.runAsync('DELETE FROM transactions WHERE id = ?', id);
   }

@@ -91,4 +91,8 @@ export class SQLiteCategoryRepository implements CategoryRepository {
       category.updatedAt,
     );
   }
+
+  async deleteById(id: string): Promise<void> {
+    await this.database.runAsync('DELETE FROM categories WHERE id = ?', id);
+  }
 }

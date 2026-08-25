@@ -7,7 +7,10 @@ import type { ReconcileAccount } from '@/application/use-cases/accounts/reconcil
 import type { RenameAccount } from '@/application/use-cases/accounts/rename-account';
 import type { CreateCategoryGroup } from '@/application/use-cases/categories/create-category-group';
 import type { CreateCategory } from '@/application/use-cases/categories/create-category';
+import type { CreateCategoryReplacement } from '@/application/use-cases/categories/create-category-replacement';
+import type { DeleteCategory } from '@/application/use-cases/categories/delete-category';
 import type { EnsureDefaultCategories } from '@/application/use-cases/categories/ensure-default-categories';
+import type { GetCategoryDeletionImpact } from '@/application/use-cases/categories/get-category-deletion-impact';
 import type { GetCategoryGroups } from '@/application/use-cases/categories/get-category-groups';
 import type { GetCategoryDetails } from '@/application/use-cases/categories/get-category-details';
 import type { RenameCategoryGroup } from '@/application/use-cases/categories/rename-category-group';
@@ -52,6 +55,9 @@ export type ApplicationServices = Readonly<{
     ensureDefaults: Pick<EnsureDefaultCategories, 'execute'>;
     createGroup: Pick<CreateCategoryGroup, 'execute'>;
     create: Pick<CreateCategory, 'execute'>;
+    createReplacement: Pick<CreateCategoryReplacement, 'execute'>;
+    delete: Pick<DeleteCategory, 'execute'>;
+    getDeletionImpact: Pick<GetCategoryDeletionImpact, 'execute'>;
     getGroups: Pick<GetCategoryGroups, 'execute'>;
     getDetails: Pick<GetCategoryDetails, 'execute'>;
     renameGroup: Pick<RenameCategoryGroup, 'execute'>;

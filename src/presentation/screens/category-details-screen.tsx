@@ -15,12 +15,16 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { CategoryDetails } from '@/application/use-cases/categories/get-category-details';
+import type { CategoryGroupSummary } from '@/application/use-cases/categories/get-category-groups';
+import type { Category } from '@/domain/entities/category';
 import { CATEGORY_NOTES_MAX_LENGTH } from '@/domain/entities/category';
 import { InsufficientReadyToAssignError } from '@/domain/errors/insufficient-ready-to-assign-error';
 import { isProtectedCategory } from '@/domain/policies/system-categories';
 import { Money } from '@/domain/value-objects/money';
 import { NameInputModal } from '@/presentation/components/common/name-input-modal';
 import { KeyboardResponsiveScreen } from '@/presentation/components/common/keyboard-responsive-screen';
+import { CategoryDestinationScreen } from '@/presentation/components/categories/category-destination-screen';
+import { CreateCategoryScreen } from '@/presentation/components/categories/create-category-screen';
 import { invalidateTransactionReferenceData } from '@/presentation/cache/transaction-reference-data';
 import { useApplication } from '@/presentation/contexts/application-context';
 import { useTranslation } from '@/presentation/localization/localization-provider';
@@ -66,6 +70,13 @@ export function CategoryDetailsScreen() {
   const [loading, setLoading] = useState(true);
   const [assigning, setAssigning] = useState(false);
   const [savingNotes, setSavingNotes] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deletionGroups, setDeletionGroups] = useState<
+    readonly CategoryGroupSummary[]
+  >([]);
+  const [deletionFlow, setDeletionFlow] = useState<
+    'select-destination' | 'create-destination' | null
+  >(null);
   const [notesSaved, setNotesSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView>(null);
@@ -194,6 +205,94 @@ export function CategoryDetailsScreen() {
       await load();
     } catch (cause) {
       setError(domainErrorMessage(cause, t));
+    }
+  }
+
+  async function deleteCategory(replacementCategoryId?: string) {
+    if (deleting) return;
+    setDeleting(true);
+    setError(null);
+    try {
+      await application.categories.delete.execute({
+        categoryId,
+        ...(replacementCategoryId ? { replacementCategoryId } : {}),
+      });
+      invalidateTransactionReferenceData();
+      router.back();
+    } catch (cause) {
+      setError(domainErrorMessage(cause, t));
+      setDeletionFlow(null);
+      setDeleting(false);
+    }
+  }
+
+  async function requestDelete() {
+    if (!details || deleting) return;
+    setError(null);
+    try {
+      const impact =
+        await application.categories.getDeletionImpact.execute(categoryId);
+      const title = t('categoryDetails.deleteTitle', { name: displayName });
+
+      if (impact.requiresReassignment) {
+        const groups = await application.categories.getGroups.execute();
+        setDeletionGroups(groups);
+        Alert.alert(
+          title,
+          t('categoryDetails.deleteReassignBody', {
+            count: impact.transactionCount,
+            assigned: formatMoney(impact.assigned),
+            available: formatMoney(impact.available),
+          }),
+          [
+            { text: t('common.cancel'), style: 'cancel' },
+            {
+              text: t('categoryDetails.selectCategory'),
+              onPress: () => setDeletionFlow('select-destination'),
+            },
+          ],
+        );
+        return;
+      }
+
+      Alert.alert(
+        title,
+        impact.hasMoney
+          ? t('categoryDetails.deleteMoneyBody')
+          : t('categoryDetails.deleteEmptyBody'),
+        [
+          { text: t('common.cancel'), style: 'cancel' },
+          {
+            text: impact.hasMoney
+              ? t('common.confirm')
+              : t('categoryDetails.deleteCategory'),
+            style: 'destructive',
+            onPress: () => void deleteCategory(),
+          },
+        ],
+      );
+    } catch (cause) {
+      setError(domainErrorMessage(cause, t));
+    }
+  }
+
+  async function createReplacement(input: {
+    groupId: string;
+    name: string;
+  }): Promise<Category> {
+    setDeleting(true);
+    setError(null);
+    try {
+      const category = await application.categories.createReplacement.execute({
+        sourceCategoryId: categoryId,
+        ...input,
+      });
+      invalidateTransactionReferenceData();
+      router.back();
+      return category;
+    } catch (cause) {
+      setDeleting(false);
+      throw cause;
     }
   }
 
@@ -471,14 +570,32 @@ export function CategoryDetailsScreen() {
           ) : null}
 
           {!protectedCategory ? (
-            <Pressable
-              onPress={() => void toggleHidden()}
-              style={styles.hideButton}
-            >
-              <Text style={styles.hideButtonText}>
-                {values.category.hidden ? t('budget.unhide') : t('budget.hide')}
-              </Text>
-            </Pressable>
+            <View style={styles.categoryActions}>
+              <Pressable
+                disabled={deleting}
+                onPress={() => void toggleHidden()}
+                style={styles.hideButton}
+              >
+                <Text style={styles.hideButtonText}>
+                  {values.category.hidden
+                    ? t('budget.unhide')
+                    : t('budget.hide')}
+                </Text>
+              </Pressable>
+              <Pressable
+                disabled={deleting}
+                onPress={() => void requestDelete()}
+                style={styles.deleteButton}
+              >
+                {deleting ? (
+                  <ActivityIndicator color={theme.colors.negative} />
+                ) : (
+                  <Text style={styles.deleteButtonText}>
+                    {t('categoryDetails.deleteCategory')}
+                  </Text>
+                )}
+              </Pressable>
+            </View>
           ) : null}
         </ScrollView>
       </KeyboardResponsiveScreen>
@@ -492,6 +609,25 @@ export function CategoryDetailsScreen() {
           placement="center"
           submitLabel={t('common.save')}
           title={t('budget.renameCategory')}
+        />
+      ) : null}
+
+      {deletionFlow === 'select-destination' ? (
+        <CategoryDestinationScreen
+          disabled={deleting}
+          excludedCategoryId={categoryId}
+          groups={deletionGroups}
+          onBack={() => setDeletionFlow(null)}
+          onCreateNew={() => setDeletionFlow('create-destination')}
+          onSelect={(category) => void deleteCategory(category.id)}
+        />
+      ) : null}
+
+      {deletionFlow === 'create-destination' ? (
+        <CreateCategoryScreen
+          groups={deletionGroups}
+          onBack={() => setDeletionFlow('select-destination')}
+          onCreate={createReplacement}
         />
       ) : null}
     </SafeAreaView>
@@ -900,6 +1036,7 @@ const createStyles = (theme: AppTheme) =>
       textAlign: 'center',
     },
     errorCard: { gap: 10 },
+    categoryActions: { gap: 10 },
     hideButton: {
       minHeight: 50,
       marginTop: 4,
@@ -910,6 +1047,18 @@ const createStyles = (theme: AppTheme) =>
       justifyContent: 'center',
     },
     hideButtonText: {
+      color: theme.colors.textSecondary,
+      fontSize: 14,
+      fontWeight: '800',
+    },
+    deleteButton: {
+      minHeight: 50,
+      backgroundColor: theme.colors.negativeMuted,
+      borderRadius: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    deleteButtonText: {
       color: theme.colors.negative,
       fontSize: 14,
       fontWeight: '800',
