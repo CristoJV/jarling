@@ -7,7 +7,7 @@ follows [Semantic Versioning](https://semver.org/).
 
 No user-facing changes have been recorded after the 1.0.0 release candidate.
 
-## [1.0.0] - TBD
+## [1.0.0] - 2026-08-25
 
 ### Added
 
@@ -47,8 +47,6 @@ No user-facing changes have been recorded after the 1.0.0 release candidate.
   backup boundaries.
 - Aligned the SQLite and backup contracts with categorized credit-card payment
   transfers.
-- Removed pre-release encrypted-database recovery code and other superseded
-  navigation and modal implementations.
 
 [Unreleased]: https://github.com/CristoJV/jarling/compare/v1.0.0...HEAD
 [1.0.0]: https://github.com/CristoJV/jarling/releases/tag/v1.0.0
