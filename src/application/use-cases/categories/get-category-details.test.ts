@@ -72,6 +72,7 @@ describe('GetCategoryDetails', () => {
       categoryId: 'category-1',
       kind: 'custom',
       amount: Money.fromCents(100_000),
+      startsOn: '2026-07-01',
       customFundingMode: 'set_aside',
       targetDate: '2026-09-30',
       createdAt: '2026-07-01T10:00:00.000Z',
@@ -88,9 +89,9 @@ describe('GetCategoryDetails', () => {
     expect(result.target).toEqual(target);
     expect(result.progress).toEqual(
       expect.objectContaining({
-        funded: Money.fromCents(30_000),
+        fundedTowardTotal: Money.fromCents(30_000),
         recommended: Money.fromCents(25_000),
-        progress: 0.3,
+        totalProgress: 0.3,
       }),
     );
   });

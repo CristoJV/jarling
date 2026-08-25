@@ -6,6 +6,7 @@ const base = {
   id: 'target-1',
   categoryId: 'category-1',
   amount: Money.fromCents(10_000),
+  startsOn: '2026-08-18',
   createdAt: '2026-08-18T10:00:00.000Z',
   updatedAt: '2026-08-18T10:00:00.000Z',
 } as const;
@@ -16,6 +17,7 @@ describe('CategoryTarget', () => {
       ...base,
       kind: 'weekly' as const,
       dayOfWeek: 6 as const,
+      includePreviousWeeks: false,
       fundingMode: 'set_aside' as const,
     },
     {

@@ -18,6 +18,10 @@ export type AppTheme = Readonly<{
     primaryMuted: string;
     positive: string;
     positiveMuted: string;
+    progressFunded: string;
+    progressSpent: string;
+    progressWarningFunded: string;
+    progressWarningSpent: string;
     warning: string;
     warningMuted: string;
     negative: string;
@@ -67,6 +71,10 @@ export const lightTheme: AppTheme = {
     primaryMuted: '#d8ebd9',
     positive: '#2d6b40',
     positiveMuted: '#d8ebd9',
+    progressFunded: '#66b77a',
+    progressSpent: '#246138',
+    progressWarningFunded: '#f0c94b',
+    progressWarningSpent: '#9a7400',
     warning: '#806200',
     warningMuted: '#fff0b8',
     negative: '#b42318',
@@ -97,6 +105,10 @@ export const darkTheme: AppTheme = {
     primaryMuted: '#243c2a',
     positive: '#86ca97',
     positiveMuted: '#203b28',
+    progressFunded: '#75c98c',
+    progressSpent: '#2f7445',
+    progressWarningFunded: '#e7c754',
+    progressWarningSpent: '#8e731b',
     warning: '#f1cb53',
     warningMuted: '#473b13',
     negative: '#ff8f86',

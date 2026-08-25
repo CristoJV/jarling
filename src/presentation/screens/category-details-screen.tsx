@@ -238,7 +238,11 @@ export function CategoryDetailsScreen() {
   const needsAssignment = (progress?.recommended.cents ?? 0) > 0;
   const toGo = progress
     ? Money.fromCents(
-        Math.max(0, progress.goal.cents - Math.max(0, progress.funded.cents)),
+        Math.max(
+          0,
+          progress.totalTarget.cents -
+            Math.max(0, progress.fundedTowardTotal.cents),
+        ),
       )
     : Money.zero();
 
@@ -336,7 +340,7 @@ export function CategoryDetailsScreen() {
               <View style={styles.targetStack}>
                 <View style={styles.progressCard}>
                   <SegmentedProgressCircle
-                    progress={progress.progress}
+                    progress={progress.totalProgress}
                     tone={needsAssignment ? 'warning' : 'positive'}
                   />
                   <View style={styles.progressCopy}>
@@ -377,12 +381,14 @@ export function CategoryDetailsScreen() {
                     label={t('categoryDetails.totalToAssignBy', {
                       date: targetCopy.due,
                     })}
-                    value={formatMoney(progress.goal)}
+                    value={formatMoney(progress.totalTarget)}
                   />
                   <TargetStat
                     label={t('categoryDetails.assignedSoFar')}
                     value={formatMoney(
-                      Money.fromCents(Math.max(0, progress.funded.cents)),
+                      Money.fromCents(
+                        Math.max(0, progress.fundedTowardTotal.cents),
+                      ),
                     )}
                   />
                   <TargetStat

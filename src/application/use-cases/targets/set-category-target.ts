@@ -25,6 +25,7 @@ export type SetCategoryTargetInput =
         kind: 'weekly';
         dayOfWeek: IsoDayOfWeek;
         fundingMode: RecurringFundingMode;
+        includePreviousWeeks?: boolean;
       }>)
   | (SetCategoryTargetBase &
       Readonly<{
@@ -49,7 +50,9 @@ type TargetDefinition = Pick<
   CategoryTarget,
   | 'kind'
   | 'amount'
+  | 'startsOn'
   | 'dayOfWeek'
+  | 'includePreviousWeeks'
   | 'fundingMode'
   | 'dayOfMonth'
   | 'targetDate'
@@ -58,13 +61,17 @@ type TargetDefinition = Pick<
 
 const emptyDefinition = {
   dayOfWeek: undefined,
+  includePreviousWeeks: undefined,
   fundingMode: undefined,
   dayOfMonth: undefined,
   targetDate: undefined,
   customFundingMode: undefined,
 } as const;
 
-function definition(input: SetCategoryTargetInput): TargetDefinition {
+function definition(
+  input: SetCategoryTargetInput,
+  startsOn: string,
+): TargetDefinition {
   const amount = Money.fromCents(input.amountCents);
   switch (input.kind) {
     case 'weekly':
@@ -72,7 +79,9 @@ function definition(input: SetCategoryTargetInput): TargetDefinition {
         ...emptyDefinition,
         kind: input.kind,
         amount,
+        startsOn,
         dayOfWeek: input.dayOfWeek,
+        includePreviousWeeks: input.includePreviousWeeks ?? false,
         fundingMode: input.fundingMode,
       };
     case 'monthly':
@@ -80,6 +89,7 @@ function definition(input: SetCategoryTargetInput): TargetDefinition {
         ...emptyDefinition,
         kind: input.kind,
         amount,
+        startsOn,
         dayOfMonth: input.dayOfMonth,
         fundingMode: input.fundingMode,
       };
@@ -88,6 +98,7 @@ function definition(input: SetCategoryTargetInput): TargetDefinition {
         ...emptyDefinition,
         kind: input.kind,
         amount,
+        startsOn,
         targetDate: input.targetDate,
         fundingMode: input.fundingMode,
       };
@@ -96,6 +107,7 @@ function definition(input: SetCategoryTargetInput): TargetDefinition {
         ...emptyDefinition,
         kind: input.kind,
         amount,
+        startsOn,
         targetDate: input.targetDate,
         customFundingMode: input.customFundingMode,
       };
@@ -117,8 +129,14 @@ export class SetCategoryTarget {
     }
 
     const current = await this.targets.findByCategory(input.categoryId);
-    const { instant } = this.clock.now();
-    const fields = definition(input);
+    const { instant, date } = this.clock.now();
+    const resetsSchedule =
+      !current ||
+      current.kind !== input.kind ||
+      (current.kind === 'weekly' &&
+        input.kind === 'weekly' &&
+        current.dayOfWeek !== input.dayOfWeek);
+    const fields = definition(input, resetsSchedule ? date : current.startsOn);
     const target = current
       ? updateCategoryTarget(current, { ...fields, updatedAt: instant })
       : createCategoryTarget({

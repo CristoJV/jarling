@@ -33,12 +33,17 @@ import {
 import { Money } from '@/domain/value-objects/money';
 
 const BACKUP_FORMAT = 'com.cristojv.jarling.backup';
-const BACKUP_VERSION = 1;
+const BACKUP_VERSION = 2;
+const SUPPORTED_BACKUP_VERSIONS = [1, BACKUP_VERSION] as const;
+type BackupVersion = (typeof SUPPORTED_BACKUP_VERSIONS)[number];
 const PBKDF2_ITERATIONS = 310_000;
 const MAX_BACKUP_BYTES = 100 * 1024 * 1024;
 const MAX_TOTAL_ROWS = 250_000;
 const MAX_TEXT_LENGTH = 100_000;
-const AUTHENTICATED_CONTEXT = utf8ToBytes('Jarling backup version 1');
+
+function authenticatedContext(version: BackupVersion): Uint8Array {
+  return utf8ToBytes(`Jarling backup version ${version}`);
+}
 
 const tables = [
   {
@@ -116,7 +121,9 @@ const tables = [
       'category_id',
       'kind',
       'amount',
+      'starts_on',
       'day_of_week',
+      'include_previous_weeks',
       'funding_mode',
       'day_of_month',
       'target_date',
@@ -131,7 +138,7 @@ type TableName = (typeof tables)[number]['name'];
 type DataRow = Readonly<Record<string, SQLiteBindValue>>;
 type PlanSnapshot = Readonly<{
   format: typeof BACKUP_FORMAT;
-  version: typeof BACKUP_VERSION;
+  version: BackupVersion;
   exportedAt: string;
   preferences?: Readonly<Record<string, unknown>>;
   tables: Readonly<Record<TableName, readonly DataRow[]>>;
@@ -139,7 +146,7 @@ type PlanSnapshot = Readonly<{
 
 type EncryptedBackup = Readonly<{
   format: typeof BACKUP_FORMAT;
-  version: typeof BACKUP_VERSION;
+  version: BackupVersion;
   encryption: 'AES-256-GCM';
   kdf: Readonly<{
     name: 'PBKDF2-HMAC-SHA256';
@@ -166,12 +173,14 @@ export function parsePlanSnapshot(value: unknown): PlanSnapshot {
   if (
     !isRecord(value) ||
     value.format !== BACKUP_FORMAT ||
-    value.version !== BACKUP_VERSION ||
+    !SUPPORTED_BACKUP_VERSIONS.includes(value.version as BackupVersion) ||
     typeof value.exportedAt !== 'string' ||
     !isRecord(value.tables)
   ) {
     throw new Error('The file is not a supported Jarling backup.');
   }
+
+  const version = value.version as BackupVersion;
 
   const parsedTables = {} as Record<TableName, readonly DataRow[]>;
   let totalRows = 0;
@@ -193,7 +202,18 @@ export function parsePlanSnapshot(value: unknown): PlanSnapshot {
           ? row[column]
           : table.name === 'categories' && column === 'notes'
             ? null
-            : undefined;
+            : version === 1 &&
+                table.name === 'category_targets' &&
+                column === 'starts_on' &&
+                typeof row.created_at === 'string'
+              ? row.created_at.slice(0, 10)
+              : version === 1 &&
+                  table.name === 'category_targets' &&
+                  column === 'include_previous_weeks'
+                ? row.kind === 'weekly'
+                  ? 0
+                  : null
+                : undefined;
         if (!isBindValue(field)) {
           throw new Error(`Invalid ${table.name}.${column} value.`);
         }
@@ -205,7 +225,7 @@ export function parsePlanSnapshot(value: unknown): PlanSnapshot {
 
   const snapshot: PlanSnapshot = {
     format: BACKUP_FORMAT,
-    version: BACKUP_VERSION,
+    version,
     exportedAt: value.exportedAt,
     ...(isRecord(value.preferences) ? { preferences: value.preferences } : {}),
     tables: parsedTables,
@@ -402,13 +422,26 @@ function validateSnapshotSemantics(snapshot: PlanSnapshot): void {
     if (!categoryIds.has(categoryId) || !TARGET_KINDS.includes(kind as never)) {
       throw new Error('The backup contains a target for an unknown category.');
     }
+    const includePreviousWeeks = row.include_previous_weeks;
+    if (
+      includePreviousWeeks !== null &&
+      ![0, 1].includes(integer(row, 'include_previous_weeks'))
+    ) {
+      throw new Error('The backup contains an invalid weekly target option.');
+    }
     createCategoryTarget({
       id: requiredText(row, 'id'),
       categoryId,
       kind: kind as TargetKind,
       amount: Money.fromCents(integer(row, 'amount')),
+      startsOn: requiredText(row, 'starts_on'),
       ...(row.day_of_week !== null
         ? { dayOfWeek: integer(row, 'day_of_week') as IsoDayOfWeek }
+        : {}),
+      ...(includePreviousWeeks !== null
+        ? {
+            includePreviousWeeks: integer(row, 'include_previous_weeks') === 1,
+          }
         : {}),
       ...(row.funding_mode !== null
         ? {
@@ -512,7 +545,7 @@ export class SQLitePlanPortability implements PlanPortability {
     const sealed = await aesEncryptAsync(
       utf8ToBytes(JSON.stringify(snapshot)),
       key,
-      { additionalData: AUTHENTICATED_CONTEXT },
+      { additionalData: authenticatedContext(BACKUP_VERSION) },
     );
     const backup: EncryptedBackup = {
       format: BACKUP_FORMAT,
@@ -558,7 +591,7 @@ export class SQLitePlanPortability implements PlanPortability {
     if (
       !isRecord(raw) ||
       raw.format !== BACKUP_FORMAT ||
-      raw.version !== BACKUP_VERSION ||
+      !SUPPORTED_BACKUP_VERSIONS.includes(raw.version as BackupVersion) ||
       raw.encryption !== 'AES-256-GCM' ||
       !isRecord(raw.kdf) ||
       raw.kdf.name !== 'PBKDF2-HMAC-SHA256' ||
@@ -570,6 +603,8 @@ export class SQLitePlanPortability implements PlanPortability {
       throw new Error('The file is not a supported encrypted backup.');
     }
 
+    const version = raw.version as BackupVersion;
+
     const key = await deriveBackupKey(
       password,
       hexToBytes(raw.kdf.salt),
@@ -580,11 +615,16 @@ export class SQLitePlanPortability implements PlanPortability {
       tagLength: 16,
     });
     const decrypted = await aesDecryptAsync(sealed, key, {
-      additionalData: AUTHENTICATED_CONTEXT,
+      additionalData: authenticatedContext(version),
     });
     const snapshot = parsePlanSnapshot(
       JSON.parse(new TextDecoder().decode(decrypted)),
     );
+    if (snapshot.version !== version) {
+      throw new Error(
+        'The encrypted backup version does not match its payload.',
+      );
+    }
     await this.restore(snapshot);
     await checkSQLiteIntegrity(this.database);
     return {

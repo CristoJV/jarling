@@ -97,6 +97,9 @@ export function TargetEditorView({
   const [dayOfWeek, setDayOfWeek] = useState<IsoDayOfWeek>(
     target?.dayOfWeek ?? 6,
   );
+  const [includePreviousWeeks, setIncludePreviousWeeks] = useState(
+    target?.includePreviousWeeks ?? false,
+  );
   const [fundingMode, setFundingMode] = useState<RecurringFundingMode>(
     target?.fundingMode ?? 'set_aside',
   );
@@ -122,7 +125,13 @@ export function TargetEditorView({
     const common = { categoryId, amountCents } as const;
     const input: SetCategoryTargetInput =
       kind === 'weekly'
-        ? { ...common, kind, dayOfWeek, fundingMode }
+        ? {
+            ...common,
+            kind,
+            dayOfWeek,
+            includePreviousWeeks,
+            fundingMode,
+          }
         : kind === 'monthly'
           ? { ...common, kind, dayOfMonth, fundingMode }
           : kind === 'yearly'
@@ -232,6 +241,15 @@ export function TargetEditorView({
                     />
                   ))}
                 </View>
+                <Text style={styles.explanation}>
+                  {t('targets.weeklyMonthlyModel')}
+                </Text>
+                <CheckboxRow
+                  checked={includePreviousWeeks}
+                  description={t('targets.includePreviousWeeksDescription')}
+                  onPress={() => setIncludePreviousWeeks((current) => !current)}
+                  title={t('targets.includePreviousWeeks')}
+                />
               </View>
               <View style={styles.fieldSection}>
                 <Text style={styles.fieldLabel}>{t('targets.nextMonth')}</Text>
@@ -488,6 +506,36 @@ function ModeRow({
   );
 }
 
+function CheckboxRow({
+  checked,
+  title,
+  description,
+  onPress,
+}: Readonly<{
+  checked: boolean;
+  title: string;
+  description: string;
+  onPress: () => void;
+}>) {
+  const styles = useThemedStyles(createStyles);
+  return (
+    <Pressable
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked }}
+      onPress={onPress}
+      style={[styles.mode, checked && styles.modeSelected]}
+    >
+      <View style={[styles.checkbox, checked && styles.checkboxSelected]}>
+        {checked ? <Text style={styles.checkmark}>✓</Text> : null}
+      </View>
+      <View style={styles.modeCopy}>
+        <Text style={styles.modeTitle}>{title}</Text>
+        <Text style={styles.modeDescription}>{description}</Text>
+      </View>
+    </Pressable>
+  );
+}
+
 const createStyles = (theme: AppTheme) =>
   StyleSheet.create({
     safeArea: { flex: 1, backgroundColor: theme.colors.background },
@@ -582,6 +630,11 @@ const createStyles = (theme: AppTheme) =>
       fontWeight: '600',
     },
     dayTextSelected: { color: theme.colors.onPrimary, fontWeight: '800' },
+    explanation: {
+      color: theme.colors.textMuted,
+      fontSize: 12,
+      lineHeight: 17,
+    },
     selector: {
       minHeight: 54,
       paddingHorizontal: 14,
@@ -623,6 +676,25 @@ const createStyles = (theme: AppTheme) =>
       height: 10,
       backgroundColor: theme.colors.primary,
       borderRadius: 5,
+    },
+    checkbox: {
+      width: 21,
+      height: 21,
+      marginTop: 1,
+      borderColor: theme.colors.textMuted,
+      borderRadius: 6,
+      borderWidth: 2,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    checkboxSelected: {
+      backgroundColor: theme.colors.primary,
+      borderColor: theme.colors.primary,
+    },
+    checkmark: {
+      color: theme.colors.onPrimary,
+      fontSize: 14,
+      fontWeight: '900',
     },
     modeCopy: { flex: 1 },
     modeTitle: { color: theme.colors.text, fontSize: 15, fontWeight: '800' },

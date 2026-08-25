@@ -70,6 +70,23 @@ describe('initializeDatabase', () => {
     expect(withExclusiveTransactionAsync).not.toHaveBeenCalled();
   });
 
+  it('upgrades an existing version 1 database without reinstalling it', async () => {
+    const { database, transactionExecAsync, transactionRunAsync } =
+      createDatabaseMock([1]);
+
+    await initializeDatabase(database);
+
+    expect(transactionExecAsync).toHaveBeenCalledWith(
+      expect.stringContaining('include_previous_weeks'),
+    );
+    expect(transactionRunAsync).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO schema_migrations'),
+      2,
+      'target_monthly_schedule',
+      expect.any(String),
+    );
+  });
+
   it('refuses an unknown schema version instead of guessing', async () => {
     const { database } = createDatabaseMock([999]);
 
