@@ -219,9 +219,6 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     environment: android-release
-    outputs:
-      apk_name: ${{ needs.build.outputs.apk_name }}
-      artifact_name: ${{ needs.build.outputs.signed_artifact_name }}
 
     steps:
       - name: Download the unsigned APK
@@ -376,7 +373,7 @@ jobs:
       - name: Download the signed APK
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: ${{ needs.sign.outputs.artifact_name }}
+          name: jarling-${{ inputs.release_tag }}-android-signed
           path: release-artifacts
 
       - name: Attach immutable assets to the existing GitHub Release
@@ -385,9 +382,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ inputs.release_tag }}
-          APK_PATH: release-artifacts/${{ needs.sign.outputs.apk_name }}
-          CHECKSUM_PATH: release-artifacts/${{ needs.sign.outputs.apk_name }}.sha256
+          APK_PATH: release-artifacts/Jarling-${{ inputs.release_tag }}-android.apk
+          CHECKSUM_PATH: release-artifacts/Jarling-${{ inputs.release_tag }}-android.apk.sha256
         run: |
+          if [[ ! -f "$APK_PATH" || ! -f "$CHECKSUM_PATH" ]]; then
+            echo "The signed APK or its checksum is missing from the downloaded artifact." >&2
+            exit 1
+          fi
+
           gh release view "$RELEASE_TAG" >/dev/null
           gh release upload "$RELEASE_TAG" \
             "$APK_PATH" \
