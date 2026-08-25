@@ -24,6 +24,7 @@ type MoneyKeypadProps = Readonly<{
   calculator?: boolean;
   onDone?: (valueCents: number) => void;
   overwriteOnFirstDigit?: boolean;
+  showDone?: boolean;
 }>;
 
 export type MoneyKeypadHandle = Readonly<{
@@ -39,6 +40,7 @@ export const MoneyKeypad = forwardRef<MoneyKeypadHandle, MoneyKeypadProps>(
       calculator = false,
       onDone,
       overwriteOnFirstDigit = true,
+      showDone = true,
     },
     ref,
   ) {
@@ -147,7 +149,9 @@ export const MoneyKeypad = forwardRef<MoneyKeypadHandle, MoneyKeypadProps>(
                 onPress={() => chooseOperator('-')}
               />
               <Key full label="=" onPress={resolve} />
-              <Key full label={t('common.done')} onPress={finish} primary />
+              {showDone ? (
+                <Key full label={t('common.done')} onPress={finish} primary />
+              ) : null}
             </View>
           </View>
         </View>

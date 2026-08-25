@@ -260,12 +260,19 @@ export function createApplication(
     },
     planPortability: {
       exportData: (preferences) => planPortability.exportData(preferences),
-      createBackup: (password, preferences) =>
-        planPortability.createBackup(password, preferences),
-      restoreBackup: async (password) => {
-        const result = await planPortability.restoreBackup(password);
-        if (result.restored) await ensureDefaults.execute();
-        return result;
+      createBackup: (password, preferences, onProgress) =>
+        planPortability.createBackup(password, preferences, onProgress),
+      selectRestoreSource: async () => {
+        const source = await planPortability.selectRestoreSource();
+        if (!source) return null;
+        return {
+          encrypted: source.encrypted,
+          restore: async (password?: string) => {
+            const result = await source.restore(password);
+            if (result.restored) await ensureDefaults.execute();
+            return result;
+          },
+        };
       },
     },
   };

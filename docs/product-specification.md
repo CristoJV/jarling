@@ -112,8 +112,10 @@ Reports are derived without persisted aggregate tables:
 - Light, dark, and system-matched themes.
 - Budget name, currency, number format, currency placement, and date format.
 - Optional interface lock using device credentials.
-- Readable JSON export with an explicit privacy warning.
-- Independently password-encrypted `.jarling` backup and transactional restore.
+- Readable JSON export with an explicit privacy warning and restore support.
+- Independently password-encrypted `.jarling` backup as the canonical format.
+- One validated, version-migrated, transactional restore pipeline for both
+  portable formats; passwords are requested only for encrypted backups.
 - Plan deletion with explicit confirmation and recreation of the starter
   categories.
 

@@ -57,7 +57,8 @@ facturas periódicas y metas a largo plazo.
   necesidad de crear una cuenta.
 - Copias `.jarling` portátiles y cifradas de forma independiente con la
   contraseña elegida al exportarlas.
-- Exportación JSON legible y restauración transaccional de copias.
+- Exportación JSON legible; ambos formatos se restauran mediante un único
+  proceso transaccional, validado y compatible con versiones anteriores.
 - Protección opcional mediante las credenciales del dispositivo.
 - Temas claro, oscuro y según el sistema.
 - Interfaz en español e inglés según el idioma del dispositivo.

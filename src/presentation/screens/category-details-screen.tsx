@@ -22,8 +22,7 @@ import { InsufficientReadyToAssignError } from '@/domain/errors/insufficient-rea
 import { Money } from '@/domain/value-objects/money';
 import { NameInputModal } from '@/presentation/components/common/name-input-modal';
 import { KeyboardResponsiveScreen } from '@/presentation/components/common/keyboard-responsive-screen';
-import { CategoryDestinationScreen } from '@/presentation/components/categories/category-destination-screen';
-import { CreateCategoryScreen } from '@/presentation/components/categories/create-category-screen';
+import { SelectCategoryScreen } from '@/presentation/components/categories/select-category-screen';
 import { invalidateTransactionReferenceData } from '@/presentation/cache/transaction-reference-data';
 import { useApplication } from '@/presentation/contexts/application-context';
 import { useTranslation } from '@/presentation/localization/localization-provider';
@@ -73,9 +72,9 @@ export function CategoryDetailsScreen() {
   const [deletionGroups, setDeletionGroups] = useState<
     readonly CategoryGroupSummary[]
   >([]);
-  const [deletionFlow, setDeletionFlow] = useState<
-    'select-destination' | 'create-destination' | null
-  >(null);
+  const [deletionFlow, setDeletionFlow] = useState<'select-destination' | null>(
+    null,
+  );
   const [notesSaved, setNotesSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView>(null);
@@ -207,7 +206,10 @@ export function CategoryDetailsScreen() {
     }
   }
 
-  async function deleteCategory(replacementCategoryId?: string) {
+  async function deleteCategory(
+    replacementCategoryId?: string,
+    navigateAfterDelete = true,
+  ) {
     if (deleting) return;
     setDeleting(true);
     setError(null);
@@ -217,11 +219,15 @@ export function CategoryDetailsScreen() {
         ...(replacementCategoryId ? { replacementCategoryId } : {}),
       });
       invalidateTransactionReferenceData();
-      router.back();
+      if (navigateAfterDelete) router.back();
     } catch (cause) {
-      setError(domainErrorMessage(cause, t));
-      setDeletionFlow(null);
       setDeleting(false);
+      if (navigateAfterDelete) {
+        setError(domainErrorMessage(cause, t));
+        setDeletionFlow(null);
+        return;
+      }
+      throw cause;
     }
   }
 
@@ -287,7 +293,6 @@ export function CategoryDetailsScreen() {
         ...input,
       });
       invalidateTransactionReferenceData();
-      router.back();
       return category;
     } catch (cause) {
       setDeleting(false);
@@ -612,21 +617,24 @@ export function CategoryDetailsScreen() {
       ) : null}
 
       {deletionFlow === 'select-destination' ? (
-        <CategoryDestinationScreen
+        <SelectCategoryScreen
+          allowCreateCategory
           disabled={deleting}
-          excludedCategoryId={categoryId}
+          excludedCategoryIds={[categoryId]}
           groups={deletionGroups}
-          onBack={() => setDeletionFlow(null)}
-          onCreateNew={() => setDeletionFlow('create-destination')}
-          onSelect={(category) => void deleteCategory(category.id)}
-        />
-      ) : null}
-
-      {deletionFlow === 'create-destination' ? (
-        <CreateCategoryScreen
-          groups={deletionGroups}
-          onBack={() => setDeletionFlow('select-destination')}
-          onCreate={createReplacement}
+          onBack={() => {
+            if (deleting) router.back();
+            else setDeletionFlow(null);
+          }}
+          onCreateCategory={createReplacement}
+          onCreatedCategory={() => undefined}
+          onSelect={(selection) => {
+            if (selection.kind === 'category') {
+              return deleteCategory(selection.category.id, false);
+            }
+          }}
+          overlay
+          title={t('categories.selectDestination')}
         />
       ) : null}
     </SafeAreaView>

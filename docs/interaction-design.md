@@ -58,6 +58,10 @@ boundary between routes and modals.
 - Type, payee, account, and category selectors are full-screen flow views owned
   by the editor. The editor remains mounted, so the complete draft and keypad
   state survive the round trip.
+- Category selection is one configurable full-screen flow shared by
+  transactions, category deletion, and Move Money. It groups results, supports
+  search and in-context creation, and exposes Ready to Assign only when the
+  caller explicitly enables that virtual option.
 - New expenses initially show Uncategorized without creating or referencing a
   synthetic category record.
 - The amount keypad is visible only while the amount has focus. Memo uses a
@@ -105,8 +109,9 @@ boundary between routes and modals.
   calculator. It has one Done action, clear separation between calculator and
   Move Money/Details, no unnecessary scroll, and never enters the Android
   navigation area.
-- Move Money is a full-screen route with From, To, swap, amount, and the shared
-  calculator. Ready to Assign is a virtual option only in this workflow.
+- Move Money is a compact full-screen route with one Done action, amount,
+  stacked From/To selectors, a guarded swap, and the shared calculator. Ready
+  to Assign is a virtual option only in this workflow.
 
 ## Account and target workflow
 

@@ -20,6 +20,11 @@ need an accurate privacy model and a safe way to move their data.
 - Each `.jarling` backup is independently encrypted with AES-256-GCM. Its key
   is derived from that backup's password with PBKDF2-HMAC-SHA256, at least
   310,000 iterations, and a unique salt.
+- JSON export and `.jarling` backup contain the same versioned plan snapshot;
+  `.jarling` is the canonical user backup and encrypts that snapshot.
+- Restore detects the format from file contents, asks for a password only for
+  encrypted input, migrates legacy snapshots, and sends both formats through
+  one transactional snapshot restoration path.
 - Restoration validates size, shape, domain relationships, foreign keys, and
   SQLite integrity before reporting success.
 - No database-encryption compatibility or recovery code is retained in version 1.
@@ -30,6 +35,8 @@ need an accurate privacy model and a safe way to move their data.
 - A rooted, compromised, or forensically inspected device is outside the
   protection offered by Jarling itself.
 - Users must protect readable exports and remember backup passwords.
+- Readable JSON exports can also restore a plan, which supports
+  interoperability without creating a second restoration implementation.
 - Adding database encryption later requires a separate ADR, key-recovery
   design, backup strategy, and copy-verify-swap migration.
 

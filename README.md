@@ -56,7 +56,7 @@ long-term goals.
 - Local SQLite storage in the application's private directory, with no account
   required.
 - Readable JSON exports and portable, independently password-encrypted
-  `.jarling` backups.
+  `.jarling` backups, both restorable through one validated pipeline.
 - Optional protection with the device credentials.
 - Light, dark, and system themes.
 - English and Spanish interfaces selected from the device language.

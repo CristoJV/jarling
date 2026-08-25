@@ -11,9 +11,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { AccountsOverview } from '@/application/use-cases/accounts/get-accounts';
 import type { CategoryGroupSummary } from '@/application/use-cases/categories/get-category-groups';
+import type { Category } from '@/domain/entities/category';
 import type { TransactionSummary } from '@/application/use-cases/transactions/get-transactions';
 import type { TransactionInput } from '@/application/use-cases/transactions/transaction-input';
 import type { TransferInput } from '@/application/use-cases/transfers/transfer-input';
+import { AnimatedFlowScreen } from '@/presentation/components/common/animated-flow-screen';
 import { useApplication } from '@/presentation/contexts/application-context';
 import { useTranslation } from '@/presentation/localization/localization-provider';
 import type { AppTheme } from '@/presentation/theme/theme';
@@ -121,48 +123,64 @@ export function TransactionFlowScreen() {
     [application, data, t],
   );
 
-  if (!data) {
-    return (
-      <SafeAreaView style={styles.loadingScreen}>
-        <View style={styles.loadingHeader}>
-          <Pressable
-            accessibilityLabel={t('common.close')}
-            onPress={() => router.back()}
-            style={styles.close}
-          >
-            <Text style={styles.closeText}>×</Text>
-          </Pressable>
-          <View style={styles.headerSpacer} />
-        </View>
-        <View style={styles.loadingBody}>
-          {error ? (
-            <>
-              <Text style={styles.error}>{error}</Text>
-              <Pressable
-                onPress={() => setRevision((current) => current + 1)}
-                style={styles.retry}
-              >
-                <Text style={styles.retryText}>{t('common.retry')}</Text>
-              </Pressable>
-            </>
-          ) : (
-            <ActivityIndicator color={theme.colors.primary} size="large" />
-          )}
-        </View>
-      </SafeAreaView>
-    );
-  }
+  const createCategory = useCallback(
+    async (input: { groupId: string; name: string }): Promise<Category> => {
+      const category = await application.categories.create.execute(input);
+      invalidateTransactionReferenceData();
+      const referenceData = await getTransactionReferenceData(application);
+      setData((current) =>
+        current ? { ...current, ...referenceData } : current,
+      );
+      return category;
+    },
+    [application],
+  );
 
   return (
-    <TransactionEditorScreen
-      accounts={data.accounts}
-      categoryGroups={data.categoryGroups}
-      linkedTransaction={data.linkedTransaction}
-      onDismiss={() => router.back()}
-      onSave={save}
-      payees={data.payees}
-      transaction={data.transaction}
-    />
+    <AnimatedFlowScreen onBack={() => router.back()} overlay>
+      {(goBack) =>
+        data ? (
+          <TransactionEditorScreen
+            accounts={data.accounts}
+            categoryGroups={data.categoryGroups}
+            linkedTransaction={data.linkedTransaction}
+            onCreateCategory={createCategory}
+            onDismiss={goBack}
+            onSave={save}
+            payees={data.payees}
+            transaction={data.transaction}
+          />
+        ) : (
+          <SafeAreaView style={styles.loadingScreen}>
+            <View style={styles.loadingHeader}>
+              <Pressable
+                accessibilityLabel={t('common.close')}
+                onPress={goBack}
+                style={styles.close}
+              >
+                <Text style={styles.closeText}>×</Text>
+              </Pressable>
+              <View style={styles.headerSpacer} />
+            </View>
+            <View style={styles.loadingBody}>
+              {error ? (
+                <>
+                  <Text style={styles.error}>{error}</Text>
+                  <Pressable
+                    onPress={() => setRevision((current) => current + 1)}
+                    style={styles.retry}
+                  >
+                    <Text style={styles.retryText}>{t('common.retry')}</Text>
+                  </Pressable>
+                </>
+              ) : (
+                <ActivityIndicator color={theme.colors.primary} size="large" />
+              )}
+            </View>
+          </SafeAreaView>
+        )
+      }
+    </AnimatedFlowScreen>
   );
 }
 

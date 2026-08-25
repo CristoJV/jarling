@@ -16,6 +16,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { SelectionModal } from '@/presentation/components/common/selection-modal';
 import { KeyboardResponsiveScreen } from '@/presentation/components/common/keyboard-responsive-screen';
 import { PasswordInputModal } from '@/presentation/components/common/password-input-modal';
+import { IndeterminateProgressOverlay } from '@/presentation/components/common/indeterminate-progress-overlay';
+import type {
+  BackupProgressPhase,
+  PlanRestoreSource,
+  RestoreResult,
+} from '@/application/ports/plan-portability';
 import { useApplication } from '@/presentation/contexts/application-context';
 import { invalidateTransactionReferenceData } from '@/presentation/cache/transaction-reference-data';
 import { useTranslation } from '@/presentation/localization/localization-provider';
@@ -70,6 +76,11 @@ export function SettingsScreen() {
   const [populating, setPopulating] = useState(false);
   const [dataAction, setDataAction] = useState<DataAction>(null);
   const [exporting, setExporting] = useState(false);
+  const [restoreSource, setRestoreSource] = useState<PlanRestoreSource | null>(
+    null,
+  );
+  const [backupProgress, setBackupProgress] =
+    useState<BackupProgressPhase | null>(null);
 
   function requestExport() {
     Alert.alert(t('settings.exportWarningTitle'), t('settings.exportWarning'), [
@@ -90,12 +101,19 @@ export function SettingsScreen() {
   }
 
   async function createBackup(password: string) {
-    await application.planPortability.createBackup(password, preferences);
-    Alert.alert(t('settings.backupCreated'));
+    try {
+      await application.planPortability.createBackup(
+        password,
+        preferences,
+        setBackupProgress,
+      );
+      Alert.alert(t('settings.backupCreated'));
+    } finally {
+      setBackupProgress(null);
+    }
   }
 
-  async function restoreBackup(password: string) {
-    const result = await application.planPortability.restoreBackup(password);
+  async function finishRestore(result: RestoreResult) {
     if (!result.restored) return;
     invalidateTransactionReferenceData();
     if (result.preferences !== undefined) {
@@ -110,6 +128,30 @@ export function SettingsScreen() {
     );
   }
 
+  async function restoreSelected(password?: string) {
+    if (!restoreSource) return;
+    const result = await restoreSource.restore(password);
+    setRestoreSource(null);
+    await finishRestore(result);
+  }
+
+  async function selectRestoreFile() {
+    try {
+      const source = await application.planPortability.selectRestoreSource();
+      if (!source) return;
+      setRestoreSource(source);
+      if (source.encrypted) {
+        setDataAction('restore');
+      } else {
+        await finishRestore(await source.restore());
+        setRestoreSource(null);
+      }
+    } catch {
+      setRestoreSource(null);
+      Alert.alert(t('settings.backupError'));
+    }
+  }
+
   function requestRestore() {
     Alert.alert(
       t('settings.restoreWarningTitle'),
@@ -119,7 +161,7 @@ export function SettingsScreen() {
         {
           text: t('settings.restore'),
           style: 'destructive',
-          onPress: () => setDataAction('restore'),
+          onPress: () => void selectRestoreFile(),
         },
       ],
     );
@@ -392,7 +434,7 @@ export function SettingsScreen() {
             <SettingsRow
               label={t('settings.restore')}
               onPress={requestRestore}
-              value=".jarling"
+              value=".jarling / .json"
             />
           </View>
 
@@ -493,8 +535,15 @@ export function SettingsScreen() {
       {dataAction ? (
         <PasswordInputModal
           confirm={dataAction === 'backup'}
-          onDismiss={() => setDataAction(null)}
-          onSubmit={dataAction === 'backup' ? createBackup : restoreBackup}
+          onDismiss={() => {
+            setDataAction(null);
+            if (dataAction === 'restore') setRestoreSource(null);
+          }}
+          onSubmit={
+            dataAction === 'backup'
+              ? createBackup
+              : (password) => restoreSelected(password)
+          }
           submitLabel={
             dataAction === 'backup'
               ? t('settings.createBackup')
@@ -505,6 +554,11 @@ export function SettingsScreen() {
               ? t('settings.backup')
               : t('settings.restore')
           }
+        />
+      ) : null}
+      {backupProgress ? (
+        <IndeterminateProgressOverlay
+          label={t(`settings.backupProgress.${backupProgress}`)}
         />
       ) : null}
     </SafeAreaView>
