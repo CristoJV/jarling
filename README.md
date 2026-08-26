@@ -109,17 +109,16 @@ npm run test:e2e # requires Maestro and a native build/emulator
 
 ## Architecture and release status
 
-Jarling uses a pragmatic clean architecture and a direct SQLite version-1
-baseline. Fresh installations create the current schema directly; the retained
-migration runner starts with the first post-release schema change. The first
-release deliberately excludes CSV import, bank connectivity, cloud sync, and
-scheduled transactions.
+Jarling uses a pragmatic clean architecture and a versioned SQLite schema.
+Fresh installations create the current schema directly, while the retained
+forward-only migration runner upgrades databases created by earlier releases.
+Jarling deliberately excludes CSV import, bank connectivity, cloud sync, and
+scheduled transactions for now.
 
 - [Documentation index](docs/README.md)
 - [Product specification](docs/product-specification.md)
 - [Interaction design](docs/interaction-design.md)
 - [Architecture decisions](docs/adr/README.md)
-- [First-release checklist](docs/release-checklist.md)
 - [Privacy and data protection](docs/privacy.md)
 - [Changelog](CHANGELOG.md)
 

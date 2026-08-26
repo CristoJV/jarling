@@ -140,5 +140,5 @@ boundary between routes and modals.
 Automated tests verify financial state machines and shared layout helpers.
 Device acceptance must additionally cover small Android screens, gesture and
 three-button navigation, native keyboards, physical Back, both themes, and the
-Reduce Motion preference. The authoritative status is tracked in
-[release-checklist.md](release-checklist.md).
+Reduce Motion preference. These checks must be recorded as part of each release
+review.
