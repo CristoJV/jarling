@@ -441,7 +441,6 @@ const createStyles = (theme: AppTheme) =>
       fontSize: 15,
       fontWeight: '800',
       letterSpacing: 0.4,
-      textTransform: 'uppercase',
     },
     groupTotals: { flexDirection: 'row', gap: 16 },
     summaryValue: { alignItems: 'flex-end', gap: 2 },

@@ -507,8 +507,9 @@ export function SettingsScreen() {
           ) : null}
 
           <Text style={styles.sectionLabel}>{t('settings.aboutSection')}</Text>
-          <View style={styles.card}>
+          <View style={[styles.card, styles.aboutCard]}>
             <SettingsRow
+              divided={false}
               label={t('settings.about')}
               onPress={() => void openAbout()}
               value={t('settings.projectRepository')}
@@ -666,13 +667,22 @@ function logPortabilityFailure(operation: string | null, cause: unknown) {
 }
 
 function SettingsRow({
+  divided = true,
   label,
   value,
   onPress,
-}: Readonly<{ label: string; value: string; onPress: () => void }>) {
+}: Readonly<{
+  divided?: boolean;
+  label: string;
+  value: string;
+  onPress: () => void;
+}>) {
   const styles = useThemedStyles(createStyles);
   return (
-    <Pressable onPress={onPress} style={styles.settingsRow}>
+    <Pressable
+      onPress={onPress}
+      style={[styles.settingsRow, !divided && styles.settingsRowUndivided]}
+    >
       <Text style={styles.rowLabel}>{label}</Text>
       <View style={styles.rowValueWrap}>
         <Text numberOfLines={1} style={styles.rowValue}>
@@ -749,6 +759,7 @@ const createStyles = (theme: AppTheme) =>
       borderWidth: 1,
       gap: 14,
     },
+    aboutCard: { paddingVertical: 10 },
     appIdentity: {
       paddingTop: 10,
       paddingBottom: 18,
@@ -787,6 +798,7 @@ const createStyles = (theme: AppTheme) =>
       justifyContent: 'space-between',
       gap: 12,
     },
+    settingsRowUndivided: { borderTopWidth: 0 },
     rowLabel: {
       flex: 1,
       color: theme.colors.text,

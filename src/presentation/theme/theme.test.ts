@@ -9,5 +9,9 @@ describe('application themes', () => {
     );
     expect(darkTheme.elevation).toEqual(lightTheme.elevation);
     expect(darkTheme.colors.background).not.toBe(lightTheme.colors.background);
+    expect(lightTheme.colors.primary).not.toBe(lightTheme.colors.positive);
+    expect(darkTheme.colors.primary).not.toBe(darkTheme.colors.positive);
+    expect(lightTheme.colors.surface).not.toBe(lightTheme.colors.background);
+    expect(darkTheme.colors.surface).not.toBe(darkTheme.colors.background);
   });
 });

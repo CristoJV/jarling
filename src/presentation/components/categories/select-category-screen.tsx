@@ -406,7 +406,6 @@ const createStyles = (theme: AppTheme) =>
       fontSize: 12,
       fontWeight: '800',
       letterSpacing: 0.7,
-      textTransform: 'uppercase',
     },
     category: {
       minHeight: 58,
