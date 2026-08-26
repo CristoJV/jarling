@@ -20,6 +20,7 @@ import type { TransactionSummary } from '@/application/use-cases/transactions/ge
 import type { TransactionInput } from '@/application/use-cases/transactions/transaction-input';
 import type { TransferInput } from '@/application/use-cases/transfers/transfer-input';
 import type { Category } from '@/domain/entities/category';
+import type { BudgetMonthValues } from '@/domain/services/calculate-budget-month';
 import { Money } from '@/domain/value-objects/money';
 import { SelectCategoryScreen } from '@/presentation/components/categories/select-category-screen';
 import { BlinkingCursor } from '@/presentation/components/common/blinking-cursor';
@@ -41,9 +42,12 @@ import {
 } from '@/presentation/theme/theme-provider';
 import { formatDate, formatMoney } from '@/presentation/utils/money';
 import { categoryDisplayName } from '@/presentation/utils/category-name';
+import { indexBudgetValuesByCategoryId } from '@/presentation/utils/category-budget-values';
+import { domainErrorMessage } from '@/presentation/utils/domain-error-message';
 
 type TransactionEditorScreenProps = Readonly<{
   accounts: AccountsOverview;
+  budget: BudgetMonthValues;
   categoryGroups: readonly CategoryGroupSummary[];
   payees: readonly string[];
   transaction?: TransactionSummary;
@@ -53,6 +57,7 @@ type TransactionEditorScreenProps = Readonly<{
     name: string;
   }) => Promise<Category>;
   onDismiss: () => void;
+  onLoadBudgetMonth: (month: string) => Promise<BudgetMonthValues>;
   onSave: (input: TransactionInput | TransferInput) => Promise<void>;
 }>;
 
@@ -76,12 +81,14 @@ function today(): string {
 
 export function TransactionEditorScreen({
   accounts,
+  budget,
   categoryGroups,
   payees,
   transaction: summary,
   linkedTransaction: linkedSummary,
   onCreateCategory,
   onDismiss,
+  onLoadBudgetMonth,
   onSave,
 }: TransactionEditorScreenProps) {
   const insets = useSafeAreaInsets();
@@ -146,8 +153,32 @@ export function TransactionEditorScreen({
   const [showMore, setShowMore] = useState(false);
   const [keypadVisible, setKeypadVisible] = useState(true);
   const [editor, setEditor] = useState<Editor>(null);
+  const [categoryBudget, setCategoryBudget] = useState(budget);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const restoreKeypad = useRef(false);
   const keypadRef = useRef<MoneyKeypadHandle>(null);
+  const budgetValuesByCategoryId = useMemo(
+    () => indexBudgetValuesByCategoryId(categoryBudget),
+    [categoryBudget],
+  );
+
+  useEffect(() => {
+    const month = date.slice(0, 7);
+    if (month === categoryBudget.month) return;
+    let active = true;
+    onLoadBudgetMonth(month).then(
+      (value) => {
+        if (active) setCategoryBudget(value);
+      },
+      (cause: unknown) => {
+        if (active) setError(domainErrorMessage(cause, t));
+      },
+    );
+    return () => {
+      active = false;
+    };
+  }, [categoryBudget.month, date, onLoadBudgetMonth, t]);
   const discardAlertVisible = useRef(false);
   const [initialValues] = useState(() => ({
     kind: initialKind,
@@ -160,8 +191,6 @@ export function TransactionEditorScreen({
     memo: initialMemo,
     cleared: initialCleared,
   }));
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
 
   const accountName =
     availableAccounts.find(({ account }) => account.id === accountId)?.account
@@ -409,6 +438,7 @@ export function TransactionEditorScreen({
       return (
         <SelectCategoryScreen
           allowCreateCategory
+          budgetValuesByCategoryId={budgetValuesByCategoryId}
           groups={categoryGroups}
           overlay
           onBack={closeEditor}

@@ -15,6 +15,7 @@ import type { Category } from '@/domain/entities/category';
 import type { TransactionSummary } from '@/application/use-cases/transactions/get-transactions';
 import type { TransactionInput } from '@/application/use-cases/transactions/transaction-input';
 import type { TransferInput } from '@/application/use-cases/transfers/transfer-input';
+import type { BudgetMonthValues } from '@/domain/services/calculate-budget-month';
 import { AnimatedFlowScreen } from '@/presentation/components/common/animated-flow-screen';
 import { useApplication } from '@/presentation/contexts/application-context';
 import { useTranslation } from '@/presentation/localization/localization-provider';
@@ -34,6 +35,7 @@ import { TransactionEditorScreen } from './transaction-editor-screen';
 type EditorData = Readonly<{
   accounts: AccountsOverview;
   categoryGroups: readonly CategoryGroupSummary[];
+  budget: BudgetMonthValues;
   payees: readonly string[];
   transaction?: TransactionSummary;
   linkedTransaction?: TransactionSummary;
@@ -61,23 +63,30 @@ export function TransactionFlowScreen() {
           id ? application.transactions.getById.execute(id) : null,
         ]);
         if (id && !transaction) throw new Error('Transaction not found.');
-        const linkedTransaction =
+        const budgetMonth =
+          transaction?.transaction.date.slice(0, 7) ?? currentMonth();
+        const [linkedTransaction, budget] = await Promise.all([
           transaction?.transaction.kind === 'transfer' &&
           transaction.transaction.transactionGroupId
-            ? (
-                await application.transactions.getAll.execute({
+            ? application.transactions.getAll
+                .execute({
                   transactionGroupId:
                     transaction.transaction.transactionGroupId,
                   limit: 2,
                 })
-              ).find(
-                ({ transaction: candidate }) =>
-                  candidate.id !== transaction.transaction.id,
-              )
-            : undefined;
+                .then((linked) =>
+                  linked.find(
+                    ({ transaction: candidate }) =>
+                      candidate.id !== transaction.transaction.id,
+                  ),
+                )
+            : undefined,
+          application.budget.getMonth.execute(budgetMonth),
+        ]);
         if (active) {
           setData({
             ...referenceData,
+            budget,
             ...(transaction ? { transaction } : {}),
             ...(linkedTransaction ? { linkedTransaction } : {}),
           });
@@ -127,12 +136,22 @@ export function TransactionFlowScreen() {
     async (input: { groupId: string; name: string }): Promise<Category> => {
       const category = await application.categories.create.execute(input);
       invalidateTransactionReferenceData();
-      const referenceData = await getTransactionReferenceData(application);
+      const [referenceData, budget] = await Promise.all([
+        getTransactionReferenceData(application),
+        application.budget.getMonth.execute(
+          data?.budget.month ?? currentMonth(),
+        ),
+      ]);
       setData((current) =>
-        current ? { ...current, ...referenceData } : current,
+        current ? { ...current, ...referenceData, budget } : current,
       );
       return category;
     },
+    [application, data?.budget.month],
+  );
+
+  const loadBudgetMonth = useCallback(
+    (month: string) => application.budget.getMonth.execute(month),
     [application],
   );
 
@@ -142,10 +161,12 @@ export function TransactionFlowScreen() {
         data ? (
           <TransactionEditorScreen
             accounts={data.accounts}
+            budget={data.budget}
             categoryGroups={data.categoryGroups}
             linkedTransaction={data.linkedTransaction}
             onCreateCategory={createCategory}
             onDismiss={goBack}
+            onLoadBudgetMonth={loadBudgetMonth}
             onSave={save}
             payees={data.payees}
             transaction={data.transaction}
@@ -182,6 +203,11 @@ export function TransactionFlowScreen() {
       }
     </AnimatedFlowScreen>
   );
+}
+
+function currentMonth(): string {
+  const date = new Date();
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
 
 const createStyles = (theme: AppTheme) =>
