@@ -3,10 +3,10 @@
 ## Status and purpose
 
 This document is the stable functional contract for Jarling 1.1.0. It defines
-what the first public release supports without duplicating implementation
+what this release supports without duplicating implementation
 history or test counts. Architectural rationale lives in the
-[ADRs](adr/README.md), interaction rules in [interaction design](interaction-design.md),
-and release evidence in the [release checklist](release-checklist.md).
+[ADRs](adr/README.md), and interaction rules live in
+[interaction design](interaction-design.md).
 
 Jarling is a local-first personal finance application based on envelope
 budgeting. It helps users decide what the money they already have must do next,
@@ -140,7 +140,7 @@ production build.
   to application validation.
 - Multi-record financial writes use the application `UnitOfWork` and roll back
   completely on failure.
-- Fresh installs create schema version 1 directly. The retained migration
-  runner is forward-only and begins with the first post-release schema change.
-- A release candidate must pass the automated and manual gates in
-  [release-checklist.md](release-checklist.md).
+- Fresh installs create the current schema directly. The retained migration
+  runner upgrades databases from earlier public releases in order.
+- A release candidate must pass the automated quality gates and the manual
+  device checks defined by the release review.

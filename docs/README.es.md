@@ -111,18 +111,16 @@ npm run test:e2e # requiere Maestro y un emulador con build nativo
 
 ## Arquitectura y estado de la release
 
-Jarling usa una arquitectura limpia pragmática y un baseline SQLite directo
-para la versión 1. Las instalaciones nuevas crean el esquema actual sin
-reproducir migraciones de desarrollo; el runner conservado se utilizará a
-partir del primer cambio de esquema posterior a la publicación. La primera
-release excluye deliberadamente importación CSV, conexión bancaria,
+Jarling usa una arquitectura limpia pragmática y un esquema SQLite versionado.
+Las instalaciones nuevas crean directamente el esquema actual, mientras que
+el runner de migraciones forward-only actualiza las bases creadas por releases
+anteriores. Por ahora Jarling excluye importación CSV, conexión bancaria,
 sincronización cloud y transacciones programadas.
 
 - [Índice de documentación](README.md)
 - [Especificación del producto](product-specification.md)
 - [Diseño de interacción](interaction-design.md)
 - [Decisiones de arquitectura](adr/README.md)
-- [Checklist de la primera release](release-checklist.md)
 - [Privacidad y protección de datos](privacy.md)
 - [Changelog](../CHANGELOG.md)
 
