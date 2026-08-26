@@ -3,9 +3,25 @@
 All notable user-facing changes to Jarling are documented here. The project
 follows [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.1.0](https://github.com/CristoJV/jarling/compare/v1.0.0...v1.1.0) (2026-08-26)
 
-No user-facing changes have been recorded after the 1.0.0 release candidate.
+### Features
+
+- Add unified Monthly Target calculations for weekly, monthly, yearly, and custom targets.
+- Add weekly occurrence tracking, including optional previous weeks and monthly rollover behavior.
+- Add segmented target progress with funded, spent, underfunded, and proportional overspending states.
+- Add safe category deletion with transaction reassignment and Ready to Assign recovery.
+- Improve category selection, in-context category creation, and Move Money workflows.
+- Add incremental transaction search with refinable account, category, status, payee, and memo filters.
+- Add encrypted `.jarling` backups with validation, progress feedback, version migration, and cross-platform restore support.
+- Improve Budget status banners, navigation transitions, themes, and reusable selection components.
+
+### Bug Fixes
+
+- Fix encrypted backup restoration across JavaScript and native environments.
+- Fix weekly target segments so internal states remain continuous and overspending uses a single proportional overflow segment.
+- Fix legacy Uncategorized transactions and allocations during database migration.
+- Fix inconsistent navigation and selection state across transaction and budgeting flows.
 
 ## [1.0.0] - 2026-08-25
 
