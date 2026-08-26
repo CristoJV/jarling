@@ -7,21 +7,22 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Features
 
-- **budget:** improve move money and category selection ([05ed8d7](https://github.com/CristoJV/jarling/commit/05ed8d7e24663baf8d969e3feb4ba94fe6c6007d))
-- **budget:** refine targets, categories and transaction flows ([0ac2b9f](https://github.com/CristoJV/jarling/commit/0ac2b9fa101b5d376b4d2bbfd56078479df2f4e5))
-- improve encrypted backups and budget feedback ([82260ea](https://github.com/CristoJV/jarling/commit/82260eafcaa8e51d6f0bc0beffb9406621999dfa))
-- **targets:** Unify monthly targets for weekly, montly and yearly targets ([9fdc5b7](https://github.com/CristoJV/jarling/commit/9fdc5b745c05990e38abb8cabc31b9b327f40cdb))
-- **ui:** refine visual system and incremental transaction search ([8952a69](https://github.com/CristoJV/jarling/commit/8952a69d12e497337ec372f991a6a669fcc79b16))
-- unify plan restore, category selection, and money movement flows ([edce71e](https://github.com/CristoJV/jarling/commit/edce71ea7c02a54a05c3aec9a863d2aae4574f70))
+- Add unified Monthly Target calculations for weekly, monthly, yearly, and custom targets.
+- Add weekly occurrence tracking, including optional previous weeks and monthly rollover behavior.
+- Add segmented target progress with funded, spent, underfunded, and proportional overspending states.
+- Add safe category deletion with transaction reassignment and Ready to Assign recovery.
+- Improve category selection, in-context category creation, and Move Money workflows.
+- Add incremental transaction search with refinable account, category, status, payee, and memo filters.
+- Add encrypted `.jarling` backups with validation, progress feedback, version migration, and cross-platform restore support.
+- Improve Budget status banners, navigation transitions, themes, and reusable selection components.
 
 ### Bug Fixes
 
-- make encrypted backup restore reliable across platforms ([aa162e5](https://github.com/CristoJV/jarling/commit/aa162e5c85518df66569406b856be9a4f7b536eb))
-- **ui:** Smoth progress bar with correct weekly segments, continuous internal regions and a proportional segment for overflow if required ([5d04564](https://github.com/CristoJV/jarling/commit/5d045644fadd5b276f8bfd17b55a357ad3c1598a))
+- Fix encrypted backup restoration across JavaScript and native environments.
+- Fix weekly target segments so internal states remain continuous and overspending uses a single proportional overflow segment.
+- Fix legacy Uncategorized transactions and allocations during database migration.
+- Fix inconsistent navigation and selection state across transaction and budgeting flows.
 
-## [Unreleased]
-
-No user-facing changes have been recorded after the 1.0.0 release candidate.
 
 ## [1.0.0] - 2026-08-25
 
