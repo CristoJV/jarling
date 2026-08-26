@@ -13,6 +13,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { CategoryGroupSummary } from '@/application/use-cases/categories/get-category-groups';
 import type { Category } from '@/domain/entities/category';
+import type { BudgetCategoryValues } from '@/domain/services/calculate-budget-month';
+import type { Money } from '@/domain/value-objects/money';
 import { AnimatedFlowScreen } from '@/presentation/components/common/animated-flow-screen';
 import { SearchableSelectionInput } from '@/presentation/components/common/searchable-selection-input';
 import { useTranslation } from '@/presentation/localization/localization-provider';
@@ -32,6 +34,7 @@ import {
 import { domainErrorMessage } from '@/presentation/utils/domain-error-message';
 
 import { CreateCategoryScreen } from './create-category-screen';
+import { CategoryBudgetAmounts } from './category-budget-amounts';
 
 export type CategorySelection =
   | Readonly<{ kind: 'ready-to-assign' }>
@@ -40,6 +43,7 @@ export type CategorySelection =
 
 type Props = Readonly<{
   allowCreateCategory?: boolean;
+  budgetValuesByCategoryId?: ReadonlyMap<string, BudgetCategoryValues>;
   disabled?: boolean;
   excludedCategoryIds?: readonly string[];
   groups: readonly CategoryGroupSummary[];
@@ -52,7 +56,7 @@ type Props = Readonly<{
   onCreatedCategory?: (category: Category) => void | Promise<void>;
   onSelect: (selection: CategorySelection) => void | Promise<void>;
   overlay?: boolean;
-  readyToAssignDescription?: string;
+  readyToAssignAmount?: Money;
   selectedCategoryId?: string;
   selectedSpecial?: 'ready-to-assign' | 'uncategorized';
   showReadyToAssign?: boolean;
@@ -62,6 +66,7 @@ type Props = Readonly<{
 
 export function SelectCategoryScreen({
   allowCreateCategory = true,
+  budgetValuesByCategoryId,
   disabled = false,
   excludedCategoryIds = [],
   groups,
@@ -71,7 +76,7 @@ export function SelectCategoryScreen({
   onCreatedCategory,
   onSelect,
   overlay = false,
-  readyToAssignDescription,
+  readyToAssignAmount,
   selectedCategoryId,
   selectedSpecial,
   showReadyToAssign = false,
@@ -214,17 +219,9 @@ export function SelectCategoryScreen({
                     onPress={() => setCreatingName(query)}
                   />
                 ) : null}
-                {canCreate && !query ? (
-                  <ActionRow
-                    icon="plus-circle-outline"
-                    disabled={disabled || selecting}
-                    label={t('categories.createNew')}
-                    onPress={() => setCreatingName('')}
-                  />
-                ) : null}
                 {showReadyToAssign && !query ? (
                   <SelectionRow
-                    description={readyToAssignDescription}
+                    available={readyToAssignAmount}
                     disabled={disabled || selecting}
                     label={t('budget.readyToAssign')}
                     onPress={() =>
@@ -247,6 +244,8 @@ export function SelectCategoryScreen({
             }
             renderItem={({ item }) => (
               <SelectionRow
+                assigned={budgetValuesByCategoryId?.get(item.id)?.assigned}
+                available={budgetValuesByCategoryId?.get(item.id)?.available}
                 label={categoryDisplayName(item, t)}
                 disabled={disabled || selecting}
                 onPress={() =>
@@ -309,13 +308,15 @@ function ActionRow({
 }
 
 function SelectionRow({
-  description,
+  assigned,
+  available,
   disabled,
   label,
   onPress,
   selected,
 }: Readonly<{
-  description?: string;
+  assigned?: Money;
+  available?: Money;
   disabled?: boolean;
   label: string;
   onPress: () => void;
@@ -337,10 +338,10 @@ function SelectionRow({
     >
       <View style={styles.categoryCopy}>
         <Text style={styles.categoryLabel}>{label}</Text>
-        {description ? (
-          <Text style={styles.description}>{description}</Text>
-        ) : null}
       </View>
+      {available ? (
+        <CategoryBudgetAmounts assigned={assigned} available={available} />
+      ) : null}
       {selected ? (
         <MaterialCommunityIcons
           color={theme.colors.primary}
@@ -422,11 +423,6 @@ const createStyles = (theme: AppTheme) =>
       color: theme.colors.text,
       fontSize: 16,
       fontWeight: '600',
-    },
-    description: {
-      marginTop: 2,
-      color: theme.colors.textMuted,
-      fontSize: 12,
     },
     selected: { backgroundColor: theme.colors.surfacePressed },
     pressed: { opacity: 0.72 },

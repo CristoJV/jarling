@@ -20,6 +20,7 @@ import type { Category } from '@/domain/entities/category';
 import type { BudgetMonthValues } from '@/domain/services/calculate-budget-month';
 import { Money } from '@/domain/value-objects/money';
 import { SelectCategoryScreen } from '@/presentation/components/categories/select-category-screen';
+import { CategoryBudgetAmounts } from '@/presentation/components/categories/category-budget-amounts';
 import { BottomActionLayout } from '@/presentation/components/common/bottom-action-layout';
 import {
   MoneyKeypad,
@@ -34,6 +35,7 @@ import {
   useThemedStyles,
 } from '@/presentation/theme/theme-provider';
 import { categoryDisplayName } from '@/presentation/utils/category-name';
+import { indexBudgetValuesByCategoryId } from '@/presentation/utils/category-budget-values';
 import { domainErrorMessage } from '@/presentation/utils/domain-error-message';
 import { formatMoney } from '@/presentation/utils/money';
 
@@ -103,6 +105,10 @@ export function MoveBudgetScreen() {
         .filter(({ category }) => !category.hidden) ?? [],
     [budget],
   );
+  const valuesByCategoryId = useMemo(
+    () => indexBudgetValuesByCategoryId(budget),
+    [budget],
+  );
   function labelFor(location: BudgetLocation): string {
     if (location.kind === 'ready-to-assign') return t('budget.readyToAssign');
     const values = categories.find(
@@ -111,6 +117,16 @@ export function MoveBudgetScreen() {
     return values
       ? categoryDisplayName(values.category, t)
       : t('common.choose');
+  }
+
+  function amountsFor(location: BudgetLocation) {
+    if (location.kind === 'ready-to-assign') {
+      return { available: budget?.readyToAssign ?? Money.zero() };
+    }
+    const values = valuesByCategoryId.get(location.categoryId);
+    return values
+      ? { assigned: values.assigned, available: values.available }
+      : { assigned: Money.zero(), available: Money.zero() };
   }
 
   async function submit(valueCents?: number) {
@@ -191,11 +207,7 @@ export function MoveBudgetScreen() {
   return (
     <View style={styles.root}>
       <SafeAreaView edges={['top', 'left', 'right']} style={styles.screen}>
-        <Header
-          disabled={submitting || amountCents <= 0}
-          onBack={() => router.back()}
-          onDone={() => void submit()}
-        />
+        <Header onBack={() => router.back()} />
         <BottomActionLayout
           bottom={
             <View
@@ -207,8 +219,8 @@ export function MoveBudgetScreen() {
               <MoneyKeypad
                 calculator
                 onChange={setAmountCents}
+                onDone={(valueCents) => void submit(valueCents)}
                 ref={keypadRef}
-                showDone={false}
                 valueCents={amountCents}
               />
             </View>
@@ -235,6 +247,7 @@ export function MoveBudgetScreen() {
               </Pressable>
               <View style={styles.locationStack}>
                 <LocationRow
+                  {...amountsFor(source)}
                   label={t('budget.from')}
                   onPress={() => {
                     keypadRef.current?.resolve();
@@ -243,6 +256,7 @@ export function MoveBudgetScreen() {
                   value={labelFor(source)}
                 />
                 <LocationRow
+                  {...amountsFor(target)}
                   label={t('budget.to')}
                   onPress={() => {
                     keypadRef.current?.resolve();
@@ -264,6 +278,7 @@ export function MoveBudgetScreen() {
       {selecting ? (
         <SelectCategoryScreen
           allowCreateCategory
+          budgetValuesByCategoryId={valuesByCategoryId}
           excludedCategoryIds={[
             ...(selecting === 'source' && target.kind === 'category'
               ? [target.categoryId]
@@ -289,7 +304,7 @@ export function MoveBudgetScreen() {
             else setTarget(location);
             setError(null);
           }}
-          readyToAssignDescription={formatMoney(budget.readyToAssign)}
+          readyToAssignAmount={budget.readyToAssign}
           selectedCategoryId={
             selectedLocation.kind === 'category'
               ? selectedLocation.categoryId
@@ -318,13 +333,9 @@ function currentMonth(): string {
 }
 
 function Header({
-  disabled,
   onBack,
-  onDone,
 }: Readonly<{
-  disabled?: boolean;
   onBack: () => void;
-  onDone?: () => void;
 }>) {
   const { t } = useTranslation();
   const theme = useAppTheme();
@@ -344,34 +355,35 @@ function Header({
         />
       </Pressable>
       <Text style={styles.title}>{t('budget.moveMoney')}</Text>
-      {onDone ? (
-        <Pressable disabled={disabled} onPress={onDone} style={styles.done}>
-          <Text style={[styles.doneText, disabled && styles.disabled]}>
-            {t('common.done')}
-          </Text>
-        </Pressable>
-      ) : (
-        <View style={styles.spacer} />
-      )}
+      <View style={styles.spacer} />
     </View>
   );
 }
 
 function LocationRow({
+  assigned,
+  available,
   label,
   value,
   onPress,
-}: Readonly<{ label: string; value: string; onPress: () => void }>) {
+}: Readonly<{
+  assigned?: Money;
+  available: Money;
+  label: string;
+  value: string;
+  onPress: () => void;
+}>) {
   const theme = useAppTheme();
   const styles = useThemedStyles(createStyles);
   return (
     <Pressable onPress={onPress} style={styles.locationRow}>
       <View style={styles.locationCopy}>
-        <Text style={styles.locationLabel}>{label}</Text>
+        <Text style={styles.locationLabel}>{label}:</Text>
         <Text numberOfLines={1} style={styles.locationValue}>
           {value}
         </Text>
       </View>
+      <CategoryBudgetAmounts assigned={assigned} available={available} />
       <MaterialCommunityIcons
         color={theme.colors.textMuted}
         name="chevron-right"
@@ -416,13 +428,15 @@ const createStyles = (theme: AppTheme) =>
     content: {
       width: '100%',
       maxWidth: 620,
-      padding: 22,
+      paddingHorizontal: 18,
+      paddingTop: 28,
       paddingBottom: 12,
       alignSelf: 'center',
       alignItems: 'center',
     },
     amount: {
-      marginVertical: 15,
+      marginTop: 10,
+      marginBottom: 20,
       color: theme.colors.text,
       fontSize: 42,
       fontVariant: ['tabular-nums'],
@@ -431,7 +445,7 @@ const createStyles = (theme: AppTheme) =>
     transferCard: {
       width: '100%',
       minHeight: 116,
-      paddingHorizontal: 12,
+      paddingHorizontal: 8,
       backgroundColor: theme.colors.surface,
       borderColor: theme.colors.border,
       borderRadius: 22,
@@ -442,29 +456,31 @@ const createStyles = (theme: AppTheme) =>
     locationStack: { flex: 1, paddingVertical: 6 },
     locationRow: {
       minHeight: 50,
-      paddingHorizontal: 10,
+      paddingHorizontal: 4,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 12,
+      gap: 8,
     },
-    locationCopy: { flex: 1 },
+    locationCopy: {
+      minWidth: 0,
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+    },
     locationLabel: {
       color: theme.colors.textMuted,
-      fontSize: 11,
+      fontSize: 12,
       fontWeight: '800',
-      textTransform: 'uppercase',
     },
     locationValue: {
-      marginTop: 4,
+      flexShrink: 1,
       color: theme.colors.text,
-      fontSize: 17,
+      fontSize: 15,
       fontWeight: '700',
     },
     swap: {
-      width: 48,
-      marginRight: 4,
-      backgroundColor: theme.colors.primaryMuted,
-      borderRadius: 16,
+      width: 42,
       alignItems: 'center',
       justifyContent: 'center',
       zIndex: 1,
@@ -479,12 +495,4 @@ const createStyles = (theme: AppTheme) =>
       fontSize: 13,
     },
     bottom: { flexShrink: 0, backgroundColor: theme.colors.background },
-    done: {
-      width: 58,
-      minHeight: 44,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    doneText: { color: theme.colors.primary, fontSize: 15, fontWeight: '800' },
-    disabled: { opacity: 0.5 },
   });

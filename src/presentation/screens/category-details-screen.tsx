@@ -1,6 +1,6 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -18,6 +18,7 @@ import type { CategoryDetails } from '@/application/use-cases/categories/get-cat
 import type { CategoryGroupSummary } from '@/application/use-cases/categories/get-category-groups';
 import type { Category } from '@/domain/entities/category';
 import { CATEGORY_NOTES_MAX_LENGTH } from '@/domain/entities/category';
+import type { BudgetMonthValues } from '@/domain/services/calculate-budget-month';
 import { InsufficientReadyToAssignError } from '@/domain/errors/insufficient-ready-to-assign-error';
 import { Money } from '@/domain/value-objects/money';
 import { NameInputModal } from '@/presentation/components/common/name-input-modal';
@@ -33,6 +34,7 @@ import {
   useThemedStyles,
 } from '@/presentation/theme/theme-provider';
 import { categoryDisplayName } from '@/presentation/utils/category-name';
+import { indexBudgetValuesByCategoryId } from '@/presentation/utils/category-budget-values';
 import { domainErrorMessage } from '@/presentation/utils/domain-error-message';
 import { formatMoney } from '@/presentation/utils/money';
 import { targetDetailCopy } from '@/presentation/utils/target';
@@ -72,6 +74,8 @@ export function CategoryDetailsScreen() {
   const [deletionGroups, setDeletionGroups] = useState<
     readonly CategoryGroupSummary[]
   >([]);
+  const [deletionBudget, setDeletionBudget] =
+    useState<BudgetMonthValues | null>(null);
   const [deletionFlow, setDeletionFlow] = useState<'select-destination' | null>(
     null,
   );
@@ -79,6 +83,10 @@ export function CategoryDetailsScreen() {
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView>(null);
   const notesFocused = useRef(false);
+  const deletionValuesByCategoryId = useMemo(
+    () => indexBudgetValuesByCategoryId(deletionBudget),
+    [deletionBudget],
+  );
 
   useEffect(() => {
     const subscription = Keyboard.addListener('keyboardDidShow', () => {
@@ -240,8 +248,12 @@ export function CategoryDetailsScreen() {
       const title = t('categoryDetails.deleteTitle', { name: displayName });
 
       if (impact.requiresReassignment) {
-        const groups = await application.categories.getGroups.execute();
+        const [groups, budget] = await Promise.all([
+          application.categories.getGroups.execute(),
+          application.budget.getMonth.execute(month),
+        ]);
         setDeletionGroups(groups);
+        setDeletionBudget(budget);
         Alert.alert(
           title,
           t('categoryDetails.deleteReassignBody', {
@@ -619,6 +631,7 @@ export function CategoryDetailsScreen() {
       {deletionFlow === 'select-destination' ? (
         <SelectCategoryScreen
           allowCreateCategory
+          budgetValuesByCategoryId={deletionValuesByCategoryId}
           disabled={deleting}
           excludedCategoryIds={[categoryId]}
           groups={deletionGroups}
