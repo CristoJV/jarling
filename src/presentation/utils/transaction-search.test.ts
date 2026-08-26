@@ -1,4 +1,7 @@
-import { upsertTransactionSearch } from './transaction-search';
+import {
+  buildTransactionQuery,
+  upsertTransactionSearch,
+} from './transaction-search';
 
 describe('transaction search', () => {
   it('keeps independent refinements', () => {
@@ -26,5 +29,29 @@ describe('transaction search', () => {
       { field: 'memo', value: 'Weekly' },
       { field: 'search', value: 'New' },
     ]);
+  });
+
+  it('builds one repository query from incremental filters', () => {
+    expect(
+      buildTransactionQuery({
+        searches: [
+          { field: 'payee', value: 'Market' },
+          { field: 'memo', value: 'Weekly' },
+        ],
+        accountId: 'account-1',
+        categoryId: 'category-1',
+        status: 'cleared',
+      }),
+    ).toEqual({
+      payee: 'Market',
+      memo: 'Weekly',
+      accountId: 'account-1',
+      categoryId: 'category-1',
+      status: 'cleared',
+    });
+  });
+
+  it('omits inactive filters instead of emitting empty values', () => {
+    expect(buildTransactionQuery({ searches: [] })).toEqual({});
   });
 });

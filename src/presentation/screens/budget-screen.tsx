@@ -242,25 +242,28 @@ export function BudgetScreen() {
                       : t('budget.readyToAssign')
                   }
                   label={formatMoney(budget.readyToAssign)}
+                  prominence="primary"
                   tone={
                     budget.readyToAssign.cents < 0 ? 'negative' : 'positive'
                   }
                 />
                 {budget.uncategorized.transactionCount > 0 ? (
-                  <BudgetStatusBanner
-                    actionLabel={t('budget.review')}
-                    label={`${formatMoney(budget.uncategorized.amount)} · ${t(
-                      budget.uncategorized.transactionCount === 1
-                        ? 'budget.newTransactionCount'
-                        : 'budget.newTransactionsCount',
-                      { count: budget.uncategorized.transactionCount },
-                    )}`}
-                    labelTone="negative"
-                    onPress={() =>
-                      router.navigate(routes.uncategorizedTransactions())
-                    }
-                    tone="notice"
-                  />
+                  <View style={styles.secondaryBanner}>
+                    <BudgetStatusBanner
+                      actionLabel={t('budget.review')}
+                      label={`${formatMoney(budget.uncategorized.amount)} · ${t(
+                        budget.uncategorized.transactionCount === 1
+                          ? 'budget.newTransactionCount'
+                          : 'budget.newTransactionsCount',
+                        { count: budget.uncategorized.transactionCount },
+                      )}`}
+                      labelTone="negative"
+                      onPress={() =>
+                        router.navigate(routes.uncategorizedTransactions())
+                      }
+                      tone="notice"
+                    />
+                  </View>
                 ) : null}
               </>
             ) : null}
@@ -438,6 +441,7 @@ const createStyles = (theme: AppTheme) =>
       borderRadius: 10,
       fontSize: 14,
     },
+    secondaryBanner: { marginTop: 6 },
     emptyState: { paddingVertical: 64, alignItems: 'center', gap: 10 },
     emptyTitle: { color: theme.colors.text, fontSize: 20, fontWeight: '700' },
     emptyDescription: {

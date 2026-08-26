@@ -1,4 +1,7 @@
-import type { Transaction } from '@/domain/entities/transaction';
+import type {
+  Transaction,
+  TransactionStatus,
+} from '@/domain/entities/transaction';
 import type { Money } from '@/domain/value-objects/money';
 
 export type TransactionFilters = Readonly<{
@@ -8,6 +11,7 @@ export type TransactionFilters = Readonly<{
   search?: string;
   payee?: string;
   memo?: string;
+  status?: TransactionStatus;
   dateFrom?: string;
   dateTo?: string;
   transactionGroupId?: string;

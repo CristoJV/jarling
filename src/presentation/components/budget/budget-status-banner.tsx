@@ -11,6 +11,7 @@ type Props = Readonly<{
   labelTone?: BannerTone;
   onPress?: () => void;
   tone: BannerTone;
+  prominence?: 'primary' | 'secondary';
 }>;
 
 export function BudgetStatusBanner({
@@ -19,13 +20,18 @@ export function BudgetStatusBanner({
   onPress,
   tone,
   labelTone = tone,
+  prominence = 'secondary',
 }: Props) {
   const styles = useThemedStyles(createStyles);
   const content = (
     <>
       <Text
         numberOfLines={1}
-        style={[styles.label, styles[`${labelTone}Text`]]}
+        style={[
+          styles.label,
+          prominence === 'primary' && styles.primaryLabel,
+          styles[`${labelTone}Text`],
+        ]}
       >
         {label}
       </Text>
@@ -33,6 +39,7 @@ export function BudgetStatusBanner({
         <Text
           style={[
             styles.action,
+            prominence === 'primary' && styles.primaryAction,
             onPress ? styles.actionButtonText : styles[`${tone}Text`],
           ]}
         >
@@ -76,10 +83,11 @@ const createStyles = (theme: AppTheme) =>
     },
     label: {
       flex: 1,
-      fontSize: 16,
+      fontSize: 14,
       fontVariant: ['tabular-nums'],
       fontWeight: '800',
     },
+    primaryLabel: { fontSize: 18 },
     actionButton: {
       minHeight: 38,
       paddingHorizontal: 16,
@@ -88,7 +96,8 @@ const createStyles = (theme: AppTheme) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
-    action: { flexShrink: 0, fontSize: 14, fontWeight: '800' },
+    action: { flexShrink: 0, fontSize: 13, fontWeight: '800' },
+    primaryAction: { fontSize: 15 },
     actionButtonText: { color: theme.colors.onPrimary },
     positiveText: { color: theme.colors.positive },
     negativeText: { color: theme.colors.negative },

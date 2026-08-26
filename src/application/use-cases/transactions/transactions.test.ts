@@ -201,7 +201,7 @@ describe('transaction use cases', () => {
 
   it('filters and enriches transactions for presentation', async () => {
     const { accounts, categories, transactions, create } = await setup();
-    await create.execute({
+    const cleared = await create.execute({
       kind: 'expense',
       accountId: account.id,
       categoryId: category.id,
@@ -210,6 +210,11 @@ describe('transaction use cases', () => {
       notes: 'Weekly shop',
       date: '2026-08-18',
       status: 'cleared',
+    });
+    await transactions.save({
+      ...cleared,
+      id: 'uncleared-transaction',
+      status: 'uncleared',
     });
 
     const result = await new GetTransactions(
@@ -220,6 +225,7 @@ describe('transaction use cases', () => {
       payee: 'merc',
       memo: 'week',
       categoryId: category.id,
+      status: 'cleared',
     });
 
     expect(result).toEqual([
@@ -228,6 +234,7 @@ describe('transaction use cases', () => {
         categoryName: 'Groceries',
       }),
     ]);
+    expect(result[0]?.transaction.status).toBe('cleared');
   });
 
   it('filters Uncategorized without including income or categorized expenses', async () => {

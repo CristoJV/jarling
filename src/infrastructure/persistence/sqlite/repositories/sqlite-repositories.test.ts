@@ -164,6 +164,7 @@ describe('SQLite repositories', () => {
       repository.findAll({
         accountId: 'account-1',
         categoryId: 'category-1',
+        status: 'cleared',
         search: 'market',
         payee: 'mercado',
         memo: 'weekly',
@@ -182,6 +183,7 @@ describe('SQLite repositories', () => {
       expect.stringContaining("lower(coalesce(payee, '')) LIKE ?"),
       'account-1',
       'category-1',
+      'cleared',
       '2026-08-01',
       '2026-08-31',
       'transfer-1',
