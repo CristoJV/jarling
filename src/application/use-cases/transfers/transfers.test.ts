@@ -230,6 +230,8 @@ describe('transfers', () => {
       categories: [],
       groups: [],
     });
-    expect(budget.readyToAssign).toEqual(Money.fromCents(-25_000));
+    expect(budget.readyToAssign).toEqual(Money.zero());
+    expect(budget.funding.status).toBe('assigned-too-much');
+    expect(budget.funding.assignedTooMuch).toEqual(Money.fromCents(25_000));
   });
 });

@@ -32,6 +32,14 @@ const values = {
 const budget: BudgetMonthValues = {
   month: '2026-08',
   readyToAssign: Money.fromCents(100_000),
+  funding: {
+    status: 'ready-to-assign',
+    readyToAssign: Money.fromCents(100_000),
+    assignableNow: Money.fromCents(100_000),
+    futureAssignmentsAvailable: Money.zero(),
+    futureAssignmentsUsed: Money.zero(),
+    assignedTooMuch: Money.zero(),
+  },
   uncategorized: { amount: Money.zero(), transactionCount: 0 },
   groups: [
     {
@@ -64,7 +72,10 @@ describe('GetCategoryDetails', () => {
     );
 
     await expect(useCase.execute('category-1', '2026-08')).resolves.toEqual(
-      expect.objectContaining({ values, readyToAssign: budget.readyToAssign }),
+      expect.objectContaining({
+        values,
+        assignableNow: budget.funding.assignableNow,
+      }),
     );
   });
 

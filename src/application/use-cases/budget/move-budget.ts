@@ -84,10 +84,10 @@ export class MoveBudget {
 
       const budget = await this.getBudgetMonth.execute(input.month);
       if (input.source.kind === 'ready-to-assign') {
-        if (budget.readyToAssign.cents < amount.cents) {
+        if (budget.funding.assignableNow.cents < amount.cents) {
           throw new InsufficientReadyToAssignError(
             amount,
-            budget.readyToAssign,
+            budget.funding.assignableNow,
           );
         }
       } else {

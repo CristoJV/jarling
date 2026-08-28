@@ -5,6 +5,14 @@ import { Money } from '@/domain/value-objects/money';
 export class InMemoryBudgetAllocationRepository implements BudgetAllocationRepository {
   private readonly allocations = new Map<string, BudgetAllocation>();
 
+  async findAll(): Promise<readonly BudgetAllocation[]> {
+    return [...this.allocations.values()].sort(
+      (left, right) =>
+        left.month.localeCompare(right.month) ||
+        left.categoryId.localeCompare(right.categoryId),
+    );
+  }
+
   async findByCategoryAndMonth(
     categoryId: string,
     month: string,

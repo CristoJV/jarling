@@ -49,13 +49,36 @@ then keeps that plan accurate through transactions and reconciliation.
 - A category allocation assigns money for one month; it is not a transaction.
 - Category Available is derived from previous availability, current Assigned,
   and current Activity. It rolls forward and may be negative.
-- Ready to Assign is the residual between budgetable cash and all envelope
-  balances. A credit account contributes only a positive balance; debt never
-  increases Ready to Assign.
+- Ready to Assign is money already owned that is not allocated in any budget
+  month. Allocating cash in a future month reserves it globally, so navigating
+  back never makes the same money appear unassigned again.
+- Cash reserved in later months remains reusable from an earlier month. Using
+  it does not alter or choose a future category; it reduces the backed future
+  amount and may create a chronological deficit in later months.
+- Assigned Too Much is the positive size of a monthly deficit. It begins in
+  the first month where cumulative allocations exceed cumulative budgetable
+  funds and remains visible in subsequent months until income or reduced
+  allocations restore the balance.
+- A credit account contributes only a positive balance; debt never increases
+  Ready to Assign.
 - Moving money supports Ready to Assign to category, category to Ready to
   Assign, and category to category. Compound writes are atomic.
 - Overspending remains visible. Jarling does not silently move money to cover
   it.
+
+#### Ready to Assign and future allocation example
+
+With EUR 1,000 available in August, allocating EUR 600 in September and EUR
+400 in November leaves no genuinely unassigned money in August. The full EUR
+1,000 is shown as available from future allocations instead.
+
+If another EUR 200 is allocated in August, Jarling leaves both future
+allocations unchanged, shows EUR 800 still reusable from them, and warns that
+EUR 200 of future allocations is being used. Under chronological accounting,
+September remains backed by EUR 200 and the first EUR 200 deficit occurs in
+November. The Review action opens that first deficit month. New income or a
+reduced allocation recalculates the complete state and can move or remove the
+deficit.
 
 ### Categories
 
@@ -63,6 +86,10 @@ then keeps that plan accurate through transactions and reconciliation.
   useful emoji-prefixed defaults.
 - Uncategorized is a transaction state, not a category or category group. A
   standard expense is uncategorized when its optional `categoryId` is null.
+- An uncategorized expense reduces Ready to Assign beginning in its transaction
+  month and therefore also reduces cash backing future allocations. Assigning
+  it to a category removes that direct reduction and records the amount as
+  category Activity without counting the expense twice.
 - Budget surfaces current-month uncategorized expenses directly below Ready to
   Assign and links to the matching transaction filter for review.
 - Income, opening balances, transfers, and reconciliation adjustments retain

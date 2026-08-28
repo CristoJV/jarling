@@ -29,6 +29,16 @@ export function budgetAllocationFromRow(
 export class SQLiteBudgetAllocationRepository implements BudgetAllocationRepository {
   constructor(private readonly database: SQLiteDatabase) {}
 
+  async findAll(): Promise<readonly BudgetAllocation[]> {
+    const rows = await this.database.getAllAsync<BudgetAllocationRow>(
+      `SELECT id, category_id, month, amount, created_at, updated_at
+       FROM budget_allocations
+       ORDER BY month ASC, category_id ASC`,
+    );
+
+    return rows.map(budgetAllocationFromRow);
+  }
+
   async findByCategoryAndMonth(
     categoryId: string,
     month: string,

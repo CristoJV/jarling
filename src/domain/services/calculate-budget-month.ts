@@ -6,6 +6,10 @@ import type { CategoryGroup } from '@/domain/entities/category-group';
 import type { Transaction } from '@/domain/entities/transaction';
 import { Money } from '@/domain/value-objects/money';
 import { calculateCreditCardPaymentState } from '@/domain/services/calculate-credit-card-payment-state';
+import {
+  calculateBudgetFundingState,
+  type BudgetFundingState,
+} from '@/domain/services/calculate-budget-funding-state';
 
 export type BudgetCategoryValues = Readonly<{
   category: Category;
@@ -26,6 +30,7 @@ export type BudgetGroupValues = Readonly<{
 export type BudgetMonthValues = Readonly<{
   month: string;
   readyToAssign: Money;
+  funding: BudgetFundingState;
   uncategorized: Readonly<{
     amount: Money;
     transactionCount: number;
@@ -45,6 +50,64 @@ export type CalculateBudgetMonthInput = Readonly<{
 export function calculateBudgetMonth(
   input: CalculateBudgetMonthInput,
 ): BudgetMonthValues {
+  const snapshot = calculateBudgetMonthSnapshot(input);
+  const groupIds = new Set(input.groups.map(({ id }) => id));
+  const categoryIds = new Set(
+    input.categories
+      .filter(({ groupId }) => groupIds.has(groupId))
+      .map(({ id }) => id),
+  );
+  const relevantAllocations = input.allocations.filter(({ categoryId }) =>
+    categoryIds.has(categoryId),
+  );
+  const futureAllocations = relevantAllocations.filter(
+    ({ month }) => month > input.month,
+  );
+  const lastFutureAllocationMonth = futureAllocations.reduce(
+    (latest, allocation) =>
+      allocation.month > latest ? allocation.month : latest,
+    input.month,
+  );
+  const timelineMonths = new Set<string>([
+    input.month,
+    ...futureAllocations.map(({ month }) => month),
+    ...input.transactions
+      .map(({ date }) => date.slice(0, 7))
+      .filter(
+        (month) => month > input.month && month <= lastFutureAllocationMonth,
+      ),
+  ]);
+  const assignedByMonth = new Map<string, number>();
+  for (const allocation of relevantAllocations) {
+    assignedByMonth.set(
+      allocation.month,
+      (assignedByMonth.get(allocation.month) ?? 0) + allocation.amount.cents,
+    );
+  }
+  const funding = calculateBudgetFundingState({
+    visibleMonth: input.month,
+    months: [...timelineMonths].map((month) => ({
+      month,
+      balance:
+        month === input.month
+          ? snapshot.readyToAssign
+          : calculateBudgetMonthSnapshot({ ...input, month }).readyToAssign,
+      assigned: Money.fromCents(assignedByMonth.get(month) ?? 0),
+    })),
+  });
+
+  return {
+    ...snapshot,
+    readyToAssign: funding.readyToAssign,
+    funding,
+  };
+}
+
+type BudgetMonthSnapshot = Omit<BudgetMonthValues, 'funding'>;
+
+function calculateBudgetMonthSnapshot(
+  input: CalculateBudgetMonthInput,
+): BudgetMonthSnapshot {
   assertValidBudgetMonth(input.month);
   const onBudgetAccountIds = new Set(
     input.accounts
