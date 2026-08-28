@@ -27,57 +27,75 @@ export function SelectionModal<Value extends string>({
   const { t } = useTranslation();
   const styles = useThemedStyles(createStyles);
   const centered = placement === 'center';
-  const sheet = (
-    <Pressable style={[styles.sheet, centered && styles.sheetCentered]}>
-      <SafeBottomSheet respectBottomInset={!centered}>
-        {centered ? null : <View style={styles.handle} />}
-        <View style={styles.header}>
-          <Text style={styles.title}>{title}</Text>
-          <Pressable hitSlop={10} onPress={onDismiss}>
-            <Text style={styles.dismiss}>{t('common.close')}</Text>
-          </Pressable>
+  const optionRows = options.map((option, index) => {
+    const selected = option.value === selectedValue;
+    return (
+      <Pressable
+        accessibilityRole="radio"
+        accessibilityState={{ selected }}
+        key={option.value}
+        onPress={() => {
+          onSelect(option.value);
+          onDismiss();
+        }}
+        style={[
+          styles.option,
+          index === options.length - 1 && styles.optionLast,
+          selected && styles.optionSelected,
+        ]}
+      >
+        <View style={styles.optionCopy}>
+          <Text style={styles.optionLabel}>{option.label}</Text>
+          {option.description ? (
+            <Text style={styles.optionDescription}>{option.description}</Text>
+          ) : null}
         </View>
-        <ScrollView contentContainerStyle={styles.options}>
-          {options.map((option) => {
-            const selected = option.value === selectedValue;
-            return (
-              <Pressable
-                accessibilityRole="radio"
-                accessibilityState={{ selected }}
-                key={option.value}
-                onPress={() => {
-                  onSelect(option.value);
-                  onDismiss();
-                }}
-                style={[styles.option, selected && styles.optionSelected]}
-              >
-                <View style={styles.optionCopy}>
-                  <Text style={styles.optionLabel}>{option.label}</Text>
-                  {option.description ? (
-                    <Text style={styles.optionDescription}>
-                      {option.description}
-                    </Text>
-                  ) : null}
-                </View>
-                <Text style={styles.check}>{selected ? '✓' : ''}</Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-      </SafeBottomSheet>
-    </Pressable>
+        <Text style={styles.check}>{selected ? '✓' : ''}</Text>
+      </Pressable>
+    );
+  });
+  const header = (
+    <View style={styles.header}>
+      <Text numberOfLines={1} style={styles.title}>
+        {title}
+      </Text>
+      <Pressable hitSlop={10} onPress={onDismiss}>
+        <Text style={styles.dismiss}>{t('common.close')}</Text>
+      </Pressable>
+    </View>
+  );
+  const optionList = (
+    <ScrollView
+      contentContainerStyle={styles.options}
+      style={styles.optionsScroll}
+    >
+      {optionRows}
+    </ScrollView>
   );
 
   if (!centered) {
     return (
       <AnimatedBottomSheetModal onDismiss={onDismiss}>
-        {sheet}
+        <Pressable style={styles.sheet}>
+          <SafeBottomSheet>
+            <View style={styles.handle} />
+            {header}
+            {optionList}
+          </SafeBottomSheet>
+        </Pressable>
       </AnimatedBottomSheetModal>
     );
   }
 
   return (
-    <AnimatedCenteredModal onDismiss={onDismiss}>{sheet}</AnimatedCenteredModal>
+    <AnimatedCenteredModal onDismiss={onDismiss}>
+      <View style={styles.centeredFrame}>
+        <View style={styles.centeredDialog}>
+          {header}
+          {optionList}
+        </View>
+      </View>
+    </AnimatedCenteredModal>
   );
 }
 
@@ -91,10 +109,22 @@ const createStyles = (theme: AppTheme) =>
       borderTopRightRadius: 26,
       overflow: 'hidden',
     },
-    sheetCentered: {
+    centeredFrame: {
       width: '100%',
-      maxWidth: 460,
+      maxWidth: 440,
+      maxHeight: '100%',
+      shadowColor: '#000000',
+      shadowOffset: { width: 0, height: 7 },
+      shadowOpacity: 0.2,
+      shadowRadius: 18,
+      elevation: 12,
+    },
+    centeredDialog: {
+      width: '100%',
+      maxHeight: '100%',
+      backgroundColor: theme.colors.surface,
       borderRadius: 24,
+      overflow: 'hidden',
     },
     handle: {
       width: 42,
@@ -113,9 +143,16 @@ const createStyles = (theme: AppTheme) =>
       alignItems: 'center',
       justifyContent: 'space-between',
     },
-    title: { color: theme.colors.text, fontSize: 20, fontWeight: '700' },
+    title: {
+      minWidth: 0,
+      color: theme.colors.text,
+      fontSize: 20,
+      fontWeight: '700',
+      flex: 1,
+    },
     dismiss: { color: theme.colors.primary, fontSize: 14, fontWeight: '700' },
-    options: { paddingHorizontal: 16, paddingBottom: 12 },
+    options: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 12 },
+    optionsScroll: { flexShrink: 1 },
     option: {
       minHeight: 64,
       paddingHorizontal: 10,
@@ -125,6 +162,7 @@ const createStyles = (theme: AppTheme) =>
       alignItems: 'center',
     },
     optionSelected: { backgroundColor: theme.colors.surfacePressed },
+    optionLast: { borderBottomWidth: 0 },
     optionCopy: { flex: 1, paddingVertical: 12 },
     optionLabel: { color: theme.colors.text, fontSize: 16, fontWeight: '600' },
     optionDescription: {

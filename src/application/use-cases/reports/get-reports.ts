@@ -6,6 +6,13 @@ import {
   calculateReports,
   type ReportsSnapshot,
 } from '@/domain/services/calculate-reports';
+import type { SpendingIntervalUnit } from '@/domain/services/calculate-spending-report';
+
+export type GetReportsInput = Readonly<{
+  throughDate: string;
+  spendingInterval: SpendingIntervalUnit;
+  spendingIntervalCount: number;
+}>;
 
 export class GetReports {
   constructor(
@@ -15,15 +22,17 @@ export class GetReports {
     private readonly transactions: TransactionRepository,
   ) {}
 
-  async execute(throughMonth: string): Promise<ReportsSnapshot> {
+  async execute(input: GetReportsInput): Promise<ReportsSnapshot> {
     const [accounts, groups, categories, transactions] = await Promise.all([
       this.accounts.findAll(),
       this.groups.findAll(),
       this.categories.findAll(),
-      this.transactions.findAll({ dateTo: `${throughMonth}-31` }),
+      this.transactions.findAll({ dateTo: input.throughDate }),
     ]);
     return calculateReports({
-      throughMonth,
+      throughDate: input.throughDate,
+      spendingInterval: input.spendingInterval,
+      spendingIntervalCount: input.spendingIntervalCount,
       accounts,
       groups,
       categories,

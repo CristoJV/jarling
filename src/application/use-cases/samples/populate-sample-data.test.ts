@@ -91,8 +91,32 @@ describe('PopulateSampleData', () => {
       ),
     );
     const overview = await new GetAccounts(accounts, transactions).execute();
+    const historicalExpenses = (await transactions.findAll()).filter(
+      (transaction) =>
+        transaction.date < '2026-08-01' && transaction.categoryId !== undefined,
+    );
+    const monthlySpending = new Map<string, number>();
+    const categoryOccurrences = new Map<string, number>();
+    for (const transaction of historicalExpenses) {
+      const month = transaction.date.slice(0, 7);
+      monthlySpending.set(
+        month,
+        (monthlySpending.get(month) ?? 0) - transaction.amount.cents,
+      );
+      categoryOccurrences.set(
+        transaction.categoryId!,
+        (categoryOccurrences.get(transaction.categoryId!) ?? 0) + 1,
+      );
+    }
 
     expect(overview.accounts[0]?.balance).toEqual(Money.fromCents(177_000));
+    expect(historicalExpenses).toHaveLength(23);
+    expect(monthlySpending.size).toBe(5);
+    expect(new Set(monthlySpending.values()).size).toBe(5);
+    expect(categoryOccurrences.size).toBe(5);
+    expect([...categoryOccurrences.values()].every((count) => count > 1)).toBe(
+      true,
+    );
     expect(budget.readyToAssign).toEqual(Money.zero());
     expect(values.get('🛒 Groceries')).toEqual(
       expect.objectContaining({
@@ -161,7 +185,7 @@ describe('PopulateSampleData', () => {
     expect(await accounts.findAll()).toHaveLength(1);
     expect(await groups.findAll()).toHaveLength(4);
     expect(await categories.findAll()).toHaveLength(5);
-    expect(await transactions.findAll()).toHaveLength(3);
+    expect(await transactions.findAll()).toHaveLength(31);
     expect(await targets.findAll()).toHaveLength(4);
   });
 });

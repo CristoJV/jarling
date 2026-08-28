@@ -1,5 +1,5 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -11,12 +11,17 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import type {
-  ReportMonth,
-  ReportsSnapshot,
-} from '@/domain/services/calculate-reports';
+import type { ReportMonth } from '@/domain/services/calculate-reports';
+import type { SpendingIntervalUnit } from '@/domain/services/calculate-spending-report';
 import { Money } from '@/domain/value-objects/money';
 import { OverflowMenu } from '@/presentation/components/common/overflow-menu';
+import { SelectionModal } from '@/presentation/components/common/selection-modal';
+import { ReportHero } from '@/presentation/components/reports/report-hero';
+import { createReportCategoryColors } from '@/presentation/components/reports/report-category-colors';
+import {
+  SpendingCategoryBreakdown,
+  SpendingReportOverview,
+} from '@/presentation/components/reports/spending-report-view';
 import { useReports } from '@/presentation/hooks/use-reports';
 import { useTranslation } from '@/presentation/localization/localization-provider';
 import {
@@ -30,16 +35,29 @@ import {
   useThemedStyles,
 } from '@/presentation/theme/theme-provider';
 import { formatMoney } from '@/presentation/utils/money';
-import {
-  categoryDisplayName,
-  groupDisplayName,
-} from '@/presentation/utils/category-name';
 
 type ReportKind = 'spending' | 'income' | 'netWorth';
+type ReportSelector = 'report' | 'interval' | 'period' | null;
 
-function currentMonth(): string {
+const INTERVAL_COUNTS: Readonly<
+  Record<SpendingIntervalUnit, readonly number[]>
+> = {
+  day: [7, 14, 30, 90],
+  week: [4, 8, 12, 26],
+  month: [3, 6, 12],
+  year: [2, 3, 4],
+};
+
+const DEFAULT_INTERVAL_COUNT: Readonly<Record<SpendingIntervalUnit, number>> = {
+  day: 14,
+  week: 8,
+  month: 6,
+  year: 3,
+};
+
+function currentDate(): string {
   const date = new Date();
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
 function monthLabel(month: string, language: SupportedLanguage): string {
@@ -50,44 +68,83 @@ function monthLabel(month: string, language: SupportedLanguage): string {
 }
 
 export function ReportsScreen() {
-  const [throughMonth] = useState(currentMonth);
-  const { reports, error, loading, refresh } = useReports(throughMonth);
+  const [throughDate] = useState(currentDate);
   const [kind, setKind] = useState<ReportKind>('spending');
+  const [spendingInterval, setSpendingInterval] =
+    useState<SpendingIntervalUnit>('month');
+  const [spendingIntervalCount, setSpendingIntervalCount] = useState(6);
+  const [selector, setSelector] = useState<ReportSelector>(null);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>();
+  const [selectedIntervalKey, setSelectedIntervalKey] = useState<string>();
+  const { reports, error, loading, refresh } = useReports(
+    throughDate,
+    spendingInterval,
+    spendingIntervalCount,
+  );
   const { t } = useTranslation();
   const theme = useAppTheme();
   const styles = useThemedStyles(createStyles);
+  const selectedSpendingReports =
+    reports?.spending.interval === spendingInterval &&
+    reports.spending.intervalCount === spendingIntervalCount
+      ? reports
+      : null;
+
+  const effectiveSelectedCategoryId =
+    spendingIntervalCount > 1 &&
+    selectedSpendingReports?.spending.categories.some(
+      ({ categoryId }) => categoryId === selectedCategoryId,
+    )
+      ? selectedCategoryId
+      : undefined;
+  const effectiveSelectedIntervalKey =
+    spendingIntervalCount > 1 &&
+    selectedSpendingReports?.spending.intervals.some(
+      ({ key }) => key === selectedIntervalKey,
+    )
+      ? selectedIntervalKey
+      : undefined;
+  const categoryColors = useMemo(
+    () =>
+      createReportCategoryColors(
+        selectedSpendingReports?.spending.categories.map(
+          ({ categoryId }) => categoryId,
+        ) ?? [],
+        theme.dark,
+      ),
+    [selectedSpendingReports, theme.dark],
+  );
 
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
       <View style={styles.header}>
-        <View>
-          <Text style={styles.title}>{t('reports.title')}</Text>
-          <Text style={styles.period}>{t('reports.lastSixMonths')}</Text>
+        <View style={styles.headerCopy}>
+          <Text numberOfLines={1} style={styles.title}>
+            {t('reports.title')}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => setSelector('report')}
+            style={({ pressed }) => [
+              styles.reportKindSelector,
+              pressed && styles.reportKindSelectorPressed,
+            ]}
+          >
+            <Text numberOfLines={1} style={styles.reportKindSelectorText}>
+              {t(`reports.${kind}`)}
+            </Text>
+            <MaterialCommunityIcons
+              color={theme.colors.primary}
+              name="chevron-down-circle"
+              size={21}
+            />
+          </Pressable>
         </View>
-        <OverflowMenu />
-      </View>
-      <View style={styles.tabs}>
-        <ReportTab
-          active={kind === 'spending'}
-          icon="chart-donut"
-          label={t('reports.spending')}
-          onPress={() => setKind('spending')}
-        />
-        <ReportTab
-          active={kind === 'income'}
-          icon="chart-bar"
-          label={t('reports.income')}
-          onPress={() => setKind('income')}
-        />
-        <ReportTab
-          active={kind === 'netWorth'}
-          icon="chart-line"
-          label={t('reports.netWorth')}
-          onPress={() => setKind('netWorth')}
-        />
+        <View style={styles.headerActions}>
+          <OverflowMenu />
+        </View>
       </View>
       <ScrollView
-        contentContainerStyle={styles.content}
         refreshControl={
           <RefreshControl
             onRefresh={() => void refresh()}
@@ -96,117 +153,148 @@ export function ReportsScreen() {
           />
         }
       >
-        {loading && !reports ? (
-          <ActivityIndicator color={theme.colors.primary} size="large" />
-        ) : null}
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-        {reports && kind === 'spending' ? (
-          <SpendingReport reports={reports} />
-        ) : null}
-        {reports && kind === 'income' ? (
-          <MonthlyReport kind="income" months={reports.months} />
-        ) : null}
-        {reports && kind === 'netWorth' ? (
-          <MonthlyReport kind="netWorth" months={reports.months} />
-        ) : null}
+        <View style={styles.content}>
+          {kind === 'spending' ? (
+            <>
+              <View style={styles.reportSelectors}>
+                <ReportSelectorButton
+                  label={intervalLabel(spendingInterval, t)}
+                  onPress={() => setSelector('interval')}
+                />
+                <ReportSelectorButton
+                  label={periodLabel(spendingIntervalCount, t)}
+                  onPress={() => setSelector('period')}
+                />
+              </View>
+              {selectedSpendingReports ? (
+                <SpendingReportOverview
+                  categoryColors={categoryColors}
+                  onClearCategory={() => setSelectedCategoryId(undefined)}
+                  onClearInterval={() => setSelectedIntervalKey(undefined)}
+                  onSelectInterval={(intervalKey) =>
+                    setSelectedIntervalKey((current) =>
+                      current === intervalKey ? undefined : intervalKey,
+                    )
+                  }
+                  report={selectedSpendingReports.spending}
+                  selectedCategoryId={effectiveSelectedCategoryId}
+                  selectedIntervalKey={effectiveSelectedIntervalKey}
+                />
+              ) : (
+                <View style={styles.overviewLoading}>
+                  {loading ? (
+                    <ActivityIndicator color={theme.colors.primary} />
+                  ) : null}
+                </View>
+              )}
+            </>
+          ) : null}
+          {loading && kind !== 'spending' && !reports ? (
+            <ActivityIndicator color={theme.colors.primary} size="large" />
+          ) : null}
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+          {selectedSpendingReports && kind === 'spending' ? (
+            <SpendingCategoryBreakdown
+              categoryColors={categoryColors}
+              onSelectCategory={(categoryId) =>
+                setSelectedCategoryId((current) =>
+                  current === categoryId ? undefined : categoryId,
+                )
+              }
+              report={selectedSpendingReports.spending}
+              selectedCategoryId={effectiveSelectedCategoryId}
+              selectedIntervalKey={effectiveSelectedIntervalKey}
+            />
+          ) : null}
+          {reports && kind === 'income' ? (
+            <MonthlyReport kind="income" months={reports.months} />
+          ) : null}
+          {reports && kind === 'netWorth' ? (
+            <MonthlyReport kind="netWorth" months={reports.months} />
+          ) : null}
+        </View>
       </ScrollView>
+
+      {selector === 'report' ? (
+        <SelectionModal
+          onDismiss={() => setSelector(null)}
+          onSelect={(value) => {
+            setKind(value);
+            setSelector(null);
+          }}
+          options={(['spending', 'income', 'netWorth'] as const).map(
+            (value) => ({ value, label: t(`reports.${value}`) }),
+          )}
+          placement="center"
+          selectedValue={kind}
+          title={t('reports.title')}
+        />
+      ) : null}
+      {selector === 'interval' ? (
+        <SelectionModal
+          onDismiss={() => setSelector(null)}
+          onSelect={(value) => {
+            setSelectedCategoryId(undefined);
+            setSelectedIntervalKey(undefined);
+            if (value !== spendingInterval) {
+              setSpendingIntervalCount(DEFAULT_INTERVAL_COUNT[value]);
+            }
+            setSpendingInterval(value);
+          }}
+          options={(['day', 'week', 'month', 'year'] as const).map((value) => ({
+            value,
+            label: intervalLabel(value, t),
+          }))}
+          placement="center"
+          selectedValue={spendingInterval}
+          title={t('reports.interval')}
+        />
+      ) : null}
+      {selector === 'period' ? (
+        <SelectionModal
+          onDismiss={() => setSelector(null)}
+          onSelect={(value) => {
+            setSelectedCategoryId(undefined);
+            setSelectedIntervalKey(undefined);
+            setSpendingIntervalCount(Number(value));
+          }}
+          options={INTERVAL_COUNTS[spendingInterval].map((count) => ({
+            value: String(count),
+            label: periodLabel(count, t),
+          }))}
+          placement="center"
+          selectedValue={String(spendingIntervalCount)}
+          title={t('reports.period')}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }
 
-function ReportTab({
-  active,
-  icon,
+function ReportSelectorButton({
   label,
   onPress,
-}: Readonly<{
-  active: boolean;
-  icon: 'chart-donut' | 'chart-bar' | 'chart-line';
-  label: string;
-  onPress: () => void;
-}>) {
+}: Readonly<{ label: string; onPress: () => void }>) {
   const theme = useAppTheme();
   const styles = useThemedStyles(createStyles);
   return (
     <Pressable
-      accessibilityRole="tab"
-      accessibilityState={{ selected: active }}
+      accessibilityRole="button"
       onPress={onPress}
-      style={[styles.tab, active && styles.tabActive]}
+      style={({ pressed }) => [
+        styles.reportSelector,
+        pressed && styles.reportSelectorPressed,
+      ]}
     >
-      <MaterialCommunityIcons
-        color={active ? theme.colors.onPrimary : theme.colors.textSecondary}
-        name={icon}
-        size={18}
-      />
-      <Text style={[styles.tabText, active && styles.tabTextActive]}>
+      <Text numberOfLines={1} style={styles.reportSelectorText}>
         {label}
       </Text>
-    </Pressable>
-  );
-}
-
-function SpendingReport({ reports }: Readonly<{ reports: ReportsSnapshot }>) {
-  const { t } = useTranslation();
-  const styles = useThemedStyles(createStyles);
-  return (
-    <>
-      <Hero
-        amount={formatMoney(reports.spending.total)}
-        caption={t('reports.monthlyAverage', {
-          amount: formatMoney(reports.spending.monthlyAverage),
-        })}
-        eyebrow={t('reports.totalSpending')}
+      <MaterialCommunityIcons
+        color={theme.colors.primary}
+        name="chevron-down"
+        size={21}
       />
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>{t('reports.spendingBreakdown')}</Text>
-        {reports.spending.categories.length === 0 ? (
-          <Text style={styles.empty}>{t('reports.emptySpending')}</Text>
-        ) : (
-          reports.spending.categories.map((category) => (
-            <View key={category.categoryId} style={styles.categoryRow}>
-              <View style={styles.rowHeader}>
-                <View style={styles.rowCopy}>
-                  <Text numberOfLines={1} style={styles.rowTitle}>
-                    {categoryDisplayName(
-                      {
-                        id: category.categoryId,
-                        name: category.categoryName,
-                      },
-                      t,
-                    )}
-                  </Text>
-                  <Text style={styles.rowSubtitle}>
-                    {category.groupId
-                      ? groupDisplayName(
-                          { id: category.groupId, name: category.groupName },
-                          t,
-                        )
-                      : category.groupName}
-                  </Text>
-                </View>
-                <View style={styles.rowAmountCopy}>
-                  <Text style={styles.rowAmount}>
-                    {formatMoney(category.spending)}
-                  </Text>
-                  <Text style={styles.percentage}>
-                    {Math.round(category.percentage * 100)}%
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.track}>
-                <View
-                  style={[
-                    styles.spendingBar,
-                    { width: `${Math.max(2, category.percentage * 100)}%` },
-                  ]}
-                />
-              </View>
-            </View>
-          ))
-        )}
-      </View>
-    </>
+    </Pressable>
   );
 }
 
@@ -237,7 +325,7 @@ function MonthlyReport({
 
   return (
     <>
-      <Hero
+      <ReportHero
         amount={formatMoney(Money.fromCents(netCents))}
         caption={
           incomeReport
@@ -291,29 +379,6 @@ function MonthlyReport({
   );
 }
 
-function Hero({
-  amount,
-  caption,
-  eyebrow,
-  negative = false,
-}: Readonly<{
-  amount: string;
-  caption: string;
-  eyebrow: string;
-  negative?: boolean;
-}>) {
-  const styles = useThemedStyles(createStyles);
-  return (
-    <View style={styles.heroCard}>
-      <Text style={styles.eyebrow}>{eyebrow}</Text>
-      <Text style={[styles.heroAmount, negative && styles.heroNegative]}>
-        {amount}
-      </Text>
-      <Text style={styles.heroCaption}>{caption}</Text>
-    </View>
-  );
-}
-
 function MetricBar({
   color,
   maximum,
@@ -345,48 +410,93 @@ function Legend({ color, label }: Readonly<{ color: string; label: string }>) {
   );
 }
 
+function intervalLabel(
+  interval: SpendingIntervalUnit,
+  t: ReturnType<typeof useTranslation>['t'],
+) {
+  return t(`reports.interval.${interval}`);
+}
+
+function periodLabel(count: number, t: ReturnType<typeof useTranslation>['t']) {
+  return t('reports.lastIntervals', { count });
+}
+
 const createStyles = (theme: AppTheme) =>
   StyleSheet.create({
     safeArea: { flex: 1, backgroundColor: theme.colors.background },
     header: {
       minHeight: MAIN_SCREEN_HEADER_HEIGHT,
       paddingHorizontal: MAIN_SCREEN_HORIZONTAL_PADDING,
+      backgroundColor: theme.colors.background,
+      borderBottomColor: theme.colors.border,
+      borderBottomWidth: StyleSheet.hairlineWidth,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
     },
-    title: { color: theme.colors.text, fontSize: 24, fontWeight: '800' },
-    period: {
-      marginTop: 2,
-      color: theme.colors.textMuted,
-      fontSize: 12,
-      fontWeight: '600',
+    title: {
+      color: theme.colors.text,
+      fontSize: 24,
+      fontWeight: '700',
+      letterSpacing: -0.6,
     },
-    tabs: {
-      marginHorizontal: 20,
-      padding: 4,
-      backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 18,
-      flexDirection: 'row',
-      gap: 4,
-    },
-    tab: {
-      minHeight: 46,
-      paddingHorizontal: 8,
-      borderRadius: 14,
+    headerCopy: {
+      minWidth: 0,
       flex: 1,
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'center',
-      gap: 6,
+      gap: 10,
     },
-    tabActive: { backgroundColor: theme.colors.primary },
-    tabText: {
-      color: theme.colors.textSecondary,
-      fontSize: 12,
+    reportKindSelector: {
+      minHeight: 38,
+      paddingHorizontal: 10,
+      backgroundColor: theme.colors.surfaceMuted,
+      borderRadius: 13,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 7,
+      flexShrink: 1,
+    },
+    reportKindSelectorPressed: {
+      backgroundColor: theme.colors.surfacePressed,
+    },
+    reportKindSelectorText: {
+      color: theme.colors.text,
+      fontSize: 15,
+      fontWeight: '700',
+      flexShrink: 1,
+    },
+    headerActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    reportSelectors: {
+      flexDirection: 'row',
+      gap: 10,
+    },
+    overviewLoading: {
+      minHeight: 132,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    reportSelector: {
+      minWidth: 0,
+      minHeight: 48,
+      paddingHorizontal: 14,
+      backgroundColor: theme.colors.surface,
+      borderColor: theme.colors.border,
+      borderRadius: 15,
+      borderWidth: 1,
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
+    },
+    reportSelectorPressed: { backgroundColor: theme.colors.surfacePressed },
+    reportSelectorText: {
+      flex: 1,
+      color: theme.colors.text,
+      fontSize: 14,
       fontWeight: '700',
     },
-    tabTextActive: { color: theme.colors.onPrimary },
     content: {
       width: '100%',
       maxWidth: 820,
@@ -394,36 +504,6 @@ const createStyles = (theme: AppTheme) =>
       paddingBottom: 36,
       alignSelf: 'center',
       gap: 16,
-    },
-    heroCard: {
-      minHeight: 154,
-      padding: 24,
-      backgroundColor: theme.colors.primary,
-      borderRadius: 26,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    eyebrow: {
-      color: theme.colors.onPrimary,
-      opacity: 0.78,
-      fontSize: 11,
-      fontWeight: '800',
-      letterSpacing: 1.1,
-    },
-    heroAmount: {
-      marginTop: 8,
-      color: theme.colors.onPrimary,
-      fontSize: 34,
-      fontVariant: ['tabular-nums'],
-      fontWeight: '800',
-    },
-    heroNegative: { color: theme.colors.negativeMuted },
-    heroCaption: {
-      marginTop: 4,
-      color: theme.colors.onPrimary,
-      opacity: 0.78,
-      fontSize: 13,
-      fontWeight: '600',
     },
     card: {
       padding: 18,
@@ -434,34 +514,6 @@ const createStyles = (theme: AppTheme) =>
       gap: 14,
     },
     cardTitle: { color: theme.colors.text, fontSize: 18, fontWeight: '800' },
-    categoryRow: { paddingTop: 3, gap: 8 },
-    rowHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-    rowCopy: { flex: 1 },
-    rowTitle: { color: theme.colors.text, fontSize: 15, fontWeight: '700' },
-    rowSubtitle: { marginTop: 2, color: theme.colors.textMuted, fontSize: 11 },
-    rowAmountCopy: { alignItems: 'flex-end' },
-    rowAmount: {
-      color: theme.colors.text,
-      fontSize: 14,
-      fontVariant: ['tabular-nums'],
-      fontWeight: '700',
-    },
-    percentage: {
-      color: theme.colors.textMuted,
-      fontSize: 10,
-      fontWeight: '700',
-    },
-    track: {
-      height: 8,
-      backgroundColor: theme.colors.track,
-      borderRadius: 4,
-      overflow: 'hidden',
-    },
-    spendingBar: {
-      height: '100%',
-      backgroundColor: theme.colors.positive,
-      borderRadius: 4,
-    },
     legend: { flexDirection: 'row', gap: 18 },
     legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     legendDot: { width: 9, height: 9, borderRadius: 5 },
@@ -499,12 +551,6 @@ const createStyles = (theme: AppTheme) =>
       textAlign: 'right',
     },
     negative: { color: theme.colors.negative },
-    empty: {
-      paddingVertical: 34,
-      color: theme.colors.textMuted,
-      fontSize: 14,
-      textAlign: 'center',
-    },
     error: {
       padding: 14,
       color: theme.colors.negative,

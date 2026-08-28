@@ -4,6 +4,11 @@ import type { Category } from '@/domain/entities/category';
 import type { CategoryGroup } from '@/domain/entities/category-group';
 import type { Transaction } from '@/domain/entities/transaction';
 import { Money } from '@/domain/value-objects/money';
+import {
+  calculateSpendingReport,
+  type SpendingIntervalUnit,
+  type SpendingReport,
+} from '@/domain/services/calculate-spending-report';
 
 export type ReportMonth = Readonly<{
   month: string;
@@ -15,26 +20,15 @@ export type ReportMonth = Readonly<{
   netWorth: Money;
 }>;
 
-export type SpendingCategoryReport = Readonly<{
-  categoryId: string;
-  categoryName: string;
-  groupId?: string;
-  groupName: string;
-  spending: Money;
-  percentage: number;
-}>;
-
 export type ReportsSnapshot = Readonly<{
   months: readonly ReportMonth[];
-  spending: Readonly<{
-    total: Money;
-    monthlyAverage: Money;
-    categories: readonly SpendingCategoryReport[];
-  }>;
+  spending: SpendingReport;
 }>;
 
 type CalculateReportsInput = Readonly<{
-  throughMonth: string;
+  throughDate: string;
+  spendingInterval: SpendingIntervalUnit;
+  spendingIntervalCount: number;
   numberOfMonths?: number;
   accounts: readonly Account[];
   categories: readonly Category[];
@@ -57,13 +51,16 @@ function reportMonths(throughMonth: string, count: number): readonly string[] {
 }
 
 export function calculateReports({
-  throughMonth,
+  throughDate,
+  spendingInterval,
+  spendingIntervalCount,
   numberOfMonths = 6,
   accounts,
   categories,
   groups,
   transactions,
 }: CalculateReportsInput): ReportsSnapshot {
+  const throughMonth = throughDate.slice(0, 7);
   assertValidBudgetMonth(throughMonth);
   if (!Number.isSafeInteger(numberOfMonths) || numberOfMonths < 1) {
     throw new RangeError('numberOfMonths must be a positive integer');
@@ -72,11 +69,6 @@ export function calculateReports({
   const months = reportMonths(throughMonth, numberOfMonths);
   const firstMonth = months[0] ?? throughMonth;
   const accountById = new Map(accounts.map((account) => [account.id, account]));
-  const categoryById = new Map(
-    categories.map((category) => [category.id, category]),
-  );
-  const groupById = new Map(groups.map((group) => [group.id, group]));
-  const categorySpending = new Map<string, number>();
   const reportMonthSet = new Set(months);
   const incomeByMonth = new Map<string, number>();
   const spendingByMonth = new Map<string, number>();
@@ -84,6 +76,7 @@ export function calculateReports({
   const balanceChangesByMonth = new Map<string, Map<string, number>>();
 
   for (const transaction of transactions) {
+    if (transaction.date > throughDate) continue;
     const month = transaction.date.slice(0, 7);
     if (month > throughMonth) continue;
     const account = accountById.get(transaction.accountId);
@@ -120,11 +113,6 @@ export function calculateReports({
       month,
       (spendingByMonth.get(month) ?? 0) - transaction.amount.cents,
     );
-    categorySpending.set(
-      transaction.categoryId,
-      (categorySpending.get(transaction.categoryId) ?? 0) -
-        transaction.amount.cents,
-    );
   }
 
   const runningBalances = new Map(startingBalanceByAccount);
@@ -158,35 +146,16 @@ export function calculateReports({
     };
   });
 
-  const categoryRows = [...categorySpending]
-    .filter(([, cents]) => cents > 0)
-    .map(([categoryId, cents]) => {
-      const category = categoryById.get(categoryId);
-      return {
-        categoryId,
-        categoryName: category?.name ?? 'Unknown category',
-        ...(category ? { groupId: category.groupId } : {}),
-        groupName: category
-          ? (groupById.get(category.groupId)?.name ?? 'Other')
-          : 'Other',
-        spending: Money.fromCents(cents),
-      };
-    })
-    .sort((left, right) => right.spending.cents - left.spending.cents);
-  const totalCents = categoryRows.reduce(
-    (sum, category) => sum + category.spending.cents,
-    0,
-  );
-
   return {
     months: monthReports,
-    spending: {
-      total: Money.fromCents(totalCents),
-      monthlyAverage: Money.fromCents(Math.round(totalCents / numberOfMonths)),
-      categories: categoryRows.map((category) => ({
-        ...category,
-        percentage: totalCents === 0 ? 0 : category.spending.cents / totalCents,
-      })),
-    },
+    spending: calculateSpendingReport({
+      throughDate,
+      interval: spendingInterval,
+      intervalCount: spendingIntervalCount,
+      accounts,
+      categories,
+      groups,
+      transactions,
+    }),
   };
 }

@@ -84,7 +84,9 @@ function transaction(
 describe('calculateReports', () => {
   it('derives six-month spending, income and net worth without counting transfers as income', () => {
     const result = calculateReports({
-      throughMonth: '2026-08',
+      throughDate: '2026-08-31',
+      spendingInterval: 'month',
+      spendingIntervalCount: 6,
       accounts,
       categories,
       groups,
@@ -133,8 +135,9 @@ describe('calculateReports', () => {
         expect.objectContaining({
           categoryName: 'Groceries',
           groupName: 'Needs',
-          percentage: 1,
-          spending: Money.fromCents(8_000),
+          percentageOfTotal: 1,
+          total: Money.fromCents(8_000),
+          average: Money.fromCents(1_333),
         }),
       ],
     });
