@@ -238,6 +238,17 @@ export function BudgetScreen() {
         </View>
       </View>
 
+      {budget && primaryBudgetStatus ? (
+        <View style={styles.primaryBannerContainer}>
+          <BudgetStatusBanner
+            actionLabel={primaryBudgetStatus.actionLabel}
+            label={primaryBudgetStatus.label}
+            prominence="primary"
+            tone={primaryBudgetStatus.tone}
+          />
+        </View>
+      ) : null}
+
       <FlatList
         contentContainerStyle={styles.content}
         data={groups ?? []}
@@ -266,16 +277,10 @@ export function BudgetScreen() {
           <>
             {budget && primaryBudgetStatus ? (
               <>
-                <BudgetStatusBanner
-                  actionLabel={primaryBudgetStatus.actionLabel}
-                  label={primaryBudgetStatus.label}
-                  prominence="primary"
-                  tone={primaryBudgetStatus.tone}
-                />
                 {budget.funding.status === 'future-assignments' &&
                 budget.funding.futureAssignmentsUsed.cents > 0 &&
                 firstDeficitMonth ? (
-                  <View style={styles.secondaryBanner}>
+                  <View>
                     <BudgetStatusBanner
                       actionLabel={t('budget.review')}
                       label={t('budget.usingFutureAssignments', {
@@ -283,9 +288,8 @@ export function BudgetScreen() {
                           budget.funding.futureAssignmentsUsed,
                         ),
                       })}
-                      labelTone="warning"
                       onPress={() => setMonth(firstDeficitMonth)}
-                      tone="warning"
+                      tone="notice"
                     />
                   </View>
                 ) : null}
@@ -299,7 +303,6 @@ export function BudgetScreen() {
                           : 'budget.newTransactionsCount',
                         { count: budget.uncategorized.transactionCount },
                       )}`}
-                      labelTone="negative"
                       onPress={() =>
                         router.navigate(routes.uncategorizedTransactions())
                       }
@@ -510,6 +513,13 @@ const createStyles = (theme: AppTheme) =>
       paddingBottom: 120,
       alignSelf: 'center',
       gap: 8,
+    },
+    primaryBannerContainer: {
+      width: '100%',
+      maxWidth: 820,
+      paddingHorizontal: 12,
+      paddingTop: 10,
+      alignSelf: 'center',
     },
     error: {
       padding: 12,

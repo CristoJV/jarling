@@ -4,29 +4,35 @@ import type { TransactionStatus } from '@/domain/entities/transaction';
 import { useTranslation } from '@/presentation/localization/localization-provider';
 import type { AppTheme } from '@/presentation/theme/theme';
 import { useThemedStyles } from '@/presentation/theme/theme-provider';
+import type {
+  TransactionDateFilter,
+  TransactionDatePreset,
+} from '@/presentation/utils/transaction-date-filter';
 import type { TransactionSearchField } from '@/presentation/utils/transaction-search';
 
-export type TransactionSuggestion = Readonly<{ id: string; label: string }>;
-
 type Props = Readonly<{
-  accounts: readonly TransactionSuggestion[];
-  categories: readonly TransactionSuggestion[];
-  onSelectAccount: (id: string) => void;
-  onSelectCategory: (id: string) => void;
+  dateFilter?: TransactionDateFilter;
+  onSelectAccount: () => void;
+  onSelectCategory: () => void;
+  onSelectDateBoundary: (boundary: 'from' | 'to') => void;
+  onSelectDatePreset: (preset: TransactionDatePreset) => void;
   onSelectStatus: (status: TransactionStatus) => void;
   onSelectText: (field: TransactionSearchField) => void;
+  onSelectUncategorized: () => void;
   searchLabels: Readonly<Record<TransactionSearchField, string>>;
   statuses: readonly Readonly<{ value: TransactionStatus; label: string }>[];
   value: string;
 }>;
 
 export function TransactionSearchSuggestions({
-  accounts,
-  categories,
+  dateFilter,
   onSelectAccount,
   onSelectCategory,
+  onSelectDateBoundary,
+  onSelectDatePreset,
   onSelectStatus,
   onSelectText,
+  onSelectUncategorized,
   searchLabels,
   statuses,
   value,
@@ -34,10 +40,6 @@ export function TransactionSearchSuggestions({
   const { language, t } = useTranslation();
   const styles = useThemedStyles(createStyles);
   const query = value.trim();
-  const normalized = query.toLocaleLowerCase(language);
-  const matchingAccounts = matching(accounts, normalized, language);
-  const matchingCategories = matching(categories, normalized, language);
-  const matchingStatuses = matching(statuses, normalized, language);
 
   return (
     <ScrollView
@@ -64,56 +66,84 @@ export function TransactionSearchSuggestions({
             />
           ))}
         </Section>
-      ) : null}
-
-      {matchingAccounts.length > 0 ? (
-        <Section title={t('transactions.accountsFilter')}>
-          {matchingAccounts.map((account) => (
+      ) : (
+        <>
+          <Section title={t('transactions.dateFilter')}>
+            {(
+              [
+                ['this-week', t('transactions.thisWeek')],
+                ['previous-week', t('transactions.previousWeek')],
+                ['this-month', t('transactions.thisMonth')],
+                ['previous-month', t('transactions.previousMonth')],
+              ] as const
+            ).map(([preset, label]) => (
+              <Option
+                key={preset}
+                label={label}
+                onPress={() => onSelectDatePreset(preset)}
+              />
+            ))}
             <Option
-              key={account.id}
-              label={account.label}
-              onPress={() => onSelectAccount(account.id)}
+              label={
+                dateFilter?.dateFrom
+                  ? t('transactions.fromDateValue', {
+                      value: formatDate(dateFilter.dateFrom, language),
+                    })
+                  : t('transactions.fromDate')
+              }
+              onPress={() => onSelectDateBoundary('from')}
             />
-          ))}
-        </Section>
-      ) : null}
-
-      {matchingCategories.length > 0 ? (
-        <Section title={t('transactions.categoriesFilter')}>
-          {matchingCategories.map((category) => (
             <Option
-              key={category.id}
-              label={category.label}
-              onPress={() => onSelectCategory(category.id)}
+              label={
+                dateFilter?.dateTo
+                  ? t('transactions.toDateValue', {
+                      value: formatDate(dateFilter.dateTo, language),
+                    })
+                  : t('transactions.toDate')
+              }
+              onPress={() => onSelectDateBoundary('to')}
             />
-          ))}
-        </Section>
-      ) : null}
+          </Section>
 
-      {matchingStatuses.length > 0 ? (
-        <Section title={t('transactions.clearedFilter')}>
-          {matchingStatuses.map((status) => (
+          <Section title={t('transactions.categoriesFilter')}>
             <Option
-              key={status.value}
-              label={status.label}
-              onPress={() => onSelectStatus(status.value)}
+              label={t('transactions.uncategorized')}
+              onPress={onSelectUncategorized}
             />
-          ))}
-        </Section>
-      ) : null}
+            <Option
+              label={t('transactions.selectCategoryFilter')}
+              onPress={onSelectCategory}
+            />
+          </Section>
+
+          <Section title={t('transactions.accountsFilter')}>
+            <Option
+              label={t('transactions.selectAccountFilter')}
+              onPress={onSelectAccount}
+            />
+          </Section>
+
+          <Section title={t('transactions.clearedFilter')}>
+            {statuses.map((status) => (
+              <Option
+                key={status.value}
+                label={status.label}
+                onPress={() => onSelectStatus(status.value)}
+              />
+            ))}
+          </Section>
+        </>
+      )}
     </ScrollView>
   );
 }
 
-function matching<Item extends Readonly<{ label: string }>>(
-  items: readonly Item[],
-  normalized: string,
-  language: string,
-) {
-  if (!normalized) return items;
-  return items.filter(({ label }) =>
-    label.toLocaleLowerCase(language).includes(normalized),
-  );
+function formatDate(value: string, language: string) {
+  return new Intl.DateTimeFormat(language, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date(`${value}T12:00:00`));
 }
 
 function Section({

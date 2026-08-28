@@ -19,6 +19,8 @@ import {
 type NativeDatePickerProps = Readonly<{
   title: string;
   value: string;
+  minimumDate?: string;
+  maximumDate?: string;
   onChange: (value: string) => void;
   onDismiss: () => void;
 }>;
@@ -35,6 +37,8 @@ function isoDate(date: Date): string {
 export function NativeDatePicker({
   title,
   value,
+  minimumDate,
+  maximumDate,
   onChange,
   onDismiss,
 }: NativeDatePickerProps) {
@@ -49,6 +53,8 @@ export function NativeDatePicker({
   const picker = (
     <DateTimePicker
       display={Platform.OS === 'android' ? 'calendar' : 'spinner'}
+      maximumDate={maximumDate ? parseDate(maximumDate) : undefined}
+      minimumDate={minimumDate ? parseDate(minimumDate) : undefined}
       mode="date"
       onDismiss={onDismiss}
       onValueChange={select}

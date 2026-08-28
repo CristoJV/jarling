@@ -1,5 +1,6 @@
 import type { GetTransactionsInput } from '@/application/use-cases/transactions/get-transactions';
 import type { TransactionStatus } from '@/domain/entities/transaction';
+import type { TransactionDateFilter } from '@/presentation/utils/transaction-date-filter';
 
 export type TransactionSearchField = 'search' | 'payee' | 'memo';
 
@@ -14,10 +15,16 @@ export type TransactionQuery = Readonly<{
   categoryId?: string;
   status?: TransactionStatus;
   uncategorized?: boolean;
+  dateFilter?: TransactionDateFilter;
 }>;
 
 export type TransactionFilterKey =
-  TransactionSearchField | 'account' | 'category' | 'status' | 'uncategorized';
+  | TransactionSearchField
+  | 'account'
+  | 'category'
+  | 'status'
+  | 'uncategorized'
+  | 'date';
 
 export type TransactionFilterChip = Readonly<{
   key: TransactionFilterKey;
@@ -35,6 +42,10 @@ export function buildTransactionQuery(
     ...(query.categoryId ? { categoryId: query.categoryId } : {}),
     ...(query.status ? { status: query.status } : {}),
     ...(query.uncategorized ? { uncategorized: true } : {}),
+    ...(query.dateFilter?.dateFrom
+      ? { dateFrom: query.dateFilter.dateFrom }
+      : {}),
+    ...(query.dateFilter?.dateTo ? { dateTo: query.dateFilter.dateTo } : {}),
   };
 }
 

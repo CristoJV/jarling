@@ -15,6 +15,8 @@ export type GetTransactionsInput = Pick<
   | 'payee'
   | 'memo'
   | 'status'
+  | 'dateFrom'
+  | 'dateTo'
   | 'transactionGroupId'
   | 'limit'
   | 'before'

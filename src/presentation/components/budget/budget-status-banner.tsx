@@ -8,7 +8,6 @@ type BannerTone = 'positive' | 'negative' | 'warning' | 'notice';
 type Props = Readonly<{
   actionLabel: string;
   label: string;
-  labelTone?: BannerTone;
   onPress?: () => void;
   tone: BannerTone;
   prominence?: 'primary' | 'secondary';
@@ -19,7 +18,6 @@ export function BudgetStatusBanner({
   label,
   onPress,
   tone,
-  labelTone = tone,
   prominence = 'secondary',
 }: Props) {
   const styles = useThemedStyles(createStyles);
@@ -30,7 +28,7 @@ export function BudgetStatusBanner({
         style={[
           styles.label,
           prominence === 'primary' && styles.primaryLabel,
-          styles[`${labelTone}Text`],
+          styles[`${tone}Text`],
         ]}
       >
         {label}
@@ -78,9 +76,7 @@ const createStyles = (theme: AppTheme) =>
     negativeBanner: { backgroundColor: theme.colors.negativeMuted },
     warningBanner: { backgroundColor: theme.colors.warningMuted },
     noticeBanner: {
-      backgroundColor: theme.colors.surfaceMuted,
-      borderColor: theme.colors.border,
-      borderWidth: StyleSheet.hairlineWidth,
+      backgroundColor: theme.colors.primaryMuted,
     },
     label: {
       flex: 1,
@@ -103,6 +99,6 @@ const createStyles = (theme: AppTheme) =>
     positiveText: { color: theme.colors.positive },
     negativeText: { color: theme.colors.negative },
     warningText: { color: theme.colors.warning },
-    noticeText: { color: theme.colors.textSecondary },
+    noticeText: { color: theme.colors.primary },
     pressed: { opacity: 0.72 },
   });

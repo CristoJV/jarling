@@ -10,12 +10,13 @@ import {
 
 export async function initializeDatabase(
   database: SQLiteDatabase,
-): Promise<void> {
+): Promise<Readonly<{ created: boolean }>> {
   const migrationStore = new ExpoMigrationStore(database);
   await migrationStore.prepare();
 
   const appliedVersions = await migrationStore.getAppliedVersions();
-  if (appliedVersions.length === 0) {
+  const created = appliedVersions.length === 0;
+  if (created) {
     await migrationStore.transaction(async () => {
       await migrationStore.execute(currentSchema.up);
       await migrationStore.record(currentSchema);
@@ -27,4 +28,6 @@ export async function initializeDatabase(
     knownVersions: [FIRST_RELEASE_SCHEMA_VERSION],
     prepareStore: false,
   });
+
+  return { created };
 }

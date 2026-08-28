@@ -21,9 +21,9 @@ import { initializeApplicationDatabase } from './initialize-application-database
 describe('initializeApplicationDatabase', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it('initializes SQLite before ensuring the default categories', async () => {
+  it('seeds default categories after creating a fresh database', async () => {
     const database = {};
-    mockInitializeDatabase.mockResolvedValue(undefined);
+    mockInitializeDatabase.mockResolvedValue({ created: true });
     mockEnsureDefaults.mockResolvedValue(undefined);
 
     await initializeApplicationDatabase(database as never);
@@ -34,6 +34,17 @@ describe('initializeApplicationDatabase', () => {
     expect(mockInitializeDatabase.mock.invocationCallOrder[0]).toBeLessThan(
       mockEnsureDefaults.mock.invocationCallOrder[0],
     );
+  });
+
+  it('preserves deleted defaults when opening an existing database', async () => {
+    const database = {};
+    mockInitializeDatabase.mockResolvedValue({ created: false });
+
+    await initializeApplicationDatabase(database as never);
+
+    expect(mockInitializeDatabase).toHaveBeenCalledWith(database);
+    expect(mockCreateApplication).not.toHaveBeenCalled();
+    expect(mockEnsureDefaults).not.toHaveBeenCalled();
   });
 
   it('does not compose the application when database initialization fails', async () => {
