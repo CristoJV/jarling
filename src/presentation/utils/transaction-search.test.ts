@@ -41,6 +41,11 @@ describe('transaction search', () => {
         accountId: 'account-1',
         categoryId: 'category-1',
         status: 'cleared',
+        dateFilter: {
+          kind: 'custom',
+          dateFrom: '2026-08-02',
+          dateTo: '2026-08-18',
+        },
       }),
     ).toEqual({
       payee: 'Market',
@@ -48,6 +53,8 @@ describe('transaction search', () => {
       accountId: 'account-1',
       categoryId: 'category-1',
       status: 'cleared',
+      dateFrom: '2026-08-02',
+      dateTo: '2026-08-18',
     });
   });
 

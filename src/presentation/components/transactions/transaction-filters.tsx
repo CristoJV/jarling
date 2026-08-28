@@ -10,10 +10,11 @@ import {
 
 type Props = Readonly<{
   filters: readonly TransactionFilterChip[];
+  onPress: (key: TransactionFilterChip['key']) => void;
   onRemove: (key: TransactionFilterChip['key']) => void;
 }>;
 
-export function TransactionFilters({ filters, onRemove }: Props) {
+export function TransactionFilters({ filters, onPress, onRemove }: Props) {
   const theme = useAppTheme();
   const styles = useThemedStyles(createStyles);
   if (filters.length === 0) return null;
@@ -21,21 +22,29 @@ export function TransactionFilters({ filters, onRemove }: Props) {
   return (
     <View style={styles.filters}>
       {filters.map((filter) => (
-        <Pressable
-          accessibilityRole="button"
-          key={filter.key}
-          onPress={() => onRemove(filter.key)}
-          style={styles.filter}
-        >
-          <Text numberOfLines={1} style={styles.filterText}>
-            {filter.label}
-          </Text>
-          <MaterialCommunityIcons
-            color={theme.colors.primary}
-            name="close"
-            size={16}
-          />
-        </Pressable>
+        <View key={filter.key} style={styles.filter}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => onPress(filter.key)}
+            style={styles.filterLabel}
+          >
+            <Text numberOfLines={1} style={styles.filterText}>
+              {filter.label}
+            </Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            hitSlop={6}
+            onPress={() => onRemove(filter.key)}
+            style={styles.remove}
+          >
+            <MaterialCommunityIcons
+              color={theme.colors.primary}
+              name="close"
+              size={16}
+            />
+          </Pressable>
+        </View>
       ))}
     </View>
   );
@@ -61,7 +70,13 @@ const createStyles = (theme: AppTheme) =>
       borderRadius: 16,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 6,
+    },
+    filterLabel: { minHeight: 32, maxWidth: '90%', justifyContent: 'center' },
+    remove: {
+      width: 28,
+      height: 32,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     filterText: {
       flexShrink: 1,

@@ -292,7 +292,6 @@ export function createApplication(
           encrypted: source.encrypted,
           restore: async (password, restoreProgress) => {
             const result = await source.restore(password, restoreProgress);
-            if (result.restored) await ensureDefaults.execute();
             return result;
           },
         };

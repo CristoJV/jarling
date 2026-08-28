@@ -48,7 +48,7 @@ describe('initializeDatabase', () => {
       withExclusiveTransactionAsync,
     } = createDatabaseMock([]);
 
-    await initializeDatabase(database);
+    const result = await initializeDatabase(database);
 
     expect(transactionExecAsync).toHaveBeenCalledWith(currentSchema.up);
     expect(transactionRunAsync).toHaveBeenCalledWith(
@@ -58,23 +58,25 @@ describe('initializeDatabase', () => {
       expect.any(String),
     );
     expect(withExclusiveTransactionAsync).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({ created: true });
   });
 
   it('does not rebuild a database already carrying the release baseline', async () => {
     const { database, transactionExecAsync, withExclusiveTransactionAsync } =
       createDatabaseMock([currentSchema.version]);
 
-    await initializeDatabase(database);
+    const result = await initializeDatabase(database);
 
     expect(transactionExecAsync).not.toHaveBeenCalled();
     expect(withExclusiveTransactionAsync).not.toHaveBeenCalled();
+    expect(result).toEqual({ created: false });
   });
 
   it('upgrades an existing version 1 database without reinstalling it', async () => {
     const { database, transactionExecAsync, transactionRunAsync } =
       createDatabaseMock([1]);
 
-    await initializeDatabase(database);
+    const result = await initializeDatabase(database);
 
     expect(transactionExecAsync).toHaveBeenCalledWith(
       expect.stringContaining('include_previous_weeks'),
@@ -85,6 +87,7 @@ describe('initializeDatabase', () => {
       'monthly_targets_and_uncategorized_transactions',
       expect.any(String),
     );
+    expect(result).toEqual({ created: false });
   });
 
   it('refuses an unknown schema version instead of guessing', async () => {

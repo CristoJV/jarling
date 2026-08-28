@@ -6,6 +6,8 @@ import { initializeDatabase } from '@/infrastructure/persistence/sqlite/database
 export async function initializeApplicationDatabase(
   database: SQLiteDatabase,
 ): Promise<void> {
-  await initializeDatabase(database);
-  await createApplication(database).categories.ensureDefaults.execute();
+  const { created } = await initializeDatabase(database);
+  if (created) {
+    await createApplication(database).categories.ensureDefaults.execute();
+  }
 }

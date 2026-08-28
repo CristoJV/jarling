@@ -15,6 +15,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { TransactionSummary } from '@/application/use-cases/transactions/get-transactions';
 import type { TransactionStatus } from '@/domain/entities/transaction';
+import { SelectCategoryScreen } from '@/presentation/components/categories/select-category-screen';
+import { FullScreenSelectionScreen } from '@/presentation/components/common/full-screen-selection-screen';
+import { NativeDatePicker } from '@/presentation/components/common/native-date-picker';
 import { TransactionFilters } from '@/presentation/components/transactions/transaction-filters';
 import { TransactionRow } from '@/presentation/components/transactions/transaction-row';
 import { TransactionSearchHeader } from '@/presentation/components/transactions/transaction-search-header';
@@ -30,6 +33,13 @@ import {
 } from '@/presentation/theme/theme-provider';
 import { categoryDisplayName } from '@/presentation/utils/category-name';
 import {
+  createTransactionDatePreset,
+  setCustomTransactionDate,
+  type TransactionDateFilter,
+  type TransactionDatePreset,
+  todayIsoDate,
+} from '@/presentation/utils/transaction-date-filter';
+import {
   type AppliedTransactionSearch,
   buildTransactionQuery,
   type TransactionFilterChip,
@@ -44,7 +54,7 @@ export function TransactionsScreen() {
   usePrefetchTransactionReferenceData();
   const parameters = useLocalSearchParams<{ category?: string }>();
   const router = useRouter();
-  const { t } = useTranslation();
+  const { language, t } = useTranslation();
   const theme = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const [searchDraft, setSearchDraft] = useState('');
@@ -55,6 +65,11 @@ export function TransactionsScreen() {
   const [accountId, setAccountId] = useState<string | undefined>();
   const [categoryId, setCategoryId] = useState<string | undefined>();
   const [status, setStatus] = useState<TransactionStatus | undefined>();
+  const [dateFilter, setDateFilter] = useState<TransactionDateFilter>();
+  const [selection, setSelection] = useState<'account' | 'category' | null>(
+    null,
+  );
+  const [dateBoundary, setDateBoundary] = useState<'from' | 'to' | null>(null);
   const uncategorized = parameters.category === 'uncategorized';
   const filters = useMemo(
     () =>
@@ -62,10 +77,11 @@ export function TransactionsScreen() {
         searches: appliedSearches,
         accountId,
         categoryId,
+        dateFilter,
         status,
         uncategorized,
       }),
-    [accountId, appliedSearches, categoryId, status, uncategorized],
+    [accountId, appliedSearches, categoryId, dateFilter, status, uncategorized],
   );
   const {
     data,
@@ -110,6 +126,8 @@ export function TransactionsScreen() {
     appliedSearches,
     categoryId,
     categorySuggestions,
+    dateFilter,
+    language,
     searchLabels,
     status,
     statusLabels,
@@ -143,13 +161,14 @@ export function TransactionsScreen() {
   }
 
   function selectCategory(nextCategoryId: string) {
-    if (nextCategoryId === UNCATEGORIZED_SUGGESTION_ID) {
-      setCategoryId(undefined);
-      router.setParams({ category: 'uncategorized' });
-    } else {
-      router.setParams({ category: '' });
-      setCategoryId(nextCategoryId);
-    }
+    router.setParams({ category: '' });
+    setCategoryId(nextCategoryId);
+    finishSearchStep();
+  }
+
+  function selectUncategorized() {
+    setCategoryId(undefined);
+    router.setParams({ category: 'uncategorized' });
     finishSearchStep();
   }
 
@@ -158,9 +177,31 @@ export function TransactionsScreen() {
     finishSearchStep();
   }
 
+  function selectDatePreset(preset: TransactionDatePreset) {
+    setDateFilter(createTransactionDatePreset(preset, todayIsoDate()));
+    finishSearchStep();
+  }
+
+  function changeDateBoundary(boundary: 'from' | 'to', value: string) {
+    setDateFilter((current) =>
+      setCustomTransactionDate(current, boundary, value),
+    );
+  }
+
+  function editFilter(key: TransactionFilterKey) {
+    if (key === 'account') setSelection('account');
+    else if (key === 'category' || key === 'uncategorized') {
+      setSelection('category');
+    } else {
+      setSearchDraft('');
+      setSearchActive(true);
+    }
+  }
+
   function removeFilter(key: TransactionFilterKey) {
     if (key === 'account') setAccountId(undefined);
     else if (key === 'category') setCategoryId(undefined);
+    else if (key === 'date') setDateFilter(undefined);
     else if (key === 'status') setStatus(undefined);
     else if (key === 'uncategorized') router.setParams({ category: '' });
     else {
@@ -212,16 +253,22 @@ export function TransactionsScreen() {
         onSubmit={() => applyTextSearch('search')}
         value={searchDraft}
       />
-      <TransactionFilters filters={activeFilters} onRemove={removeFilter} />
+      <TransactionFilters
+        filters={activeFilters}
+        onPress={editFilter}
+        onRemove={removeFilter}
+      />
 
       {searchActive ? (
         <TransactionSearchSuggestions
-          accounts={accountSuggestions}
-          categories={categorySuggestions}
-          onSelectAccount={selectAccount}
-          onSelectCategory={selectCategory}
+          dateFilter={dateFilter}
+          onSelectAccount={() => setSelection('account')}
+          onSelectCategory={() => setSelection('category')}
+          onSelectDateBoundary={setDateBoundary}
+          onSelectDatePreset={selectDatePreset}
           onSelectStatus={selectStatus}
           onSelectText={applyTextSearch}
+          onSelectUncategorized={selectUncategorized}
           searchLabels={searchLabels}
           statuses={(['cleared', 'uncleared', 'reconciled'] as const).map(
             (value) => ({ value, label: statusLabels[value] }),
@@ -285,6 +332,54 @@ export function TransactionsScreen() {
           </Pressable>
         </>
       )}
+
+      {selection === 'account' ? (
+        <FullScreenSelectionScreen
+          onBack={() => setSelection(null)}
+          onSelect={selectAccount}
+          options={accountSuggestions.map(({ id, label }) => ({
+            value: id,
+            label,
+          }))}
+          overlay
+          selectedValue={accountId}
+          title={t('transactions.chooseAccount')}
+        />
+      ) : null}
+
+      {selection === 'category' ? (
+        <SelectCategoryScreen
+          allowCreateCategory={false}
+          groups={data?.categoryGroups ?? []}
+          onBack={() => setSelection(null)}
+          onSelect={(next) => {
+            if (next.kind === 'category') selectCategory(next.category.id);
+            else if (next.kind === 'uncategorized') selectUncategorized();
+          }}
+          overlay
+          selectedCategoryId={categoryId}
+          selectedSpecial={uncategorized ? 'uncategorized' : undefined}
+          showUncategorized
+          title={t('transactions.chooseCategory')}
+        />
+      ) : null}
+
+      {dateBoundary ? (
+        <NativeDatePicker
+          minimumDate={dateBoundary === 'to' ? dateFilter?.dateFrom : undefined}
+          onChange={(value) => changeDateBoundary(dateBoundary, value)}
+          onDismiss={() => {
+            setDateBoundary(null);
+            finishSearchStep();
+          }}
+          title={
+            dateBoundary === 'from'
+              ? t('transactions.fromDate')
+              : t('transactions.toDate')
+          }
+          value={datePickerValue(dateBoundary, dateFilter)}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -295,6 +390,8 @@ type ChipInput = Readonly<{
   appliedSearches: readonly AppliedTransactionSearch[];
   categoryId?: string;
   categorySuggestions: readonly Readonly<{ id: string; label: string }>[];
+  dateFilter?: TransactionDateFilter;
+  language: string;
   searchLabels: Readonly<Record<TransactionSearchField, string>>;
   status?: TransactionStatus;
   statusLabels: Readonly<Record<TransactionStatus, string>>;
@@ -308,6 +405,8 @@ function buildFilterChips({
   appliedSearches,
   categoryId,
   categorySuggestions,
+  dateFilter,
+  language,
   searchLabels,
   status,
   statusLabels,
@@ -363,7 +462,53 @@ function buildFilterChips({
           },
         ]
       : []),
+    ...(dateFilter
+      ? [
+          {
+            key: 'date' as const,
+            label: t('transactions.dateRangeFilter', {
+              value: dateFilterLabel(dateFilter, language, t),
+            }),
+          },
+        ]
+      : []),
   ];
+}
+
+function datePickerValue(
+  boundary: 'from' | 'to',
+  filter?: TransactionDateFilter,
+) {
+  if (boundary === 'from') return filter?.dateFrom ?? todayIsoDate();
+  return filter?.dateTo ?? filter?.dateFrom ?? todayIsoDate();
+}
+
+function dateFilterLabel(
+  filter: TransactionDateFilter,
+  language: string,
+  t: ReturnType<typeof useTranslation>['t'],
+) {
+  const presetLabels: Record<TransactionDatePreset, string> = {
+    'this-week': t('transactions.thisWeek'),
+    'previous-week': t('transactions.previousWeek'),
+    'this-month': t('transactions.thisMonth'),
+    'previous-month': t('transactions.previousMonth'),
+  };
+  if (filter.kind !== 'custom') return presetLabels[filter.kind];
+  const formatter = new Intl.DateTimeFormat(language, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+  const from = filter.dateFrom
+    ? formatter.format(new Date(`${filter.dateFrom}T12:00:00`))
+    : undefined;
+  const to = filter.dateTo
+    ? formatter.format(new Date(`${filter.dateTo}T12:00:00`))
+    : undefined;
+  if (from && to) return `${from} – ${to}`;
+  if (from) return t('transactions.fromDateValue', { value: from });
+  return t('transactions.toDateValue', { value: to ?? '' });
 }
 
 const createStyles = (theme: AppTheme) =>

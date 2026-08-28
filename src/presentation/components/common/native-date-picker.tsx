@@ -14,6 +14,8 @@ import { useThemedStyles } from '@/presentation/theme/theme-provider';
 type NativeDatePickerProps = Readonly<{
   title: string;
   value: string;
+  minimumDate?: string;
+  maximumDate?: string;
   onChange: (value: string) => void;
   onDismiss: () => void;
 }>;
@@ -21,6 +23,8 @@ type NativeDatePickerProps = Readonly<{
 export function NativeDatePicker({
   title,
   value,
+  minimumDate,
+  maximumDate,
   onChange,
   onDismiss,
 }: NativeDatePickerProps) {
@@ -29,7 +33,9 @@ export function NativeDatePicker({
   const [date, setDate] = useState(value);
   const valid =
     /^\d{4}-\d{2}-\d{2}$/.test(date) &&
-    !Number.isNaN(new Date(`${date}T12:00:00`).getTime());
+    !Number.isNaN(new Date(`${date}T12:00:00`).getTime()) &&
+    (!minimumDate || date >= minimumDate) &&
+    (!maximumDate || date <= maximumDate);
   return (
     <Modal animationType="fade" onRequestClose={onDismiss} transparent visible>
       <View style={styles.backdrop}>
