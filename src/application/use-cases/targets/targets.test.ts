@@ -7,10 +7,13 @@ import { CategoryNotFoundError } from '@/domain/errors/category-not-found-error'
 import { Money } from '@/domain/value-objects/money';
 import { InMemoryCategoryRepository } from '@/infrastructure/persistence/in-memory/in-memory-category-repository';
 import { InMemoryCategoryTargetRepository } from '@/infrastructure/persistence/in-memory/in-memory-category-target-repository';
+import { InMemoryCategoryTargetSnoozeRepository } from '@/infrastructure/persistence/in-memory/in-memory-category-target-snooze-repository';
 
 import { DeleteCategoryTarget } from './delete-category-target';
 import { GetCategoryTargets } from './get-category-targets';
+import { GetCategoryTargetSnoozes } from './get-category-target-snoozes';
 import { SetCategoryTarget } from './set-category-target';
+import { SetCategoryTargetSnooze } from './set-category-target-snooze';
 
 const instant = '2026-08-18T10:00:00.000Z';
 
@@ -26,6 +29,7 @@ function setup() {
   const categories = new InMemoryCategoryRepository();
   const targets = new InMemoryCategoryTargetRepository();
   const unitOfWork = new TrackingUnitOfWork();
+  const snoozes = new InMemoryCategoryTargetSnoozeRepository();
   const ids: IdGenerator = { next: () => 'target-1' };
   const clock: Clock = {
     now: () => ({ instant, date: '2026-08-18' }),
@@ -37,9 +41,29 @@ function setup() {
     ids,
     clock,
   );
-  const remove = new DeleteCategoryTarget(categories, targets, unitOfWork);
+  const remove = new DeleteCategoryTarget(
+    categories,
+    targets,
+    snoozes,
+    unitOfWork,
+  );
+  const setSnooze = new SetCategoryTargetSnooze(
+    categories,
+    targets,
+    snoozes,
+    unitOfWork,
+  );
+  const getSnoozes = new GetCategoryTargetSnoozes(snoozes);
 
-  return { categories, targets, unitOfWork, set, remove };
+  return {
+    categories,
+    targets,
+    unitOfWork,
+    set,
+    remove,
+    setSnooze,
+    getSnoozes,
+  };
 }
 
 async function seedCategory(categories: InMemoryCategoryRepository) {
@@ -57,6 +81,40 @@ async function seedCategory(categories: InMemoryCategoryRepository) {
 }
 
 describe('target use cases', () => {
+  it('persists a reversible snooze for only the selected month', async () => {
+    const { categories, set, setSnooze, getSnoozes } = setup();
+    await seedCategory(categories);
+    await set.execute({
+      categoryId: 'category-1',
+      kind: 'monthly',
+      amountCents: 10_000,
+      dayOfMonth: 31,
+      fundingMode: 'set_aside',
+    });
+
+    await setSnooze.execute({
+      categoryId: 'category-1',
+      month: '2026-08',
+      snoozed: true,
+    });
+    await setSnooze.execute({
+      categoryId: 'category-1',
+      month: '2026-08',
+      snoozed: true,
+    });
+    await expect(getSnoozes.execute('2026-08')).resolves.toEqual([
+      { categoryId: 'category-1', month: '2026-08' },
+    ]);
+    await expect(getSnoozes.execute('2026-09')).resolves.toEqual([]);
+
+    await setSnooze.execute({
+      categoryId: 'category-1',
+      month: '2026-08',
+      snoozed: false,
+    });
+    await expect(getSnoozes.execute('2026-08')).resolves.toEqual([]);
+  });
+
   it('creates, lists and updates the single target for a category', async () => {
     const { categories, targets, unitOfWork, set } = setup();
     await seedCategory(categories);
@@ -149,7 +207,15 @@ describe('target use cases', () => {
   });
 
   it('deletes a target without affecting its category', async () => {
-    const { categories, targets, unitOfWork, set, remove } = setup();
+    const {
+      categories,
+      targets,
+      unitOfWork,
+      set,
+      remove,
+      setSnooze,
+      getSnoozes,
+    } = setup();
     await seedCategory(categories);
     await set.execute({
       categoryId: 'category-1',
@@ -158,12 +224,18 @@ describe('target use cases', () => {
       dayOfMonth: 0,
       fundingMode: 'refill_up_to',
     });
+    await setSnooze.execute({
+      categoryId: 'category-1',
+      month: '2026-08',
+      snoozed: true,
+    });
 
     await remove.execute('category-1');
 
     await expect(targets.findAll()).resolves.toEqual([]);
+    await expect(getSnoozes.execute('2026-08')).resolves.toEqual([]);
     await expect(categories.findById('category-1')).resolves.not.toBeNull();
-    expect(unitOfWork.executions).toBe(2);
+    expect(unitOfWork.executions).toBe(3);
   });
 
   it('rejects operations for an unknown category', async () => {

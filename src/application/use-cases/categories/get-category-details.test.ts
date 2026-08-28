@@ -3,6 +3,7 @@ import type { CategoryTarget } from '@/domain/entities/category-target';
 import type { BudgetMonthValues } from '@/domain/services/calculate-budget-month';
 import { Money } from '@/domain/value-objects/money';
 import { InMemoryCategoryTargetRepository } from '@/infrastructure/persistence/in-memory/in-memory-category-target-repository';
+import { InMemoryCategoryTargetSnoozeRepository } from '@/infrastructure/persistence/in-memory/in-memory-category-target-snooze-repository';
 
 import { GetCategoryDetails } from './get-category-details';
 
@@ -58,12 +59,13 @@ describe('GetCategoryDetails', () => {
     const useCase = new GetCategoryDetails(
       { execute: async () => budget },
       new InMemoryCategoryTargetRepository(),
+      new InMemoryCategoryTargetSnoozeRepository(),
       clock,
     );
 
-    await expect(useCase.execute('category-1', '2026-08')).resolves.toEqual({
-      values,
-    });
+    await expect(useCase.execute('category-1', '2026-08')).resolves.toEqual(
+      expect.objectContaining({ values, readyToAssign: budget.readyToAssign }),
+    );
   });
 
   it('calculates target progress from the complete funding history', async () => {
@@ -84,6 +86,7 @@ describe('GetCategoryDetails', () => {
     const result = await new GetCategoryDetails(
       { execute: async () => budget },
       targets,
+      new InMemoryCategoryTargetSnoozeRepository(),
       clock,
     ).execute('category-1', '2026-08');
 
@@ -97,10 +100,39 @@ describe('GetCategoryDetails', () => {
     );
   });
 
+  it('returns the persisted monthly snooze as the effective funding state', async () => {
+    const targets = new InMemoryCategoryTargetRepository();
+    const snoozes = new InMemoryCategoryTargetSnoozeRepository();
+    await targets.save({
+      id: 'target-1',
+      categoryId: 'category-1',
+      kind: 'monthly',
+      amount: Money.fromCents(100_000),
+      startsOn: '2026-07-01',
+      dayOfMonth: 31,
+      fundingMode: 'set_aside',
+      createdAt: '2026-07-01T10:00:00.000Z',
+      updatedAt: '2026-07-01T10:00:00.000Z',
+    });
+    await snoozes.save({ categoryId: 'category-1', month: '2026-08' });
+
+    const result = await new GetCategoryDetails(
+      { execute: async () => budget },
+      targets,
+      snoozes,
+      clock,
+    ).execute('category-1', '2026-08');
+
+    expect(result.funding.targetSnoozed).toBe(true);
+    expect(result.funding.effectiveTarget).toBeUndefined();
+    expect(result.funding.requiredForTarget).toEqual(Money.zero());
+  });
+
   it('fails explicitly for an unknown category', async () => {
     const useCase = new GetCategoryDetails(
       { execute: async () => budget },
       new InMemoryCategoryTargetRepository(),
+      new InMemoryCategoryTargetSnoozeRepository(),
       clock,
     );
 

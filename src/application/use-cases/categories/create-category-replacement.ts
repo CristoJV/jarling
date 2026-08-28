@@ -9,6 +9,7 @@ import type { BudgetAllocationRepository } from '@/domain/repositories/budget-al
 import type { CategoryGroupRepository } from '@/domain/repositories/category-group-repository';
 import type { CategoryRepository } from '@/domain/repositories/category-repository';
 import type { CategoryTargetRepository } from '@/domain/repositories/category-target-repository';
+import type { CategoryTargetSnoozeRepository } from '@/domain/repositories/category-target-snooze-repository';
 import type { TransactionRepository } from '@/domain/repositories/transaction-repository';
 
 export type CreateCategoryReplacementInput = Readonly<{
@@ -25,6 +26,7 @@ export class CreateCategoryReplacement {
     private readonly transactions: TransactionRepository,
     private readonly allocations: BudgetAllocationRepository,
     private readonly targets: CategoryTargetRepository,
+    private readonly snoozes: CategoryTargetSnoozeRepository,
     private readonly unitOfWork: UnitOfWork,
     private readonly ids: IdGenerator,
     private readonly clock: Clock,
@@ -68,6 +70,7 @@ export class CreateCategoryReplacement {
         destination.id,
         instant,
       );
+      await this.snoozes.deleteByCategory(source.id);
       await this.targets.deleteByCategory(source.id);
       await this.categories.deleteById(source.id);
       return destination;

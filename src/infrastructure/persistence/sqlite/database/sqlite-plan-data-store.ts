@@ -8,6 +8,7 @@ export class SQLitePlanDataStore implements PlanDataStore {
   async deleteAll(): Promise<void> {
     await this.database.execAsync(`
       DELETE FROM budget_allocations;
+      DELETE FROM category_target_snoozes;
       DELETE FROM category_targets;
       DELETE FROM transaction_links;
       DELETE FROM transactions;

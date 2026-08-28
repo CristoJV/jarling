@@ -13,7 +13,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { BudgetCategoryValues } from '@/domain/services/calculate-budget-month';
-import { calculateBudgetCategoryTargetProgress } from '@/domain/services/calculate-target-progress';
+import { calculateCategoryFundingState } from '@/domain/services/calculate-category-funding-state';
+import { planCategoryAssignment } from '@/domain/services/plan-category-assignment';
+import { Money } from '@/domain/value-objects/money';
 import { CategoryBudgetModal } from '@/presentation/components/budget/category-budget-modal';
 import { BudgetStatusBanner } from '@/presentation/components/budget/budget-status-banner';
 import { CategoryGroupCard } from '@/presentation/components/categories/category-group-card';
@@ -70,6 +72,7 @@ export function BudgetScreen() {
   const {
     budget,
     targets,
+    snoozes,
     error,
     loading,
     refresh,
@@ -77,11 +80,11 @@ export function BudgetScreen() {
     createCategory,
     renameGroup,
     assign,
+    setTargetSnoozed,
   } = useBudgetOverview(month);
   const [selectingMonth, setSelectingMonth] = useState(false);
   const [nameEditor, setNameEditor] = useState<NameEditor | null>(null);
-  const [categoryEditor, setCategoryEditor] =
-    useState<BudgetCategoryValues | null>(null);
+  const [categoryEditorId, setCategoryEditorId] = useState<string | null>(null);
   const [collapsedGroupIds, setCollapsedGroupIds] = useState(
     () => new Set<string>(),
   );
@@ -114,28 +117,32 @@ export function BudgetScreen() {
     () => new Map(targets?.map((target) => [target.categoryId, target]) ?? []),
     [targets],
   );
-  const progressByCategoryId = useMemo(
+  const snoozedCategoryIds = useMemo(
+    () => new Set(snoozes?.map((snooze) => snooze.categoryId) ?? []),
+    [snoozes],
+  );
+  const fundingByCategoryId = useMemo(
     () =>
       new Map(
-        budgetCategories.flatMap((values) => {
+        budgetCategories.map((values) => {
           const target = targetsByCategoryId.get(values.category.id);
-          return target
-            ? [
-                [
-                  values.category.id,
-                  calculateBudgetCategoryTargetProgress({
-                    target,
-                    values,
-                    month,
-                    today: todayKey(),
-                  }),
-                ] as const,
-              ]
-            : [];
+          return [
+            values.category.id,
+            calculateCategoryFundingState({
+              values,
+              ...(target ? { target } : {}),
+              targetSnoozed: snoozedCategoryIds.has(values.category.id),
+              month,
+              today: todayKey(),
+            }),
+          ] as const;
         }),
       ),
-    [budgetCategories, month, targetsByCategoryId],
+    [budgetCategories, month, snoozedCategoryIds, targetsByCategoryId],
   );
+  const categoryEditor = categoryEditorId
+    ? (valuesByCategoryId.get(categoryEditorId) ?? null)
+    : null;
 
   async function submitName(name: string) {
     if (!nameEditor) return;
@@ -299,10 +306,11 @@ export function BudgetScreen() {
                 return next;
               })
             }
-            onSelectCategory={setCategoryEditor}
-            progressByCategoryId={progressByCategoryId}
+            fundingByCategoryId={fundingByCategoryId}
+            onSelectCategory={(values) =>
+              setCategoryEditorId(values.category.id)
+            }
             summary={summary}
-            targetsByCategoryId={targetsByCategoryId}
             valuesByCategoryId={valuesByCategoryId}
           />
         )}
@@ -341,19 +349,53 @@ export function BudgetScreen() {
 
       {categoryEditor ? (
         <CategoryBudgetModal
+          funding={fundingByCategoryId.get(categoryEditor.category.id)!}
+          key={`${categoryEditor.category.id}-${categoryEditor.assigned.cents}`}
           values={categoryEditor}
+          readyToAssignCents={budget?.readyToAssign.cents ?? 0}
           monthLabel={monthLabel}
           onDetails={() =>
-            openCategoryDetails(categoryEditor, () => setCategoryEditor(null))
+            openCategoryDetails(categoryEditor, () => setCategoryEditorId(null))
           }
-          onDismiss={() => setCategoryEditor(null)}
+          onDismiss={() => setCategoryEditorId(null)}
           onMoveMoney={() => {
             router.push(routes.moveBudget(month, categoryEditor.category.id));
-            setCategoryEditor(null);
+            setCategoryEditorId(null);
           }}
           onSave={(amountCents) =>
             assign(categoryEditor.category.id, amountCents)
           }
+          onSmartAssign={async () => {
+            const funding = fundingByCategoryId.get(categoryEditor.category.id);
+            if (!funding || funding.requiredAssignment.cents <= 0) return;
+            const assignmentPlan = planCategoryAssignment(
+              funding.requiredAssignment,
+              budget?.readyToAssign ?? Money.zero(),
+            );
+            if (assignmentPlan.kind === 'assign-directly') {
+              await assign(
+                categoryEditor.category.id,
+                categoryEditor.assigned.cents + assignmentPlan.amountCents,
+              );
+              return;
+            }
+            if (assignmentPlan.kind === 'none') return;
+            setCategoryEditorId(null);
+            router.push(
+              routes.moveBudget(
+                month,
+                categoryEditor.category.id,
+                assignmentPlan.amountCents,
+              ),
+            );
+          }}
+          onToggleSnooze={() => {
+            const funding = fundingByCategoryId.get(categoryEditor.category.id);
+            return setTargetSnoozed(
+              categoryEditor.category.id,
+              !funding?.targetSnoozed,
+            );
+          }}
         />
       ) : null}
 

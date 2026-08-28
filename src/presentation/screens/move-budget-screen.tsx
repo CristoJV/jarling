@@ -24,6 +24,7 @@ import { CategoryBudgetAmounts } from '@/presentation/components/categories/cate
 import { BottomActionLayout } from '@/presentation/components/common/bottom-action-layout';
 import {
   MoneyKeypad,
+  type MoneyCalculatorExpression,
   type MoneyKeypadHandle,
 } from '@/presentation/components/common/money-keypad';
 import { useApplication } from '@/presentation/contexts/application-context';
@@ -40,9 +41,14 @@ import { domainErrorMessage } from '@/presentation/utils/domain-error-message';
 import { formatMoney } from '@/presentation/utils/money';
 
 export function MoveBudgetScreen() {
-  const { month = currentMonth(), targetCategoryId } = useLocalSearchParams<{
+  const {
+    month = currentMonth(),
+    targetCategoryId,
+    amountCents: amountParam,
+  } = useLocalSearchParams<{
     month?: string;
     targetCategoryId?: string;
+    amountCents?: string;
   }>();
   const router = useRouter();
   const application = useApplication();
@@ -60,7 +66,10 @@ export function MoveBudgetScreen() {
       ? { kind: 'category', categoryId: targetCategoryId }
       : { kind: 'ready-to-assign' },
   );
-  const [amountCents, setAmountCents] = useState(0);
+  const initialAmountCents = parsePositiveCents(amountParam);
+  const [amountCents, setAmountCents] = useState(initialAmountCents);
+  const [amountExpression, setAmountExpression] =
+    useState<MoneyCalculatorExpression | null>(null);
   const [selecting, setSelecting] = useState<'source' | 'target' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -86,7 +95,11 @@ export function MoveBudgetScreen() {
           const selected = value.groups
             .flatMap(({ categories }) => categories)
             .find(({ category }) => category.id === targetCategoryId);
-          if (selected?.available.cents && selected.available.cents < 0) {
+          if (
+            initialAmountCents === 0 &&
+            selected?.available.cents &&
+            selected.available.cents < 0
+          ) {
             setAmountCents(Math.abs(selected.available.cents));
           }
         }
@@ -96,7 +109,7 @@ export function MoveBudgetScreen() {
     return () => {
       active = false;
     };
-  }, [application, month, t, targetCategoryId]);
+  }, [application, initialAmountCents, month, t, targetCategoryId]);
 
   const categories = useMemo(
     () =>
@@ -220,6 +233,7 @@ export function MoveBudgetScreen() {
                 calculator
                 onChange={setAmountCents}
                 onDone={(valueCents) => void submit(valueCents)}
+                onExpressionChange={setAmountExpression}
                 ref={keypadRef}
                 valueCents={amountCents}
               />
@@ -230,8 +244,15 @@ export function MoveBudgetScreen() {
             contentContainerStyle={styles.content}
             keyboardShouldPersistTaps="handled"
           >
-            <Text style={styles.amount}>
-              {formatMoney(Money.fromCents(amountCents))}
+            <Text
+              adjustsFontSizeToFit
+              minimumFontScale={0.58}
+              numberOfLines={1}
+              style={styles.amount}
+            >
+              {amountExpression
+                ? `${formatMoney(Money.fromCents(amountExpression.leftCents))} ${amountExpression.operator} ${formatMoney(Money.fromCents(amountExpression.rightCents))}`
+                : formatMoney(Money.fromCents(amountCents))}
             </Text>
             <View style={styles.transferCard}>
               <Pressable
@@ -330,6 +351,12 @@ export function MoveBudgetScreen() {
 function currentMonth(): string {
   const date = new Date();
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function parsePositiveCents(value?: string): number {
+  if (!value || !/^\d+$/.test(value)) return 0;
+  const cents = Number(value);
+  return Number.isSafeInteger(cents) && cents > 0 ? cents : 0;
 }
 
 function Header({

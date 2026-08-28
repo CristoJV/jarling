@@ -172,4 +172,22 @@ export const migrations: readonly Migration[] = [
       WHERE id = 'system-group-uncategorized';
     `,
   },
+  {
+    version: 3,
+    name: 'monthly_target_snoozes',
+    up: `
+      CREATE TABLE category_target_snoozes (
+        category_id TEXT NOT NULL,
+        month TEXT NOT NULL CHECK (
+          length(month) = 7
+          AND month GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]'
+          AND CAST(substr(month, 6, 2) AS INTEGER) BETWEEN 1 AND 12
+        ),
+        PRIMARY KEY (category_id, month),
+        FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
+      );
+      CREATE INDEX category_target_snoozes_month_idx
+        ON category_target_snoozes(month);
+    `,
+  },
 ];

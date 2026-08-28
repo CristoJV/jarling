@@ -26,6 +26,7 @@ import { SelectCategoryScreen } from '@/presentation/components/categories/selec
 import { BlinkingCursor } from '@/presentation/components/common/blinking-cursor';
 import {
   MoneyKeypad,
+  type MoneyCalculatorExpression,
   type MoneyKeypadHandle,
 } from '@/presentation/components/common/money-keypad';
 import { FullScreenSelectionScreen } from '@/presentation/components/common/full-screen-selection-screen';
@@ -141,6 +142,8 @@ export function TransactionEditorScreen({
   const initialCleared = existing?.status !== 'uncleared';
   const [kind, setKind] = useState<TransactionKind>(initialKind);
   const [amountCents, setAmountCents] = useState(initialAmountCents);
+  const [amountExpression, setAmountExpression] =
+    useState<MoneyCalculatorExpression | null>(null);
   const [accountId, setAccountId] = useState(initialAccountId);
   const [destinationAccountId, setDestinationAccountId] = useState(
     initialDestinationAccountId,
@@ -501,9 +504,14 @@ export function TransactionEditorScreen({
             >
               <Text
                 accessibilityLabel={t('transactions.amount')}
+                adjustsFontSizeToFit
+                minimumFontScale={0.58}
+                numberOfLines={1}
                 style={styles.amount}
               >
-                {formatMoney(Money.fromCents(amountCents))}
+                {amountExpression
+                  ? `${formatMoney(Money.fromCents(amountExpression.leftCents))} ${amountExpression.operator} ${formatMoney(Money.fromCents(amountExpression.rightCents))}`
+                  : formatMoney(Money.fromCents(amountCents))}
               </Text>
               {keypadVisible ? <BlinkingCursor height={38} /> : null}
             </Pressable>
@@ -646,6 +654,7 @@ export function TransactionEditorScreen({
                 calculator
                 onChange={setAmountCents}
                 onDone={() => setKeypadVisible(false)}
+                onExpressionChange={setAmountExpression}
                 ref={keypadRef}
                 valueCents={amountCents}
               />

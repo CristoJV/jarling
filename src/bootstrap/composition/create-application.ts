@@ -38,6 +38,8 @@ import { PopulateSampleData } from '@/application/use-cases/samples/populate-sam
 import { DeleteCategoryTarget } from '@/application/use-cases/targets/delete-category-target';
 import { GetCategoryTargets } from '@/application/use-cases/targets/get-category-targets';
 import { SetCategoryTarget } from '@/application/use-cases/targets/set-category-target';
+import { GetCategoryTargetSnoozes } from '@/application/use-cases/targets/get-category-target-snoozes';
+import { SetCategoryTargetSnooze } from '@/application/use-cases/targets/set-category-target-snooze';
 import { CreateTransfer } from '@/application/use-cases/transfers/create-transfer';
 import { UpdateTransfer } from '@/application/use-cases/transfers/update-transfer';
 import { GetReports } from '@/application/use-cases/reports/get-reports';
@@ -49,6 +51,7 @@ import { SQLiteBudgetAllocationRepository } from '@/infrastructure/persistence/s
 import { SQLiteCategoryGroupRepository } from '@/infrastructure/persistence/sqlite/repositories/sqlite-category-group-repository';
 import { SQLiteCategoryRepository } from '@/infrastructure/persistence/sqlite/repositories/sqlite-category-repository';
 import { SQLiteCategoryTargetRepository } from '@/infrastructure/persistence/sqlite/repositories/sqlite-category-target-repository';
+import { SQLiteCategoryTargetSnoozeRepository } from '@/infrastructure/persistence/sqlite/repositories/sqlite-category-target-snooze-repository';
 import { SQLiteTransactionRepository } from '@/infrastructure/persistence/sqlite/repositories/sqlite-transaction-repository';
 import { SQLiteTransactionLinkRepository } from '@/infrastructure/persistence/sqlite/repositories/sqlite-transaction-link-repository';
 import { ExpoIdGenerator } from '@/infrastructure/system/expo-id-generator';
@@ -67,6 +70,7 @@ export function createApplication(
   const transactions = new SQLiteTransactionRepository(connection);
   const transactionLinks = new SQLiteTransactionLinkRepository(connection);
   const targets = new SQLiteCategoryTargetRepository(connection);
+  const targetSnoozes = new SQLiteCategoryTargetSnoozeRepository(connection);
   const clock = new SystemClock();
   const ids = new ExpoIdGenerator();
   const ensureDefaults = new EnsureDefaultCategories(
@@ -135,6 +139,7 @@ export function createApplication(
         transactions,
         allocations,
         targets,
+        targetSnoozes,
         unitOfWork,
         ids,
         clock,
@@ -144,6 +149,7 @@ export function createApplication(
         transactions,
         allocations,
         targets,
+        targetSnoozes,
         unitOfWork,
         clock,
       ),
@@ -153,7 +159,12 @@ export function createApplication(
         allocations,
       ),
       getGroups: new GetCategoryGroups(categoryGroups, categories),
-      getDetails: new GetCategoryDetails(getBudgetMonth, targets, clock),
+      getDetails: new GetCategoryDetails(
+        getBudgetMonth,
+        targets,
+        targetSnoozes,
+        clock,
+      ),
       renameGroup: new RenameCategoryGroup(categoryGroups, unitOfWork, clock),
       rename: new RenameCategory(categories, unitOfWork, clock),
       updateNotes: new UpdateCategoryNotes(categories, unitOfWork, clock),
@@ -216,8 +227,20 @@ export function createApplication(
     },
     targets: {
       getAll: new GetCategoryTargets(targets),
+      getSnoozes: new GetCategoryTargetSnoozes(targetSnoozes),
+      setSnooze: new SetCategoryTargetSnooze(
+        categories,
+        targets,
+        targetSnoozes,
+        unitOfWork,
+      ),
       set: new SetCategoryTarget(categories, targets, unitOfWork, ids, clock),
-      delete: new DeleteCategoryTarget(categories, targets, unitOfWork),
+      delete: new DeleteCategoryTarget(
+        categories,
+        targets,
+        targetSnoozes,
+        unitOfWork,
+      ),
     },
     transfers: {
       create: new CreateTransfer(

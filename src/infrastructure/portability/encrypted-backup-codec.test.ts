@@ -136,6 +136,7 @@ const emptySnapshot = {
     transaction_links: [],
     budget_allocations: [],
     category_targets: [],
+    category_target_snoozes: [],
   },
 };
 
@@ -155,7 +156,10 @@ describe('encrypted Jarling backup codec', () => {
     );
     await expect(
       decryptEncryptedBackupDocument(productionBackup, password, cipher),
-    ).resolves.toEqual({ version: 2, snapshotJson: serialized });
+    ).resolves.toEqual({
+      version: CURRENT_BACKUP_VERSION,
+      snapshotJson: serialized,
+    });
 
     const standardBackup = await createEncryptedBackupDocument(
       serialized,
@@ -168,7 +172,10 @@ describe('encrypted Jarling backup codec', () => {
         password,
         productionCipher,
       ),
-    ).resolves.toEqual({ version: 2, snapshotJson: serialized });
+    ).resolves.toEqual({
+      version: CURRENT_BACKUP_VERSION,
+      snapshotJson: serialized,
+    });
   });
 
   it('round-trips the current portable snapshot', async () => {
@@ -183,7 +190,10 @@ describe('encrypted Jarling backup codec', () => {
       password,
       cipher,
     );
-    expect(decoded).toEqual({ version: 2, snapshotJson: serialized });
+    expect(decoded).toEqual({
+      version: CURRENT_BACKUP_VERSION,
+      snapshotJson: serialized,
+    });
     expect(parsePlanSnapshot(JSON.parse(decoded.snapshotJson))).toEqual(
       emptySnapshot,
     );
@@ -290,7 +300,7 @@ describe('encrypted Jarling backup codec', () => {
         cipher,
       );
       expect(parsePlanSnapshot(JSON.parse(decoded.snapshotJson)).version).toBe(
-        2,
+        CURRENT_BACKUP_VERSION,
       );
     },
   );

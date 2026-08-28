@@ -1,7 +1,7 @@
 import { forwardRef, useImperativeHandle, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { formatMoney, toggleMoneySign } from '@/presentation/utils/money';
+import { toggleMoneySign } from '@/presentation/utils/money';
 import {
   appendCalculatorDigit,
   chooseMoneyOperator,
@@ -12,8 +12,8 @@ import {
   type MoneyCalculatorTransition,
   type MoneyOperator,
 } from '@/presentation/utils/money-calculator';
-import { Money } from '@/domain/value-objects/money';
 import { useTranslation } from '@/presentation/localization/localization-provider';
+import { CATEGORY_CALCULATOR_BUTTON_HEIGHT } from '@/presentation/layout/category-calculator-layout';
 import type { AppTheme } from '@/presentation/theme/theme';
 import { useThemedStyles } from '@/presentation/theme/theme-provider';
 
@@ -25,6 +25,13 @@ type MoneyKeypadProps = Readonly<{
   onDone?: (valueCents: number) => void;
   overwriteOnFirstDigit?: boolean;
   showDone?: boolean;
+  onExpressionChange?: (expression: MoneyCalculatorExpression | null) => void;
+}>;
+
+export type MoneyCalculatorExpression = Readonly<{
+  leftCents: number;
+  operator: MoneyOperator;
+  rightCents: number;
 }>;
 
 export type MoneyKeypadHandle = Readonly<{
@@ -41,6 +48,7 @@ export const MoneyKeypad = forwardRef<MoneyKeypadHandle, MoneyKeypadProps>(
       onDone,
       overwriteOnFirstDigit = true,
       showDone = true,
+      onExpressionChange,
     },
     ref,
   ) {
@@ -63,6 +71,15 @@ export const MoneyKeypad = forwardRef<MoneyKeypadHandle, MoneyKeypadProps>(
           : transition.state;
       setCalculatorState(state);
       onChange(value);
+      onExpressionChange?.(
+        state.pending
+          ? {
+              leftCents: state.pending.leftCents,
+              operator: state.pending.operator,
+              rightCents: state.overwriteInput ? 0 : value,
+            }
+          : null,
+      );
       return value;
     }
 
@@ -86,19 +103,11 @@ export const MoneyKeypad = forwardRef<MoneyKeypadHandle, MoneyKeypadProps>(
     useImperativeHandle(ref, () => ({ resolve }));
 
     if (calculator) {
-      const pendingRightCents = calculatorState.overwriteInput ? 0 : valueCents;
       return (
         <View
           accessibilityLabel={t('transactions.amount')}
           style={styles.calculator}
         >
-          <View style={styles.calculatorStatus}>
-            <Text numberOfLines={1} style={styles.calculatorStatusText}>
-              {calculatorState.pending
-                ? `${formatMoney(Money.fromCents(calculatorState.pending.leftCents))} ${calculatorState.pending.operator} ${formatMoney(Money.fromCents(pendingRightCents))}`
-                : ' '}
-            </Text>
-          </View>
           <View style={styles.calculatorBody}>
             <View style={styles.digitGrid}>
               {[7, 8, 9, 4, 5, 6, 1, 2, 3].map((digit) => (
@@ -148,7 +157,7 @@ export const MoneyKeypad = forwardRef<MoneyKeypadHandle, MoneyKeypadProps>(
                 label="−"
                 onPress={() => chooseOperator('-')}
               />
-              <Key full label="=" onPress={resolve} />
+              <Key emphasized full label="=" onPress={resolve} />
               {showDone ? (
                 <Key full label={t('common.done')} onPress={finish} primary />
               ) : null}
@@ -214,19 +223,27 @@ function Key({
       accessibilityLabel={label === '⌫' ? t('common.delete') : label}
       accessibilityRole="button"
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.key,
+      style={[
+        styles.keyCell,
         third && styles.keyThird,
         half && styles.keyHalf,
         full && styles.keyFull,
-        emphasized && styles.keyEmphasized,
-        primary && styles.keyPrimary,
-        pressed && styles.keyPressed,
       ]}
     >
-      <Text style={[styles.keyText, primary && styles.keyTextPrimary]}>
-        {label}
-      </Text>
+      {({ pressed }) => (
+        <View
+          style={[
+            styles.keySurface,
+            emphasized && styles.keyEmphasized,
+            primary && styles.keyPrimary,
+            pressed && styles.keyPressed,
+          ]}
+        >
+          <Text style={[styles.keyText, primary && styles.keyTextPrimary]}>
+            {label}
+          </Text>
+        </View>
+      )}
     </Pressable>
   );
 }
@@ -241,37 +258,35 @@ const createStyles = (theme: AppTheme) =>
     calculator: {
       width: '100%',
       paddingHorizontal: 10,
-      paddingTop: 4,
       paddingBottom: 6,
       backgroundColor: theme.colors.surfaceElevated,
-    },
-    calculatorStatus: {
-      height: 28,
-      paddingHorizontal: 8,
-      alignItems: 'flex-end',
-    },
-    calculatorStatusText: {
-      color: theme.colors.textMuted,
-      fontSize: 16,
-      fontVariant: ['tabular-nums'],
-      fontWeight: '700',
     },
     calculatorBody: { flexDirection: 'row' },
     digitGrid: { width: '72%', flexDirection: 'row', flexWrap: 'wrap' },
     operationGrid: { width: '28%', flexDirection: 'row', flexWrap: 'wrap' },
-    key: {
+    keyCell: {
       width: '100%',
-      minHeight: 48,
-      borderRadius: 14,
+      height: CATEGORY_CALCULATOR_BUTTON_HEIGHT + 4,
+      padding: 2,
+    },
+    keySurface: {
+      width: '100%',
+      flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
     },
     keyHalf: { width: '50%' },
     keyFull: { width: '100%' },
     keyThird: { width: '33.3333%' },
-    keyEmphasized: { backgroundColor: theme.colors.surfaceMuted },
-    keyPrimary: { backgroundColor: theme.colors.primary },
-    keyPressed: { backgroundColor: theme.colors.surfacePressed },
+    keyEmphasized: {
+      backgroundColor: theme.colors.surfaceMuted,
+      borderRadius: theme.radii.pill,
+    },
+    keyPrimary: {
+      backgroundColor: theme.colors.primary,
+      borderRadius: theme.radii.pill,
+    },
+    keyPressed: { opacity: 0.68 },
     keyText: {
       color: theme.colors.text,
       fontSize: 24,

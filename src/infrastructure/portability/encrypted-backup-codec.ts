@@ -17,10 +17,10 @@ import {
 } from '@/infrastructure/portability/base64';
 
 export const BACKUP_FORMAT = 'com.cristojv.jarling.backup';
-export const CURRENT_BACKUP_VERSION = 2;
+export const CURRENT_BACKUP_VERSION = 3;
 export const PBKDF2_ITERATIONS = 310_000;
 const MAX_PBKDF2_ITERATIONS = 2_000_000;
-const SUPPORTED_BACKUP_VERSIONS = [1, CURRENT_BACKUP_VERSION] as const;
+const SUPPORTED_BACKUP_VERSIONS = [1, 2, CURRENT_BACKUP_VERSION] as const;
 
 export type BackupVersion = (typeof SUPPORTED_BACKUP_VERSIONS)[number];
 

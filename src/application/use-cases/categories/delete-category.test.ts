@@ -11,6 +11,7 @@ import { InMemoryBudgetAllocationRepository } from '@/infrastructure/persistence
 import { InMemoryCategoryRepository } from '@/infrastructure/persistence/in-memory/in-memory-category-repository';
 import { InMemoryCategoryGroupRepository } from '@/infrastructure/persistence/in-memory/in-memory-category-group-repository';
 import { InMemoryCategoryTargetRepository } from '@/infrastructure/persistence/in-memory/in-memory-category-target-repository';
+import { InMemoryCategoryTargetSnoozeRepository } from '@/infrastructure/persistence/in-memory/in-memory-category-target-snooze-repository';
 import { InMemoryTransactionRepository } from '@/infrastructure/persistence/in-memory/in-memory-transaction-repository';
 import { ImmediateUnitOfWork } from '@/infrastructure/persistence/in-memory/immediate-unit-of-work';
 
@@ -85,11 +86,13 @@ function setup() {
   const transactions = new InMemoryTransactionRepository();
   const allocations = new InMemoryBudgetAllocationRepository();
   const targets = new InMemoryCategoryTargetRepository();
+  const snoozes = new InMemoryCategoryTargetSnoozeRepository();
   const remove = new DeleteCategory(
     categories,
     transactions,
     allocations,
     targets,
+    snoozes,
     new ImmediateUnitOfWork(),
     new FixedClock(),
   );
@@ -104,6 +107,7 @@ function setup() {
     transactions,
     allocations,
     targets,
+    snoozes,
     new ImmediateUnitOfWork(),
     new FixedId(),
     new FixedClock(),

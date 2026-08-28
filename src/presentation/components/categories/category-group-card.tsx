@@ -2,9 +2,8 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { CategoryGroupSummary } from '@/application/use-cases/categories/get-category-groups';
-import type { CategoryTarget } from '@/domain/entities/category-target';
 import type { BudgetCategoryValues } from '@/domain/services/calculate-budget-month';
-import type { TargetProgress } from '@/domain/services/calculate-target-progress';
+import type { CategoryFundingState } from '@/domain/services/calculate-category-funding-state';
 import { Money } from '@/domain/value-objects/money';
 import {
   buildBudgetProgress,
@@ -29,8 +28,7 @@ import {
 type CategoryGroupCardProps = Readonly<{
   summary: CategoryGroupSummary;
   valuesByCategoryId: ReadonlyMap<string, BudgetCategoryValues>;
-  targetsByCategoryId: ReadonlyMap<string, CategoryTarget>;
-  progressByCategoryId: ReadonlyMap<string, TargetProgress>;
+  fundingByCategoryId: ReadonlyMap<string, CategoryFundingState>;
   onSelectCategory: (values: BudgetCategoryValues) => void;
   expanded?: boolean;
   onToggleExpanded?: () => void;
@@ -39,8 +37,7 @@ type CategoryGroupCardProps = Readonly<{
 export function CategoryGroupCard({
   summary,
   valuesByCategoryId,
-  targetsByCategoryId,
-  progressByCategoryId,
+  fundingByCategoryId,
   onSelectCategory,
   expanded: controlledExpanded,
   onToggleExpanded,
@@ -115,12 +112,9 @@ export function CategoryGroupCard({
           visibleCategories.map((category) => {
             const values = valuesByCategoryId.get(category.id);
             if (!values) return null;
-            const target = targetsByCategoryId.get(category.id);
-            const progress = progressByCategoryId.get(category.id);
-            const status = categoryStatus(values, target, progress, t);
-            const needsFunding =
-              values.available.cents >= 0 &&
-              (progress?.recommended.cents ?? 0) > 0;
+            const funding = fundingByCategoryId.get(category.id);
+            const status = categoryStatus(values, funding, t);
+            const needsFunding = funding?.fundingStatus === 'underfunded';
 
             return (
               <Pressable
@@ -144,7 +138,8 @@ export function CategoryGroupCard({
                     >
                       {categoryDisplayName(category, t)}
                     </Text>
-                    {target?.kind === 'weekly' && progress ? (
+                    {funding?.target?.kind === 'weekly' &&
+                    funding.targetProgress ? (
                       <Text
                         numberOfLines={1}
                         style={[
@@ -152,8 +147,9 @@ export function CategoryGroupCard({
                           { color: theme.colors.textMuted },
                         ]}
                       >
-                        {formatMoney(progress.monthlyTarget)} ·{' '}
-                        {formatMoney(target.amount)} {t('targets.weekly')}
+                        {formatMoney(funding.targetProgress.monthlyTarget)} ·{' '}
+                        {formatMoney(funding.target.amount)}{' '}
+                        {t('targets.weekly')}
                       </Text>
                     ) : null}
                   </View>
@@ -217,17 +213,17 @@ export type CategoryStatus = Readonly<{
 
 export function categoryStatus(
   values: BudgetCategoryValues,
-  target?: CategoryTarget,
-  progress?: TargetProgress,
+  funding?: CategoryFundingState,
   t: (key: TranslationKey, params?: TranslationParams) => string = (key) => key,
 ): CategoryStatus | null {
+  const target = funding?.effectiveTarget;
+  const progress = funding?.effectiveProgress;
   const spent = values.spendingTransactions.reduce(
     (sum, amount) => sum + amount.cents,
     0,
   );
   const funded = Math.max(0, values.available.cents + spent);
-  const underfunded =
-    values.available.cents >= 0 && (progress?.recommended.cents ?? 0) > 0;
+  const underfunded = funding?.fundingStatus === 'underfunded';
   const bar = buildBudgetProgress({
     spendingCents: values.spendingTransactions.map((amount) => amount.cents),
     availableCents: values.available.cents,
