@@ -25,8 +25,8 @@ export class GetBudgetMonth {
         this.accounts.findAll(),
         this.groups.findAll(),
         this.categories.findAll(),
-        this.transactions.findAll({ dateTo: `${month}-31` }),
-        this.allocations.findThroughMonth(month),
+        this.transactions.findAll(),
+        this.allocations.findAll(),
       ]);
 
     return calculateBudgetMonth({

@@ -1,6 +1,7 @@
 import type { BudgetAllocation } from '@/domain/entities/budget-allocation';
 
 export interface BudgetAllocationRepository {
+  findAll(): Promise<readonly BudgetAllocation[]>;
   findByCategoryAndMonth(
     categoryId: string,
     month: string,

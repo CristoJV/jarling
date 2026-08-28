@@ -134,7 +134,7 @@ export function MoveBudgetScreen() {
 
   function amountsFor(location: BudgetLocation) {
     if (location.kind === 'ready-to-assign') {
-      return { available: budget?.readyToAssign ?? Money.zero() };
+      return { available: budget?.funding.assignableNow ?? Money.zero() };
     }
     const values = valuesByCategoryId.get(location.categoryId);
     return values
@@ -181,7 +181,7 @@ export function MoveBudgetScreen() {
   function canFund(location: BudgetLocation): boolean {
     if (amountCents <= 0) return true;
     if (location.kind === 'ready-to-assign') {
-      return (budget?.readyToAssign.cents ?? 0) >= amountCents;
+      return (budget?.funding.assignableNow.cents ?? 0) >= amountCents;
     }
     return (
       (categories.find(({ category }) => category.id === location.categoryId)
@@ -325,7 +325,7 @@ export function MoveBudgetScreen() {
             else setTarget(location);
             setError(null);
           }}
-          readyToAssignAmount={budget.readyToAssign}
+          readyToAssignAmount={budget.funding.assignableNow}
           selectedCategoryId={
             selectedLocation.kind === 'category'
               ? selectedLocation.categoryId

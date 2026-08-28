@@ -17,7 +17,7 @@ export type CategoryDetails = Readonly<{
   target?: CategoryTarget;
   progress?: TargetProgress;
   funding: CategoryFundingState;
-  readyToAssign: Money;
+  assignableNow: Money;
 }>;
 
 export class GetCategoryDetails {
@@ -49,7 +49,7 @@ export class GetCategoryDetails {
     return {
       values,
       funding,
-      readyToAssign: budget.readyToAssign,
+      assignableNow: budget.funding.assignableNow,
       ...(target ? { target } : {}),
       ...(funding.targetProgress ? { progress: funding.targetProgress } : {}),
     };

@@ -143,6 +143,30 @@ export function BudgetScreen() {
   const categoryEditor = categoryEditorId
     ? (valuesByCategoryId.get(categoryEditorId) ?? null)
     : null;
+  const firstDeficitMonth = budget?.funding.firstDeficitMonth;
+  const primaryBudgetStatus = useMemo(() => {
+    if (!budget) return null;
+    switch (budget.funding.status) {
+      case 'assigned-too-much':
+        return {
+          actionLabel: t('budget.assignedTooMuch'),
+          label: formatMoney(budget.funding.assignedTooMuch),
+          tone: 'negative' as const,
+        };
+      case 'future-assignments':
+        return {
+          actionLabel: t('budget.futureAssignmentsAvailable'),
+          label: formatMoney(budget.funding.futureAssignmentsAvailable),
+          tone: 'warning' as const,
+        };
+      case 'ready-to-assign':
+        return {
+          actionLabel: t('budget.readyToAssign'),
+          label: formatMoney(budget.funding.readyToAssign),
+          tone: 'positive' as const,
+        };
+    }
+  }, [budget, t]);
 
   async function submitName(name: string) {
     if (!nameEditor) return;
@@ -240,20 +264,31 @@ export function BudgetScreen() {
         }
         ListHeaderComponent={
           <>
-            {budget ? (
+            {budget && primaryBudgetStatus ? (
               <>
                 <BudgetStatusBanner
-                  actionLabel={
-                    budget.readyToAssign.cents < 0
-                      ? t('budget.overassigned')
-                      : t('budget.readyToAssign')
-                  }
-                  label={formatMoney(budget.readyToAssign)}
+                  actionLabel={primaryBudgetStatus.actionLabel}
+                  label={primaryBudgetStatus.label}
                   prominence="primary"
-                  tone={
-                    budget.readyToAssign.cents < 0 ? 'negative' : 'positive'
-                  }
+                  tone={primaryBudgetStatus.tone}
                 />
+                {budget.funding.status === 'future-assignments' &&
+                budget.funding.futureAssignmentsUsed.cents > 0 &&
+                firstDeficitMonth ? (
+                  <View style={styles.secondaryBanner}>
+                    <BudgetStatusBanner
+                      actionLabel={t('budget.review')}
+                      label={t('budget.usingFutureAssignments', {
+                        amount: formatMoney(
+                          budget.funding.futureAssignmentsUsed,
+                        ),
+                      })}
+                      labelTone="warning"
+                      onPress={() => setMonth(firstDeficitMonth)}
+                      tone="warning"
+                    />
+                  </View>
+                ) : null}
                 {budget.uncategorized.transactionCount > 0 ? (
                   <View style={styles.secondaryBanner}>
                     <BudgetStatusBanner
@@ -352,7 +387,7 @@ export function BudgetScreen() {
           funding={fundingByCategoryId.get(categoryEditor.category.id)!}
           key={`${categoryEditor.category.id}-${categoryEditor.assigned.cents}`}
           values={categoryEditor}
-          readyToAssignCents={budget?.readyToAssign.cents ?? 0}
+          readyToAssignCents={budget?.funding.assignableNow.cents ?? 0}
           monthLabel={monthLabel}
           onDetails={() =>
             openCategoryDetails(categoryEditor, () => setCategoryEditorId(null))
@@ -370,7 +405,7 @@ export function BudgetScreen() {
             if (!funding || funding.requiredAssignment.cents <= 0) return;
             const assignmentPlan = planCategoryAssignment(
               funding.requiredAssignment,
-              budget?.readyToAssign ?? Money.zero(),
+              budget?.funding.assignableNow ?? Money.zero(),
             );
             if (assignmentPlan.kind === 'assign-directly') {
               await assign(

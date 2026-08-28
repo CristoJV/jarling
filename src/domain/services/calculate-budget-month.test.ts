@@ -250,7 +250,7 @@ describe('calculateBudgetMonth', () => {
     expect(values?.available).toEqual(Money.fromCents(44_000));
   });
 
-  it('does not let future transactions or allocations affect a past month', () => {
+  it('reserves future allocations without rolling future category values backward', () => {
     const result = calculate({
       month: '2026-08',
       transactions: [
@@ -260,8 +260,131 @@ describe('calculateBudgetMonth', () => {
       allocations: [allocation('sep', groceries.id, '2026-09', 40_000)],
     });
 
-    expect(result.readyToAssign).toEqual(Money.fromCents(200_000));
+    expect(result.readyToAssign).toEqual(Money.fromCents(160_000));
+    expect(result.funding.futureAssignmentsAvailable).toEqual(
+      Money.fromCents(40_000),
+    );
     expect(result.groups[0]?.categories[0]?.available).toEqual(Money.zero());
+  });
+
+  it('exposes fully backed future assignments instead of making cash appear twice', () => {
+    const result = calculate({
+      month: '2026-08',
+      transactions: [transaction('income', 100_000, '2026-08-01')],
+      allocations: [allocation('sep', groceries.id, '2026-09', 100_000)],
+    });
+
+    expect(result.readyToAssign).toEqual(Money.zero());
+    expect(result.funding).toEqual({
+      status: 'future-assignments',
+      readyToAssign: Money.zero(),
+      assignableNow: Money.fromCents(100_000),
+      futureAssignmentsAvailable: Money.fromCents(100_000),
+      futureAssignmentsUsed: Money.zero(),
+      assignedTooMuch: Money.zero(),
+    });
+  });
+
+  it('uses future assignments without changing them and locates the first chronological deficit', () => {
+    const result = calculate({
+      month: '2026-08',
+      transactions: [transaction('income', 100_000, '2026-08-01')],
+      allocations: [
+        allocation('aug', groceries.id, '2026-08', 20_000),
+        allocation('sep', groceries.id, '2026-09', 60_000),
+        allocation('nov', groceries.id, '2026-11', 40_000),
+      ],
+    });
+
+    expect(result.funding).toEqual({
+      status: 'future-assignments',
+      readyToAssign: Money.zero(),
+      assignableNow: Money.fromCents(80_000),
+      futureAssignmentsAvailable: Money.fromCents(80_000),
+      futureAssignmentsUsed: Money.fromCents(20_000),
+      assignedTooMuch: Money.zero(),
+      firstDeficitMonth: '2026-11',
+    });
+    expect(
+      result.groups[0]?.categories[0]?.assignedHistory?.map(
+        ({ month }) => month,
+      ),
+    ).toEqual(['2026-08']);
+  });
+
+  it('propagates a visible deficit through later months without activity', () => {
+    const options = {
+      transactions: [transaction('income', 100_000, '2026-08-01')],
+      allocations: [
+        allocation('aug', groceries.id, '2026-08', 20_000),
+        allocation('sep', groceries.id, '2026-09', 60_000),
+        allocation('nov', groceries.id, '2026-11', 40_000),
+      ],
+    };
+
+    expect(calculate({ ...options, month: '2026-10' }).funding.status).toBe(
+      'future-assignments',
+    );
+    const november = calculate({ ...options, month: '2026-11' });
+    const december = calculate({ ...options, month: '2026-12' });
+    expect(november.funding.assignedTooMuch).toEqual(Money.fromCents(20_000));
+    expect(december.funding.assignedTooMuch).toEqual(Money.fromCents(20_000));
+  });
+
+  it('lets uncategorized spending consume current and future assignable cash', () => {
+    const result = calculate({
+      month: '2026-08',
+      transactions: [
+        transaction('income', 100_000, '2026-08-01'),
+        transaction('uncategorized', -10_000, '2026-08-10'),
+      ],
+      allocations: [allocation('sep', groceries.id, '2026-09', 100_000)],
+    });
+
+    expect(result.uncategorized).toEqual({
+      amount: Money.fromCents(-10_000),
+      transactionCount: 1,
+    });
+    expect(result.funding.assignableNow).toEqual(Money.fromCents(90_000));
+    expect(result.funding.futureAssignmentsAvailable).toEqual(
+      Money.fromCents(90_000),
+    );
+    expect(result.funding.futureAssignmentsUsed).toEqual(
+      Money.fromCents(10_000),
+    );
+    expect(result.funding.firstDeficitMonth).toBe('2026-09');
+  });
+
+  it('moves a categorized expense from global cash usage into its envelope', () => {
+    const uncategorized = calculate({
+      transactions: [
+        transaction('income', 100_000, '2026-08-01'),
+        transaction('expense', -10_000, '2026-08-10'),
+      ],
+    });
+    const categorized = calculate({
+      transactions: [
+        transaction('income', 100_000, '2026-08-01'),
+        transaction('expense', -10_000, '2026-08-10', groceries.id),
+      ],
+    });
+
+    expect(uncategorized.readyToAssign).toEqual(Money.fromCents(90_000));
+    expect(categorized.readyToAssign).toEqual(Money.fromCents(100_000));
+    expect(categorized.groups[0]?.categories[0]?.activity).toEqual(
+      Money.fromCents(-10_000),
+    );
+  });
+
+  it('shows a visible overassignment as a positive deficit', () => {
+    const result = calculate({
+      transactions: [transaction('income', 100_000, '2026-08-01')],
+      allocations: [allocation('aug', groceries.id, '2026-08', 120_000)],
+    });
+
+    expect(result.readyToAssign).toEqual(Money.zero());
+    expect(result.funding.status).toBe('assigned-too-much');
+    expect(result.funding.assignedTooMuch).toEqual(Money.fromCents(20_000));
   });
 
   it('preserves negative Available as explicit overspending', () => {

@@ -45,10 +45,10 @@ export class AssignBudget {
       ]);
       const difference = amount.cents - (current?.amount.cents ?? 0);
 
-      if (difference > 0 && difference > budget.readyToAssign.cents) {
+      if (difference > 0 && difference > budget.funding.assignableNow.cents) {
         throw new InsufficientReadyToAssignError(
           Money.fromCents(difference),
-          budget.readyToAssign,
+          budget.funding.assignableNow,
         );
       }
 

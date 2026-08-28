@@ -17,6 +17,13 @@ reports, backups, and future imports.
 - Only balances in on-budget accounts contribute to Ready to Assign.
 - Assigned, Activity, Available, account balances, reports, and Ready to Assign
   are derived values, not separately persisted totals.
+- Allocations in every month reserve existing money globally. Cash committed in
+  a future month can be reused earlier without rewriting that future
+  allocation; any resulting deficit is derived chronologically and propagates
+  until funds or allocation changes resolve it.
+- Uncategorized expenses reduce Ready to Assign from their transaction month.
+  Categorizing them transfers their effect to category Activity without double
+  counting the cash movement.
 - Available rolls forward across months and may become negative.
 - Moving money changes allocations only; it does not create a transaction.
 - A target recommends funding but never moves money automatically.

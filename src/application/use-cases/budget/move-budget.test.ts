@@ -63,6 +63,10 @@ class TransactionalAllocationStore
     );
   }
 
+  async findAll() {
+    return [...this.allocations.values()];
+  }
+
   async findThroughMonth(month: string) {
     return [...this.allocations.values()].filter((item) => item.month <= month);
   }
@@ -204,6 +208,44 @@ describe('MoveBudget', () => {
     expect((await getBudget.execute('2026-08')).readyToAssign).toEqual(
       Money.zero(),
     );
+  });
+
+  it('moves cash committed in a future month without changing that allocation', async () => {
+    const { allocations, getBudget, move, byName } = await setup();
+    const source = byName.get('⚡ Utilities');
+    const target = byName.get('🚗 Transportation');
+    if (!source || !target) throw new Error('Sample categories missing.');
+    await allocations.save({
+      id: 'future-transport',
+      categoryId: target.id,
+      month: '2026-09',
+      amount: Money.fromCents(1_000),
+      createdAt: '2026-08-18T12:00:00.000Z',
+      updatedAt: '2026-08-18T12:00:00.000Z',
+    });
+    await move.execute({
+      source: category(source.id),
+      target: rta,
+      month: '2026-08',
+      amountCents: 1_000,
+    });
+    const funded = await getBudget.execute('2026-08');
+    expect(funded.readyToAssign).toEqual(Money.zero());
+    expect(funded.funding.assignableNow).toEqual(Money.fromCents(1_000));
+
+    await move.execute({
+      source: rta,
+      target: category(target.id),
+      month: '2026-08',
+      amountCents: 1_000,
+    });
+
+    expect(
+      await allocations.findByCategoryAndMonth(target.id, '2026-09'),
+    ).toEqual(expect.objectContaining({ amount: Money.fromCents(1_000) }));
+    expect(
+      (await getBudget.execute('2026-08')).funding.futureAssignmentsUsed,
+    ).toEqual(Money.fromCents(1_000));
   });
 
   it('reports precise insufficient balances', async () => {

@@ -90,6 +90,16 @@ describe('SQLiteBudgetAllocationRepository', () => {
     );
   });
 
+  it('loads all allocations in chronological order', async () => {
+    const { database, getAllAsync } = databaseMock({ allRows: [row] });
+    const repository = new SQLiteBudgetAllocationRepository(database);
+
+    await expect(repository.findAll()).resolves.toEqual([allocation]);
+    expect(getAllAsync).toHaveBeenCalledWith(
+      expect.stringContaining('ORDER BY month ASC, category_id ASC'),
+    );
+  });
+
   it('loads, reassigns, merges, and deletes category allocation history', async () => {
     const { database, getAllAsync, runAsync } = databaseMock({
       allRows: [row],

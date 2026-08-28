@@ -168,14 +168,14 @@ export function CategoryDetailsScreen() {
     const required = details.funding.requiredAssignment;
     const assignmentPlan = planCategoryAssignment(
       required,
-      details.readyToAssign,
+      details.assignableNow,
     );
     if (assignmentPlan.kind === 'move-money') {
       Alert.alert(
         t('categoryDetails.insufficientFundsTitle'),
         t('categoryDetails.insufficientFundsBody', {
           missing: formatMoney(
-            Money.fromCents(required.cents - details.readyToAssign.cents),
+            Money.fromCents(required.cents - details.assignableNow.cents),
           ),
         }),
         [

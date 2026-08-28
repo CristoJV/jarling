@@ -2,6 +2,7 @@ import type { Clock } from '@/application/ports/clock';
 import type { IdGenerator } from '@/application/ports/id-generator';
 import type { UnitOfWork } from '@/application/ports/unit-of-work';
 import type { Account } from '@/domain/entities/account';
+import type { BudgetAllocation } from '@/domain/entities/budget-allocation';
 import type { Category } from '@/domain/entities/category';
 import type { CategoryGroup } from '@/domain/entities/category-group';
 import type { Transaction } from '@/domain/entities/transaction';
@@ -104,7 +105,7 @@ async function setup() {
     new FixedClock(),
   );
 
-  return { allocations, unitOfWork, getBudget, assign };
+  return { allocations, transactions, unitOfWork, getBudget, assign };
 }
 
 describe('budget use cases', () => {
@@ -171,6 +172,146 @@ describe('budget use cases', () => {
       Money.fromCents(1),
     );
     expect(await allocations.findThroughMonth('2026-08')).toEqual([]);
+  });
+
+  it('allows current assignments to reuse cash committed to a future month', async () => {
+    const { assign, allocations, getBudget } = await setup();
+    await allocations.save({
+      id: 'future-allocation',
+      categoryId: category.id,
+      month: '2026-09',
+      amount: Money.fromCents(200_000),
+      createdAt: instant,
+      updatedAt: instant,
+    });
+
+    const before = await getBudget.execute('2026-08');
+    expect(before.readyToAssign).toEqual(Money.zero());
+    expect(before.funding.futureAssignmentsAvailable).toEqual(
+      Money.fromCents(200_000),
+    );
+
+    await assign.execute({
+      categoryId: category.id,
+      month: '2026-08',
+      amountCents: 40_000,
+    });
+
+    const august = await getBudget.execute('2026-08');
+    expect(august.funding.futureAssignmentsAvailable).toEqual(
+      Money.fromCents(160_000),
+    );
+    expect(august.funding.futureAssignmentsUsed).toEqual(
+      Money.fromCents(40_000),
+    );
+    expect(august.funding.firstDeficitMonth).toBe('2026-09');
+    expect(
+      (await getBudget.execute('2026-09')).funding.assignedTooMuch,
+    ).toEqual(Money.fromCents(40_000));
+  });
+
+  it('clears a propagated future deficit when new funds arrive', async () => {
+    const { assign, allocations, transactions, getBudget } = await setup();
+    await allocations.save({
+      id: 'future-allocation',
+      categoryId: category.id,
+      month: '2026-09',
+      amount: Money.fromCents(200_000),
+      createdAt: instant,
+      updatedAt: instant,
+    });
+    await assign.execute({
+      categoryId: category.id,
+      month: '2026-08',
+      amountCents: 40_000,
+    });
+    await transactions.save({
+      ...openingBalance,
+      id: 'september-income',
+      amount: Money.fromCents(40_000),
+      date: '2026-09-01',
+      kind: 'standard',
+    });
+
+    expect(
+      (await getBudget.execute('2026-09')).funding.assignedTooMuch,
+    ).toEqual(Money.zero());
+    expect(
+      (await getBudget.execute('2026-08')).funding.futureAssignmentsUsed,
+    ).toEqual(Money.zero());
+  });
+
+  it('clears future usage when the user reduces the future assignment', async () => {
+    const { assign, allocations, getBudget } = await setup();
+    const future: BudgetAllocation = {
+      id: 'future-allocation',
+      categoryId: category.id,
+      month: '2026-09',
+      amount: Money.fromCents(200_000),
+      createdAt: instant,
+      updatedAt: instant,
+    };
+    await allocations.save(future);
+    await assign.execute({
+      categoryId: category.id,
+      month: '2026-08',
+      amountCents: 40_000,
+    });
+    expect(
+      (await getBudget.execute('2026-08')).funding.futureAssignmentsUsed,
+    ).toEqual(Money.fromCents(40_000));
+
+    await allocations.save({
+      ...future,
+      amount: Money.fromCents(160_000),
+    });
+
+    const result = await getBudget.execute('2026-08');
+    expect(result.funding.futureAssignmentsUsed).toEqual(Money.zero());
+    expect(result.funding.firstDeficitMonth).toBeUndefined();
+  });
+
+  it('recalculates the first deficit when future priorities change', async () => {
+    const { assign, allocations, getBudget } = await setup();
+    const futureSeptember: BudgetAllocation = {
+      id: 'future-september',
+      categoryId: category.id,
+      month: '2026-09',
+      amount: Money.fromCents(200_000),
+      createdAt: instant,
+      updatedAt: instant,
+    };
+    await allocations.save(futureSeptember);
+    await allocations.save({
+      ...futureSeptember,
+      id: 'future-november',
+      month: '2026-11',
+      amount: Money.fromCents(50_000),
+    });
+    await assign.execute({
+      categoryId: category.id,
+      month: '2026-08',
+      amountCents: 40_000,
+    });
+
+    expect((await getBudget.execute('2026-08')).funding.firstDeficitMonth).toBe(
+      '2026-09',
+    );
+
+    await allocations.save({
+      ...futureSeptember,
+      amount: Money.fromCents(100_000),
+    });
+    await allocations.save({
+      ...futureSeptember,
+      id: 'future-november',
+      month: '2026-11',
+      amount: Money.fromCents(150_000),
+    });
+
+    expect((await getBudget.execute('2026-08')).funding.firstDeficitMonth).toBe(
+      '2026-11',
+    );
   });
 
   it('allows reducing an allocation when persisted data already has negative RTA', async () => {

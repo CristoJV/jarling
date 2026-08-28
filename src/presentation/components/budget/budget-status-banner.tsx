@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { AppTheme } from '@/presentation/theme/theme';
 import { useThemedStyles } from '@/presentation/theme/theme-provider';
 
-type BannerTone = 'positive' | 'negative' | 'notice';
+type BannerTone = 'positive' | 'negative' | 'warning' | 'notice';
 
 type Props = Readonly<{
   actionLabel: string;
@@ -76,6 +76,7 @@ const createStyles = (theme: AppTheme) =>
     },
     positiveBanner: { backgroundColor: theme.colors.positiveMuted },
     negativeBanner: { backgroundColor: theme.colors.negativeMuted },
+    warningBanner: { backgroundColor: theme.colors.warningMuted },
     noticeBanner: {
       backgroundColor: theme.colors.surfaceMuted,
       borderColor: theme.colors.border,
@@ -101,6 +102,7 @@ const createStyles = (theme: AppTheme) =>
     actionButtonText: { color: theme.colors.onPrimary },
     positiveText: { color: theme.colors.positive },
     negativeText: { color: theme.colors.negative },
+    warningText: { color: theme.colors.warning },
     noticeText: { color: theme.colors.textSecondary },
     pressed: { opacity: 0.72 },
   });

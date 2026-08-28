@@ -93,7 +93,13 @@ boundary between routes and modals.
 
 - The month control uses a circular downward chevron and opens a centered
   year/month selector.
-- Ready to Assign is informative rather than styled as navigation.
+- The main funding indicator has one mutually exclusive state: green Ready to
+  Assign, yellow Available from Future Assignments, or red Assigned Too Much.
+  A zero balance with no future allocations remains a valid green state.
+- When an earlier month consumes reserved future cash, a separate yellow
+  warning shows the amount used. Review opens the first later month with a
+  chronological deficit. Neither action edits future categories automatically.
+- The main funding indicator is informative rather than styled as navigation.
 - Category groups use one consistent rotating chevron to expand and collapse.
 - Category progress is segmented by spending transaction. Overspending keeps
   the funded portion bounded by the planned total and represents only the

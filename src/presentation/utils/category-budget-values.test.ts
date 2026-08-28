@@ -26,6 +26,14 @@ describe('category budget values index', () => {
     const budget: BudgetMonthValues = {
       month: '2026-08',
       readyToAssign: Money.fromCents(50_000),
+      funding: {
+        status: 'ready-to-assign',
+        readyToAssign: Money.fromCents(50_000),
+        assignableNow: Money.fromCents(50_000),
+        futureAssignmentsAvailable: Money.zero(),
+        futureAssignmentsUsed: Money.zero(),
+        assignedTooMuch: Money.zero(),
+      },
       uncategorized: { amount: Money.zero(), transactionCount: 0 },
       groups: [
         {
