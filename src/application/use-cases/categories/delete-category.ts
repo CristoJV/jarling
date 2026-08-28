@@ -7,6 +7,7 @@ import { ProtectedCategoryError } from '@/domain/errors/protected-category-error
 import type { BudgetAllocationRepository } from '@/domain/repositories/budget-allocation-repository';
 import type { CategoryRepository } from '@/domain/repositories/category-repository';
 import type { CategoryTargetRepository } from '@/domain/repositories/category-target-repository';
+import type { CategoryTargetSnoozeRepository } from '@/domain/repositories/category-target-snooze-repository';
 import type { TransactionRepository } from '@/domain/repositories/transaction-repository';
 
 export type DeleteCategoryInput = Readonly<{
@@ -20,6 +21,7 @@ export class DeleteCategory {
     private readonly transactions: TransactionRepository,
     private readonly allocations: BudgetAllocationRepository,
     private readonly targets: CategoryTargetRepository,
+    private readonly snoozes: CategoryTargetSnoozeRepository,
     private readonly unitOfWork: UnitOfWork,
     private readonly clock: Clock,
   ) {}
@@ -70,6 +72,7 @@ export class DeleteCategory {
       } else {
         await this.allocations.deleteByCategory(category.id);
       }
+      await this.snoozes.deleteByCategory(category.id);
       await this.targets.deleteByCategory(category.id);
       await this.categories.deleteById(category.id);
     });

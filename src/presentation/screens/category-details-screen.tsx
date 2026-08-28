@@ -19,6 +19,7 @@ import type { CategoryGroupSummary } from '@/application/use-cases/categories/ge
 import type { Category } from '@/domain/entities/category';
 import { CATEGORY_NOTES_MAX_LENGTH } from '@/domain/entities/category';
 import type { BudgetMonthValues } from '@/domain/services/calculate-budget-month';
+import { planCategoryAssignment } from '@/domain/services/plan-category-assignment';
 import { InsufficientReadyToAssignError } from '@/domain/errors/insufficient-ready-to-assign-error';
 import { Money } from '@/domain/value-objects/money';
 import { NameInputModal } from '@/presentation/components/common/name-input-modal';
@@ -38,6 +39,7 @@ import { indexBudgetValuesByCategoryId } from '@/presentation/utils/category-bud
 import { domainErrorMessage } from '@/presentation/utils/domain-error-message';
 import { formatMoney } from '@/presentation/utils/money';
 import { targetDetailCopy } from '@/presentation/utils/target';
+import { targetSnoozeAction } from '@/presentation/utils/target-snooze-action';
 
 const PROGRESS_SEGMENTS = 40;
 
@@ -69,6 +71,7 @@ export function CategoryDetailsScreen() {
   const [renaming, setRenaming] = useState(false);
   const [loading, setLoading] = useState(true);
   const [assigning, setAssigning] = useState(false);
+  const [togglingSnooze, setTogglingSnooze] = useState(false);
   const [savingNotes, setSavingNotes] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deletionGroups, setDeletionGroups] = useState<
@@ -161,15 +164,45 @@ export function CategoryDetailsScreen() {
   }
 
   async function assignRecommended() {
-    if (!details?.progress || details.progress.recommended.cents <= 0) return;
+    if (!details || details.funding.requiredAssignment.cents <= 0) return;
+    const required = details.funding.requiredAssignment;
+    const assignmentPlan = planCategoryAssignment(
+      required,
+      details.readyToAssign,
+    );
+    if (assignmentPlan.kind === 'move-money') {
+      Alert.alert(
+        t('categoryDetails.insufficientFundsTitle'),
+        t('categoryDetails.insufficientFundsBody', {
+          missing: formatMoney(
+            Money.fromCents(required.cents - details.readyToAssign.cents),
+          ),
+        }),
+        [
+          { text: t('common.cancel'), style: 'cancel' },
+          {
+            text: t('budget.moveMoney'),
+            onPress: () =>
+              router.push(
+                routes.moveBudget(
+                  month,
+                  categoryId,
+                  assignmentPlan.amountCents,
+                ),
+              ),
+          },
+        ],
+      );
+      return;
+    }
+    if (assignmentPlan.kind === 'none') return;
     setAssigning(true);
     setError(null);
     try {
       await application.budget.assign.execute({
         categoryId,
         month,
-        amountCents:
-          details.values.assigned.cents + details.progress.recommended.cents,
+        amountCents: details.values.assigned.cents + required.cents,
       });
       await load();
     } catch (cause) {
@@ -187,7 +220,10 @@ export function CategoryDetailsScreen() {
             { text: t('common.cancel'), style: 'cancel' },
             {
               text: t('budget.moveMoney'),
-              onPress: () => router.push(routes.moveBudget(month, categoryId)),
+              onPress: () =>
+                router.push(
+                  routes.moveBudget(month, categoryId, required.cents),
+                ),
             },
           ],
         );
@@ -196,6 +232,24 @@ export function CategoryDetailsScreen() {
       setError(domainErrorMessage(cause, t));
     } finally {
       setAssigning(false);
+    }
+  }
+
+  async function toggleTargetSnooze() {
+    if (!details?.funding.canToggleSnooze || togglingSnooze) return;
+    setTogglingSnooze(true);
+    setError(null);
+    try {
+      await application.targets.setSnooze.execute({
+        categoryId,
+        month,
+        snoozed: !details.funding.targetSnoozed,
+      });
+      await load();
+    } catch (cause) {
+      setError(domainErrorMessage(cause, t));
+    } finally {
+      setTogglingSnooze(false);
     }
   }
 
@@ -348,9 +402,10 @@ export function CategoryDetailsScreen() {
     );
   }
 
-  const { values, target, progress } = details;
+  const { values, target, progress, funding } = details;
+  const snoozeAction = targetSnoozeAction(funding);
   const protectedCategory = Boolean(values.category.linkedAccountId);
-  const needsAssignment = (progress?.recommended.cents ?? 0) > 0;
+  const needsAssignment = funding.requiredAssignment.cents > 0;
   const toGo = progress
     ? Money.fromCents(
         Math.max(
@@ -455,16 +510,34 @@ export function CategoryDetailsScreen() {
               <View style={styles.targetStack}>
                 <View style={styles.progressCard}>
                   <SegmentedProgressCircle
-                    progress={progress.totalProgress}
-                    tone={needsAssignment ? 'warning' : 'positive'}
+                    progress={
+                      funding.targetSnoozed &&
+                      funding.assignmentReason !== 'overspending'
+                        ? 1
+                        : progress.totalProgress
+                    }
+                    tone={
+                      funding.assignmentReason === 'overspending'
+                        ? 'negative'
+                        : needsAssignment && !funding.targetSnoozed
+                          ? 'warning'
+                          : 'positive'
+                    }
                   />
                   <View style={styles.progressCopy}>
                     <Text style={styles.progressMessage}>
-                      {needsAssignment
-                        ? t('categoryDetails.assignMore', {
-                            amount: formatMoney(progress.recommended),
+                      {needsAssignment &&
+                      funding.assignmentReason === 'overspending'
+                        ? t('budget.assignToCoverOverspending', {
+                            amount: formatMoney(funding.requiredAssignment),
                           })
-                        : t('categoryDetails.onTrack')}
+                        : funding.targetSnoozed
+                          ? t('targets.snoozedThisMonth')
+                          : needsAssignment
+                            ? t('categoryDetails.assignMore', {
+                                amount: formatMoney(funding.requiredAssignment),
+                              })
+                            : t('categoryDetails.onTrack')}
                     </Text>
                     {needsAssignment ? (
                       <Pressable
@@ -522,6 +595,32 @@ export function CategoryDetailsScreen() {
                     {t('categoryDetails.editTarget')}
                   </Text>
                 </Pressable>
+
+                {snoozeAction ? (
+                  <Pressable
+                    accessibilityLabel={t(
+                      snoozeAction === 'cancel'
+                        ? 'targets.unsnoozeThisMonth'
+                        : 'targets.snoozeThisMonth',
+                    )}
+                    disabled={togglingSnooze}
+                    onPress={() => void toggleTargetSnooze()}
+                    style={styles.snoozeButton}
+                  >
+                    <MaterialCommunityIcons
+                      color={theme.colors.primary}
+                      name={snoozeAction === 'cancel' ? 'sleep-off' : 'sleep'}
+                      size={23}
+                    />
+                    <Text style={styles.snoozeButtonText}>
+                      {t(
+                        snoozeAction === 'cancel'
+                          ? 'targets.unsnoozeThisMonth'
+                          : 'targets.snoozeThisMonth',
+                      )}
+                    </Text>
+                  </Pressable>
+                ) : null}
               </View>
             )}
           </View>
@@ -686,13 +785,20 @@ function ScreenHeader({
 function SegmentedProgressCircle({
   progress,
   tone,
-}: Readonly<{ progress: number; tone: 'warning' | 'positive' }>) {
+}: Readonly<{
+  progress: number;
+  tone: 'warning' | 'positive' | 'negative';
+}>) {
   const theme = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const percentage = Math.round(Math.min(1, Math.max(0, progress)) * 100);
   const activeSegments = Math.round((percentage / 100) * PROGRESS_SEGMENTS);
   const activeColor =
-    tone === 'warning' ? theme.colors.warning : theme.colors.positive;
+    tone === 'warning'
+      ? theme.colors.warning
+      : tone === 'negative'
+        ? theme.colors.negative
+        : theme.colors.positive;
 
   return (
     <View
@@ -723,7 +829,13 @@ function SegmentedProgressCircle({
           />
         </View>
       ))}
-      {percentage >= 100 ? (
+      {tone === 'negative' ? (
+        <MaterialCommunityIcons
+          color={activeColor}
+          name="alert-circle-outline"
+          size={30}
+        />
+      ) : percentage >= 100 ? (
         <MaterialCommunityIcons
           color={activeColor}
           name="check-bold"
@@ -903,7 +1015,7 @@ const createStyles = (theme: AppTheme) =>
       paddingHorizontal: 20,
       marginTop: 18,
       backgroundColor: theme.colors.primary,
-      borderRadius: 16,
+      borderRadius: theme.radii.pill,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -953,7 +1065,7 @@ const createStyles = (theme: AppTheme) =>
       paddingHorizontal: 18,
       marginTop: 12,
       backgroundColor: theme.colors.warningMuted,
-      borderRadius: 14,
+      borderRadius: theme.radii.pill,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -1001,13 +1113,28 @@ const createStyles = (theme: AppTheme) =>
     secondaryButton: {
       minHeight: 52,
       backgroundColor: theme.colors.primaryMuted,
-      borderRadius: 16,
+      borderRadius: theme.radii.pill,
       alignItems: 'center',
       justifyContent: 'center',
     },
     secondaryButtonText: {
       color: theme.colors.primary,
       fontSize: 15,
+      fontWeight: '800',
+    },
+    snoozeButton: {
+      minHeight: 52,
+      paddingHorizontal: 18,
+      backgroundColor: theme.colors.surfaceMuted,
+      borderRadius: theme.radii.pill,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 10,
+    },
+    snoozeButtonText: {
+      color: theme.colors.primary,
+      fontSize: 14,
       fontWeight: '800',
     },
     notesInput: {

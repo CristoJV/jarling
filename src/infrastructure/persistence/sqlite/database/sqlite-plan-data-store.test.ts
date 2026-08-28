@@ -18,6 +18,7 @@ describe('SQLitePlanDataStore', () => {
       sql.indexOf('DELETE FROM accounts'),
     );
     expect(sql).toContain('DELETE FROM category_targets');
+    expect(sql).toContain('DELETE FROM category_target_snoozes');
     expect(sql).toContain('DELETE FROM transaction_links');
   });
 });

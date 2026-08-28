@@ -10,7 +10,7 @@ export const FIRST_RELEASE_SCHEMA_VERSION = 1;
  * baseline SQL whenever a forward migration is added. Fresh installations can
  * then start at the latest version without replaying historical migrations.
  */
-export const CURRENT_SCHEMA_VERSION = 2;
+export const CURRENT_SCHEMA_VERSION = 3;
 
 /**
  * Fresh installations create this schema directly instead of replaying the
@@ -152,6 +152,17 @@ export const currentSchema: Migration = {
       )
     );
 
+    CREATE TABLE category_target_snoozes (
+      category_id TEXT NOT NULL,
+      month TEXT NOT NULL CHECK (
+        length(month) = 7
+        AND month GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]'
+        AND CAST(substr(month, 6, 2) AS INTEGER) BETWEEN 1 AND 12
+      ),
+      PRIMARY KEY (category_id, month),
+      FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
+    );
+
     CREATE INDEX category_groups_sort_order_idx ON category_groups(sort_order);
     CREATE INDEX categories_group_sort_order_idx ON categories(group_id, sort_order);
     CREATE INDEX categories_hidden_idx ON categories(hidden);
@@ -172,5 +183,7 @@ export const currentSchema: Migration = {
     CREATE INDEX transaction_links_target_idx ON transaction_links(target_transaction_id);
     CREATE INDEX budget_allocations_month_idx ON budget_allocations(month);
     CREATE INDEX category_targets_kind_idx ON category_targets(kind);
+    CREATE INDEX category_target_snoozes_month_idx
+      ON category_target_snoozes(month);
   `,
 };

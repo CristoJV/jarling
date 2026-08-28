@@ -27,9 +27,19 @@ export const routes = {
     pathname: '/category/[id]/target',
     params: { id, month },
   }),
-  moveBudget: (month: string, targetCategoryId?: string): Href => ({
+  moveBudget: (
+    month: string,
+    targetCategoryId?: string,
+    amountCents?: number,
+  ): Href => ({
     pathname: '/budget/move',
-    params: { month, ...(targetCategoryId ? { targetCategoryId } : {}) },
+    params: {
+      month,
+      ...(targetCategoryId ? { targetCategoryId } : {}),
+      ...(amountCents && amountCents > 0
+        ? { amountCents: String(amountCents) }
+        : {}),
+    },
   }),
   editBudget: (month: string): Href => ({
     pathname: '/budget/edit',

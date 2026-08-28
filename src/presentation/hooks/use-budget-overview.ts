@@ -2,6 +2,7 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
 
 import type { CategoryTarget } from '@/domain/entities/category-target';
+import type { CategoryTargetSnooze } from '@/domain/entities/category-target-snooze';
 import type { BudgetMonthValues } from '@/domain/services/calculate-budget-month';
 import { invalidateTransactionReferenceData } from '@/presentation/cache/transaction-reference-data';
 import { useApplication } from '@/presentation/contexts/application-context';
@@ -11,6 +12,7 @@ import { domainErrorMessage } from '@/presentation/utils/domain-error-message';
 type BudgetOverview = Readonly<{
   budget: BudgetMonthValues;
   targets: readonly CategoryTarget[];
+  snoozes: readonly CategoryTargetSnooze[];
 }>;
 
 export function useBudgetOverview(month: string) {
@@ -26,11 +28,12 @@ export function useBudgetOverview(month: string) {
     setError(null);
     setLoading(true);
     try {
-      const [budget, targets] = await Promise.all([
+      const [budget, targets, snoozes] = await Promise.all([
         application.budget.getMonth.execute(month),
         application.targets.getAll.execute(),
+        application.targets.getSnoozes.execute(month),
       ]);
-      if (requestId === request.current) setData({ budget, targets });
+      if (requestId === request.current) setData({ budget, targets, snoozes });
     } catch (cause) {
       if (requestId === request.current) {
         setError(domainErrorMessage(cause, t));
@@ -87,10 +90,22 @@ export function useBudgetOverview(month: string) {
       ),
     [application, month, mutate],
   );
+  const setTargetSnoozed = useCallback(
+    (categoryId: string, snoozed: boolean) =>
+      mutate(() =>
+        application.targets.setSnooze.execute({
+          categoryId,
+          month,
+          snoozed,
+        }),
+      ),
+    [application, month, mutate],
+  );
 
   return {
     budget: data?.budget ?? null,
     targets: data?.targets ?? null,
+    snoozes: data?.snoozes ?? null,
     error,
     loading,
     refresh,
@@ -98,5 +113,6 @@ export function useBudgetOverview(month: string) {
     createCategory,
     renameGroup,
     assign,
+    setTargetSnoozed,
   };
 }

@@ -35,6 +35,8 @@ import type { PopulateSampleData } from '@/application/use-cases/samples/populat
 import type { DeleteCategoryTarget } from '@/application/use-cases/targets/delete-category-target';
 import type { GetCategoryTargets } from '@/application/use-cases/targets/get-category-targets';
 import type { SetCategoryTarget } from '@/application/use-cases/targets/set-category-target';
+import type { GetCategoryTargetSnoozes } from '@/application/use-cases/targets/get-category-target-snoozes';
+import type { SetCategoryTargetSnooze } from '@/application/use-cases/targets/set-category-target-snooze';
 import type { CreateTransfer } from '@/application/use-cases/transfers/create-transfer';
 import type { UpdateTransfer } from '@/application/use-cases/transfers/update-transfer';
 import type { GetReports } from '@/application/use-cases/reports/get-reports';
@@ -85,6 +87,8 @@ export type ApplicationServices = Readonly<{
   }>;
   targets: Readonly<{
     getAll: Pick<GetCategoryTargets, 'execute'>;
+    getSnoozes: Pick<GetCategoryTargetSnoozes, 'execute'>;
+    setSnooze: Pick<SetCategoryTargetSnooze, 'execute'>;
     set: Pick<SetCategoryTarget, 'execute'>;
     delete: Pick<DeleteCategoryTarget, 'execute'>;
   }>;

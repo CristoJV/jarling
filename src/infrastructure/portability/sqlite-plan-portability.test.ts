@@ -115,8 +115,12 @@ describe('Jarling plan snapshots', () => {
       }),
     ).toEqual({
       ...emptySnapshot,
-      version: 2,
+      version: 3,
       preferences: { currency: 'EUR', theme: 'dark' },
+      tables: {
+        ...emptySnapshot.tables,
+        category_target_snoozes: [],
+      },
     });
   });
 
@@ -205,6 +209,66 @@ describe('Jarling plan snapshots', () => {
         },
       }),
     ).toThrow('Invalid category_targets.starts_on value.');
+  });
+
+  it('round-trips current monthly target snoozes and rejects orphaned ones', () => {
+    const current = {
+      ...emptySnapshot,
+      version: 3,
+      tables: {
+        ...emptySnapshot.tables,
+        category_groups: [
+          {
+            id: 'group-1',
+            name: 'Bills',
+            sort_order: 0,
+            created_at: '2026-08-01T00:00:00.000Z',
+            updated_at: '2026-08-01T00:00:00.000Z',
+          },
+        ],
+        categories: [
+          {
+            id: 'category-1',
+            group_id: 'group-1',
+            name: 'Rent',
+            notes: null,
+            hidden: 0,
+            linked_account_id: null,
+            sort_order: 0,
+            created_at: '2026-08-01T00:00:00.000Z',
+            updated_at: '2026-08-01T00:00:00.000Z',
+          },
+        ],
+        category_targets: [
+          {
+            id: 'target-1',
+            category_id: 'category-1',
+            kind: 'monthly',
+            amount: 10_000,
+            starts_on: '2026-08-01',
+            day_of_week: null,
+            include_previous_weeks: null,
+            funding_mode: 'set_aside',
+            day_of_month: 31,
+            target_date: null,
+            custom_funding_mode: null,
+            created_at: '2026-08-01T00:00:00.000Z',
+            updated_at: '2026-08-01T00:00:00.000Z',
+          },
+        ],
+        category_target_snoozes: [
+          { category_id: 'category-1', month: '2026-08' },
+        ],
+      },
+    };
+
+    expect(parsePlanSnapshot(current)).toEqual(current);
+    expect(() =>
+      parsePlanSnapshot({
+        ...current,
+        tables: { ...current.tables, category_targets: [] },
+      }),
+    ).toThrow('invalid target snooze');
   });
 
   it('rejects an incomplete backup before touching SQLite', () => {
@@ -301,7 +365,11 @@ describe('Jarling plan snapshots', () => {
   it('accepts a categorized transfer into its linked credit account', () => {
     expect(parsePlanSnapshot(cardPaymentSnapshot)).toEqual({
       ...cardPaymentSnapshot,
-      version: 2,
+      version: 3,
+      tables: {
+        ...cardPaymentSnapshot.tables,
+        category_target_snoozes: [],
+      },
     });
   });
 

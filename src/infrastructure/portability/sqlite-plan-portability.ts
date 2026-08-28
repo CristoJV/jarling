@@ -129,6 +129,10 @@ const tables = [
       'updated_at',
     ],
   },
+  {
+    name: 'category_target_snoozes',
+    columns: ['category_id', 'month'],
+  },
 ] as const;
 
 type TableName = (typeof tables)[number]['name'];
@@ -180,55 +184,73 @@ function removeLegacyUncategorized(
 }
 
 function migrateSnapshotDocument(value: unknown): unknown {
-  if (!isRecord(value) || value.version !== 1 || !isRecord(value.tables)) {
+  if (!isRecord(value) || !isRecord(value.tables)) {
     return value;
   }
-  const migratedTables = Object.fromEntries(
-    Object.entries(value.tables).map(([name, rows]) => [
-      name,
-      Array.isArray(rows)
-        ? rows.map((row) => {
-            if (!isRecord(row)) return row;
-            if (name === 'categories') {
-              return {
-                ...row,
-                notes: Object.prototype.hasOwnProperty.call(row, 'notes')
-                  ? row.notes
-                  : null,
-              };
-            }
-            if (name === 'category_targets') {
-              return {
-                ...row,
-                starts_on:
-                  typeof row.starts_on === 'string'
-                    ? row.starts_on
-                    : typeof row.created_at === 'string'
-                      ? row.created_at.slice(0, 10)
-                      : undefined,
-                include_previous_weeks: Object.prototype.hasOwnProperty.call(
-                  row,
-                  'include_previous_weeks',
-                )
-                  ? row.include_previous_weeks
-                  : row.kind === 'weekly'
-                    ? 0
+  let migrated: Record<string, unknown> = value;
+
+  if (migrated.version === 1) {
+    const sourceTables = migrated.tables as Record<string, unknown>;
+    const migratedTables = Object.fromEntries(
+      Object.entries(sourceTables).map(([name, rows]) => [
+        name,
+        Array.isArray(rows)
+          ? rows.map((row) => {
+              if (!isRecord(row)) return row;
+              if (name === 'categories') {
+                return {
+                  ...row,
+                  notes: Object.prototype.hasOwnProperty.call(row, 'notes')
+                    ? row.notes
                     : null,
-              };
-            }
-            return row;
-          })
-        : rows,
-    ]),
-  );
-  if (!Array.isArray(migratedTables.transaction_links)) {
-    migratedTables.transaction_links = [];
+                };
+              }
+              if (name === 'category_targets') {
+                return {
+                  ...row,
+                  starts_on:
+                    typeof row.starts_on === 'string'
+                      ? row.starts_on
+                      : typeof row.created_at === 'string'
+                        ? row.created_at.slice(0, 10)
+                        : undefined,
+                  include_previous_weeks: Object.prototype.hasOwnProperty.call(
+                    row,
+                    'include_previous_weeks',
+                  )
+                    ? row.include_previous_weeks
+                    : row.kind === 'weekly'
+                      ? 0
+                      : null,
+                };
+              }
+              return row;
+            })
+          : rows,
+      ]),
+    );
+    if (!Array.isArray(migratedTables.transaction_links)) {
+      migratedTables.transaction_links = [];
+    }
+    migrated = { ...migrated, version: 2, tables: migratedTables };
   }
-  return {
-    ...value,
-    version: CURRENT_BACKUP_VERSION,
-    tables: migratedTables,
-  };
+
+  if (migrated.version === 2 && isRecord(migrated.tables)) {
+    migrated = {
+      ...migrated,
+      version: CURRENT_BACKUP_VERSION,
+      tables: {
+        ...migrated.tables,
+        category_target_snoozes: Array.isArray(
+          migrated.tables.category_target_snoozes,
+        )
+          ? migrated.tables.category_target_snoozes
+          : [],
+      },
+    };
+  }
+
+  return migrated;
 }
 
 export function parsePlanSnapshot(value: unknown): PlanSnapshot {
@@ -307,7 +329,7 @@ export function detectPortablePlanFormat(
       'The file is not a supported Jarling backup.',
     );
   }
-  if (![1, CURRENT_BACKUP_VERSION].includes(value.version as number)) {
+  if (![1, 2, CURRENT_BACKUP_VERSION].includes(value.version as number)) {
     throw new PlanPortabilityError(
       'unsupported-version',
       'The backup version is not supported.',
@@ -503,10 +525,18 @@ function validateSnapshotSemantics(snapshot: PlanSnapshot): void {
     }
   }
 
+  const targetStartByCategoryId = new Map<string, string>();
+  const targetIds = new Set<string>();
   for (const row of snapshot.tables.category_targets) {
+    const id = requiredText(row, 'id');
     const categoryId = requiredText(row, 'category_id');
     const kind = requiredText(row, 'kind');
-    if (!categoryIds.has(categoryId) || !TARGET_KINDS.includes(kind as never)) {
+    if (
+      targetIds.has(id) ||
+      targetStartByCategoryId.has(categoryId) ||
+      !categoryIds.has(categoryId) ||
+      !TARGET_KINDS.includes(kind as never)
+    ) {
       throw new Error('The backup contains a target for an unknown category.');
     }
     const includePreviousWeeks = row.include_previous_weeks;
@@ -516,8 +546,8 @@ function validateSnapshotSemantics(snapshot: PlanSnapshot): void {
     ) {
       throw new Error('The backup contains an invalid weekly target option.');
     }
-    createCategoryTarget({
-      id: requiredText(row, 'id'),
+    const target = createCategoryTarget({
+      id,
       categoryId,
       kind: kind as TargetKind,
       amount: Money.fromCents(integer(row, 'amount')),
@@ -555,6 +585,24 @@ function validateSnapshotSemantics(snapshot: PlanSnapshot): void {
       createdAt: requiredText(row, 'created_at'),
       updatedAt: requiredText(row, 'updated_at'),
     });
+    targetIds.add(id);
+    targetStartByCategoryId.set(categoryId, target.startsOn.slice(0, 7));
+  }
+
+  const snoozeKeys = new Set<string>();
+  for (const row of snapshot.tables.category_target_snoozes) {
+    const categoryId = requiredText(row, 'category_id');
+    const month = requiredText(row, 'month');
+    const key = `${categoryId}\u0000${month}`;
+    if (
+      !targetStartByCategoryId.has(categoryId) ||
+      !isValidBudgetMonth(month) ||
+      month < targetStartByCategoryId.get(categoryId)! ||
+      snoozeKeys.has(key)
+    ) {
+      throw new Error('The backup contains an invalid target snooze.');
+    }
+    snoozeKeys.add(key);
   }
 }
 
