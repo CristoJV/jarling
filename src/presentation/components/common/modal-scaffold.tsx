@@ -119,5 +119,5 @@ const styles = StyleSheet.create({
   bottom: { justifyContent: 'flex-end' },
   center: { padding: 12, alignItems: 'center', justifyContent: 'center' },
   content: { width: '100%', alignSelf: 'stretch' },
-  centerContent: { maxWidth: 680, alignSelf: 'center' },
+  centerContent: { maxWidth: 680, maxHeight: '100%', alignSelf: 'center' },
 });

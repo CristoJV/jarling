@@ -83,6 +83,7 @@ export class PopulateSampleData {
         updatedAt: instant,
       });
       const transactions = [
+        ...createHistoricalSampleTransactions(account.id, month, instant),
         createTransaction({
           id: SAMPLE_IDS.opening,
           accountId: account.id,
@@ -176,6 +177,12 @@ export class PopulateSampleData {
       for (const transaction of transactions)
         await this.transactions.save(transaction);
       for (const target of targets) await this.targets.save(target);
+      for (const allocation of createHistoricalSampleAllocations(
+        month,
+        instant,
+      )) {
+        await this.allocations.save(allocation);
+      }
       for (const [categoryId, amountCents] of assigned) {
         await this.allocations.save(
           createBudgetAllocation({
@@ -192,4 +199,120 @@ export class PopulateSampleData {
       return { populated: true, month };
     });
   }
+}
+
+type HistoricalExpense = readonly [
+  categoryId: string,
+  payee: string,
+  day: number,
+  amountCents: number,
+];
+
+const HISTORICAL_EXPENSES: readonly (readonly HistoricalExpense[])[] = [
+  [
+    [SAMPLE_IDS.rent, 'Example landlord', 3, 12_000],
+    [SAMPLE_IDS.groceries, 'Local market', 10, 1_500],
+    [SAMPLE_IDS.groceries, 'Supermarket', 24, 2_200],
+    [SAMPLE_IDS.phone, 'Mobile provider', 18, 900],
+  ],
+  [
+    [SAMPLE_IDS.groceries, 'Local market', 4, 1_800],
+    [SAMPLE_IDS.groceries, 'Supermarket', 19, 2_600],
+    [SAMPLE_IDS.transportation, 'Train pass', 11, 3_500],
+    [SAMPLE_IDS.utilities, 'Electricity', 26, 1_700],
+  ],
+  [
+    [SAMPLE_IDS.rent, 'Example landlord', 2, 18_000],
+    [SAMPLE_IDS.groceries, 'Local market', 8, 2_100],
+    [SAMPLE_IDS.groceries, 'Supermarket', 22, 3_300],
+    [SAMPLE_IDS.transportation, 'Fuel station', 15, 2_200],
+    [SAMPLE_IDS.phone, 'Mobile provider', 19, 1_100],
+    [SAMPLE_IDS.utilities, 'Electricity', 27, 4_200],
+  ],
+  [
+    [SAMPLE_IDS.groceries, 'Local market', 5, 1_700],
+    [SAMPLE_IDS.groceries, 'Supermarket', 20, 2_800],
+    [SAMPLE_IDS.transportation, 'Car service', 12, 6_500],
+  ],
+  [
+    [SAMPLE_IDS.rent, 'Example landlord', 1, 14_000],
+    [SAMPLE_IDS.groceries, 'Local market', 7, 2_600],
+    [SAMPLE_IDS.groceries, 'Supermarket', 23, 4_100],
+    [SAMPLE_IDS.transportation, 'Fuel station', 14, 3_800],
+    [SAMPLE_IDS.phone, 'Mobile provider', 18, 950],
+    [SAMPLE_IDS.utilities, 'Water', 26, 2_300],
+  ],
+] as const;
+
+function createHistoricalSampleTransactions(
+  accountId: string,
+  currentMonth: string,
+  instant: string,
+) {
+  return HISTORICAL_EXPENSES.flatMap((expenses, monthIndex) => {
+    const month = shiftMonth(currentMonth, monthIndex - 5);
+    const expenseTransactions = expenses.map(
+      ([categoryId, payee, day, amountCents], expenseIndex) =>
+        createTransaction({
+          id: `sample-transaction-history-${monthIndex}-${expenseIndex}`,
+          accountId,
+          categoryId,
+          payee,
+          amount: Money.fromCents(-amountCents),
+          date: `${month}-${String(day).padStart(2, '0')}`,
+          status: 'cleared',
+          createdAt: instant,
+          updatedAt: instant,
+        }),
+    );
+    const totalExpenses = expenses.reduce(
+      (total, expense) => total + expense[3],
+      0,
+    );
+    return [
+      createTransaction({
+        id: `sample-transaction-income-${monthIndex}`,
+        accountId,
+        payee: 'Example salary',
+        amount: Money.fromCents(totalExpenses),
+        date: `${month}-01`,
+        status: 'cleared',
+        createdAt: instant,
+        updatedAt: instant,
+      }),
+      ...expenseTransactions,
+    ];
+  });
+}
+
+function createHistoricalSampleAllocations(
+  currentMonth: string,
+  instant: string,
+) {
+  return HISTORICAL_EXPENSES.flatMap((expenses, monthIndex) => {
+    const month = shiftMonth(currentMonth, monthIndex - 5);
+    const totalsByCategory = new Map<string, number>();
+    for (const [categoryId, , , amountCents] of expenses) {
+      totalsByCategory.set(
+        categoryId,
+        (totalsByCategory.get(categoryId) ?? 0) + amountCents,
+      );
+    }
+    return [...totalsByCategory].map(([categoryId, amountCents]) =>
+      createBudgetAllocation({
+        id: `sample-allocation-history-${monthIndex}-${categoryId}`,
+        categoryId,
+        month,
+        amount: Money.fromCents(amountCents),
+        createdAt: instant,
+        updatedAt: instant,
+      }),
+    );
+  });
+}
+
+function shiftMonth(month: string, offset: number) {
+  const [year, monthNumber] = month.split('-').map(Number);
+  const date = new Date(Date.UTC(year!, monthNumber! - 1 + offset, 1));
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
 }
