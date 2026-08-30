@@ -1,4 +1,4 @@
-import { isCashAccountType, type Account } from '@/domain/entities/account';
+import type { Account } from '@/domain/entities/account';
 import type { Category } from '@/domain/entities/category';
 import type { CategoryGroup } from '@/domain/entities/category-group';
 import {
@@ -71,6 +71,22 @@ type DateInterval = Readonly<{
   endDate: string;
 }>;
 
+function spendingCategoryId(
+  transaction: Transaction,
+  account: Account | undefined,
+): string | undefined {
+  switch (classifyStandardBudgetTransaction(transaction, account)) {
+    case 'category-expense':
+    case 'category-inflow':
+      return transaction.categoryId;
+    case 'uncategorized-expense':
+      return UNCATEGORIZED_REPORT_CATEGORY_ID;
+    case 'ready-to-assign-inflow':
+    case null:
+      return undefined;
+  }
+}
+
 export function calculateSpendingReport({
   throughDate,
   interval,
@@ -105,19 +121,10 @@ export function calculateSpendingReport({
     );
     if (intervalIndex === undefined) continue;
 
-    const account = accountById.get(transaction.accountId);
-    const role = classifyStandardBudgetTransaction(transaction, account);
-    const categoryId =
-      role === 'category-expense' || role === 'category-inflow'
-        ? transaction.categoryId
-        : role === 'uncategorized-expense'
-          ? UNCATEGORIZED_REPORT_CATEGORY_ID
-          : transaction.kind === 'standard' &&
-              account?.onBudget === true &&
-              !isCashAccountType(account.type) &&
-              transaction.categoryId
-            ? transaction.categoryId
-            : undefined;
+    const categoryId = spendingCategoryId(
+      transaction,
+      accountById.get(transaction.accountId),
+    );
     if (!categoryId) continue;
 
     const values =

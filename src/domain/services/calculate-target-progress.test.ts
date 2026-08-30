@@ -87,6 +87,65 @@ describe('calculateTargetProgress', () => {
     );
   });
 
+  it('does not treat a current-month category inflow as Assigned or refill rollover', () => {
+    const common: CategoryTarget = {
+      ...base,
+      kind: 'monthly',
+      dayOfMonth: 0,
+      fundingMode: 'set_aside',
+    };
+    const input = {
+      assigned: Money.fromCents(5_000),
+      availableFromPreviousMonth: Money.zero(),
+      available: Money.fromCents(15_000),
+      spent: Money.zero(),
+      month: '2026-08',
+      today: '2026-08-18',
+    } as const;
+
+    const setAside = calculateTargetProgress({ target: common, ...input });
+    const refill = calculateTargetProgress({
+      target: { ...common, fundingMode: 'refill_up_to' },
+      ...input,
+    });
+
+    expect(setAside.fundedThisMonth).toEqual(Money.fromCents(5_000));
+    expect(setAside.recommended).toEqual(Money.fromCents(25_000));
+    expect(refill.fundedThisMonth).toEqual(Money.fromCents(5_000));
+    expect(refill.recommended).toEqual(Money.fromCents(25_000));
+  });
+
+  it('lets only category inflow that survives rollover reduce a refill target', () => {
+    const target: CategoryTarget = {
+      ...base,
+      kind: 'monthly',
+      dayOfMonth: 0,
+      fundingMode: 'refill_up_to',
+    };
+
+    const surviving = calculateTargetProgress({
+      target,
+      assigned: Money.zero(),
+      availableFromPreviousMonth: Money.fromCents(10_000),
+      available: Money.fromCents(10_000),
+      spent: Money.zero(),
+      month: '2026-09',
+      today: '2026-09-01',
+    });
+    const spentBeforeRollover = calculateTargetProgress({
+      target,
+      assigned: Money.zero(),
+      availableFromPreviousMonth: Money.zero(),
+      available: Money.zero(),
+      spent: Money.zero(),
+      month: '2026-09',
+      today: '2026-09-01',
+    });
+
+    expect(surviving.recommended).toEqual(Money.fromCents(20_000));
+    expect(spentBeforeRollover.recommended).toEqual(Money.fromCents(30_000));
+  });
+
   it('distinguishes weekly set-aside from refill-up-to', () => {
     const common = {
       ...base,

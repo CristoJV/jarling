@@ -108,6 +108,43 @@ describe('calculateCategoryFundingState', () => {
     expect(tie.assignmentReason).toBe('overspending');
   });
 
+  it('uses a category inflow to reduce overspending without changing target Assigned', () => {
+    const monthly = target('monthly');
+    const beforeRefund = calculate(values(5_000, -5_000), {
+      target: monthly,
+    });
+    const afterPartialRefund = calculate(values(5_000, -2_000), {
+      target: monthly,
+    });
+    const afterFullRefund = calculate(values(5_000, 1_000), {
+      target: monthly,
+    });
+
+    expect(beforeRefund.requiredForOverspending).toEqual(
+      Money.fromCents(5_000),
+    );
+    expect(afterPartialRefund.requiredForOverspending).toEqual(
+      Money.fromCents(2_000),
+    );
+    expect(afterFullRefund.requiredForOverspending).toEqual(Money.zero());
+    expect(afterFullRefund.targetProgress?.fundedThisMonth).toEqual(
+      Money.fromCents(5_000),
+    );
+  });
+
+  it('lets a balance target observe real Available returned by an inflow', () => {
+    const balanceTarget: CategoryTarget = {
+      ...target('custom'),
+      customFundingMode: 'balance',
+    };
+    const state = calculate(values(0, 10_000), { target: balanceTarget });
+
+    expect(state.targetProgress?.fundedTowardTotal).toEqual(
+      Money.fromCents(10_000),
+    );
+    expect(state.requiredForTarget).toEqual(Money.zero());
+  });
+
   it('reports complete targets as funded and snoozed targets as funded for the month', () => {
     const monthly = target('monthly');
     const complete = calculate(values(10_000), { target: monthly });

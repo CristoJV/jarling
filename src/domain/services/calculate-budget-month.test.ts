@@ -560,6 +560,187 @@ describe('calculateBudgetMonth', () => {
     );
   });
 
+  it('returns a categorized card refund to its category and reverses payment funding', () => {
+    const result = calculateBudgetMonth({
+      month: '2026-08',
+      accounts: [onBudgetAccount, creditCard],
+      groups: [group, paymentGroup],
+      categories: [groceries, paymentCategory],
+      allocations: [allocation('food', groceries.id, '2026-08', 10_000)],
+      transactions: [
+        openingTransaction('cash', 100_000),
+        transaction(
+          'card-purchase',
+          -8_000,
+          '2026-08-10',
+          groceries.id,
+          creditCard.id,
+        ),
+        transaction(
+          'card-refund',
+          3_000,
+          '2026-08-15',
+          groceries.id,
+          creditCard.id,
+        ),
+      ],
+    });
+
+    expect(result.readyToAssign).toEqual(Money.fromCents(90_000));
+    expect(result.groups[0]?.categories[0]).toEqual(
+      expect.objectContaining({
+        assigned: Money.fromCents(10_000),
+        activity: Money.fromCents(-5_000),
+        available: Money.fromCents(5_000),
+      }),
+    );
+    expect(result.groups[1]?.categories[0]).toEqual(
+      expect.objectContaining({
+        activity: Money.fromCents(5_000),
+        available: Money.fromCents(5_000),
+      }),
+    );
+  });
+
+  it('preserves the negative payment envelope when a refund arrives after payment', () => {
+    const result = calculateBudgetMonth({
+      month: '2026-08',
+      accounts: [onBudgetAccount, creditCard],
+      groups: [group, paymentGroup],
+      categories: [groceries, paymentCategory],
+      allocations: [allocation('food', groceries.id, '2026-08', 10_000)],
+      transactions: [
+        openingTransaction('cash', 100_000),
+        transaction(
+          'card-purchase',
+          -10_000,
+          '2026-08-10',
+          groceries.id,
+          creditCard.id,
+        ),
+        {
+          ...transaction(
+            'payment-out',
+            -10_000,
+            '2026-08-12',
+            paymentCategory.id,
+          ),
+          kind: 'transfer',
+          transactionGroupId: 'payment',
+        },
+        {
+          ...transaction(
+            'payment-in',
+            10_000,
+            '2026-08-12',
+            undefined,
+            creditCard.id,
+          ),
+          kind: 'transfer',
+          transactionGroupId: 'payment',
+        },
+        transaction(
+          'card-refund',
+          10_000,
+          '2026-08-15',
+          groceries.id,
+          creditCard.id,
+        ),
+      ],
+    });
+
+    expect(result.groups[0]?.categories[0]?.available).toEqual(
+      Money.fromCents(10_000),
+    );
+    expect(result.groups[1]?.categories[0]).toEqual(
+      expect.objectContaining({
+        activity: Money.fromCents(-10_000),
+        available: Money.fromCents(-10_000),
+      }),
+    );
+    expect(result.readyToAssign).toEqual(Money.fromCents(100_000));
+  });
+
+  it('budgets only the positive balance created when a card inflow crosses zero', () => {
+    const belowZero = calculateBudgetMonth({
+      month: '2026-08',
+      accounts: [creditCard],
+      groups: [paymentGroup],
+      categories: [paymentCategory],
+      allocations: [],
+      transactions: [
+        openingTransaction('debt', -5_000, creditCard.id),
+        transaction(
+          'statement-credit',
+          3_000,
+          '2026-08-10',
+          undefined,
+          creditCard.id,
+        ),
+      ],
+    });
+    const aboveZero = calculateBudgetMonth({
+      month: '2026-08',
+      accounts: [creditCard],
+      groups: [paymentGroup],
+      categories: [paymentCategory],
+      allocations: [],
+      transactions: [
+        openingTransaction('debt', -5_000, creditCard.id),
+        transaction(
+          'statement-credit',
+          10_000,
+          '2026-08-10',
+          undefined,
+          creditCard.id,
+        ),
+      ],
+    });
+
+    expect(belowZero.readyToAssign).toEqual(Money.zero());
+    expect(aboveZero.readyToAssign).toEqual(Money.fromCents(5_000));
+  });
+
+  it('does not make an Uncategorized card outflow consume cash until a positive card balance is spent', () => {
+    const debt = calculateBudgetMonth({
+      month: '2026-08',
+      accounts: [onBudgetAccount, creditCard],
+      groups: [group, paymentGroup],
+      categories: [groceries, paymentCategory],
+      allocations: [],
+      transactions: [
+        openingTransaction('cash', 100_000),
+        transaction(
+          'card-outflow',
+          -4_000,
+          '2026-08-10',
+          undefined,
+          creditCard.id,
+        ),
+      ],
+    });
+    const positiveBalance = calculateBudgetMonth({
+      month: '2026-08',
+      accounts: [creditCard],
+      groups: [paymentGroup],
+      categories: [paymentCategory],
+      allocations: [],
+      transactions: [
+        openingTransaction('positive-card', 10_000, creditCard.id),
+        transaction(
+          'card-outflow',
+          -4_000,
+          '2026-08-10',
+          undefined,
+          creditCard.id,
+        ),
+      ],
+    });
+
+    expect(debt.readyToAssign).toEqual(Money.fromCents(100_000));
+    expect(positiveBalance.readyToAssign).toEqual(Money.fromCents(6_000));
+  });
+
   it('preserves the accounting identity across cash, debt and envelopes', () => {
     const result = calculateBudgetMonth({
       month: '2026-08',

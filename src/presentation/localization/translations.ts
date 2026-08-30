@@ -521,7 +521,7 @@ export const english = {
   'errors.trackingCategory':
     'Budget categories can only be used with accounts included in the budget.',
   'errors.categoryInflowAccount':
-    'Category inflows are currently available only for cash accounts.',
+    'Category inflows are available only for accounts included in the budget.',
   'errors.closedAccount': 'Transactions cannot be added to a closed account.',
   'errors.transactionNotFound': 'The transaction no longer exists.',
   'errors.reconciledTransaction':
@@ -1078,7 +1078,7 @@ export const spanish: TranslationDictionary = {
   'errors.trackingCategory':
     'Las categorías solo se pueden usar con cuentas incluidas en el presupuesto.',
   'errors.categoryInflowAccount':
-    'Las entradas por categoría solo están disponibles actualmente en cuentas de efectivo.',
+    'Las entradas por categoría solo están disponibles en cuentas incluidas en el presupuesto.',
   'errors.closedAccount':
     'No se pueden añadir movimientos a una cuenta cerrada.',
   'errors.transactionNotFound': 'La transacción ya no existe.',

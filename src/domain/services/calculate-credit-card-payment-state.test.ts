@@ -94,6 +94,48 @@ describe('calculateCreditCardPaymentState', () => {
     expect(result.totalByAccount.get(card.id)).toBe(5_000);
   });
 
+  it.each([
+    { refundCents: 8_000, expectedFunding: 0 },
+    { refundCents: 12_000, expectedFunding: 0 },
+  ])(
+    'never reverses more than the funded purchase for a $refundCents refund',
+    ({ refundCents, expectedFunding }) => {
+      const result = calculate(
+        '2026-08',
+        [allocation('2026-08', 10_000)],
+        [
+          cardActivity('purchase', '2026-08-10', -8_000),
+          cardActivity('refund', '2026-08-11', refundCents),
+        ],
+      );
+
+      expect(result.totalByAccount.get(card.id)).toBe(expectedFunding);
+    },
+  );
+
+  it('records a later-month refund as current negative payment activity without rewriting the purchase month', () => {
+    const transactions = [
+      cardActivity('purchase', '2026-08-10', -8_000),
+      cardActivity('refund', '2026-09-11', 3_000),
+    ];
+
+    const august = calculate(
+      '2026-08',
+      [allocation('2026-08', 10_000)],
+      transactions,
+    );
+    const september = calculate(
+      '2026-09',
+      [allocation('2026-08', 10_000)],
+      transactions,
+    );
+
+    expect(august.totalByAccount.get(card.id)).toBe(8_000);
+    expect(august.currentByAccount.get(card.id)).toBe(8_000);
+    expect(september.totalByAccount.get(card.id)).toBe(5_000);
+    expect(september.currentByAccount.get(card.id)).toBe(-3_000);
+  });
+
   it('uses a later month allocation to cover earlier unfunded debt', () => {
     const result = calculate(
       '2026-09',

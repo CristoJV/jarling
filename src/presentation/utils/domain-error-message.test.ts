@@ -31,12 +31,12 @@ describe('domainErrorMessage', () => {
     );
   });
 
-  it('explains the P0 cash-account boundary for category inflows', () => {
+  it('explains the on-budget account boundary for category inflows', () => {
     expect(
       message(new CategoryInflowNotSupportedForAccountError(), 'en'),
-    ).toContain('cash accounts');
+    ).toContain('accounts included in the budget');
     expect(
       message(new CategoryInflowNotSupportedForAccountError(), 'es'),
-    ).toContain('cuentas de efectivo');
+    ).toContain('cuentas incluidas en el presupuesto');
   });
 });

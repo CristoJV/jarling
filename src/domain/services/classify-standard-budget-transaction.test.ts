@@ -53,11 +53,22 @@ describe('classifyStandardBudgetTransaction', () => {
     },
   );
 
+  it('uses the same signed destination matrix for on-budget credit accounts', () => {
+    expect(
+      classifyStandardBudgetTransaction(standard(100, 'food'), credit),
+    ).toBe('category-inflow');
+    expect(classifyStandardBudgetTransaction(standard(100), credit)).toBe(
+      'ready-to-assign-inflow',
+    );
+    expect(classifyStandardBudgetTransaction(standard(-100), credit)).toBe(
+      'uncategorized-expense',
+    );
+  });
+
   it('does not classify structural or off-budget activity', () => {
     expect(
       classifyStandardBudgetTransaction(standard(100), tracking),
     ).toBeNull();
-    expect(classifyStandardBudgetTransaction(standard(100), credit)).toBeNull();
     expect(
       classifyStandardBudgetTransaction(
         createTransaction({

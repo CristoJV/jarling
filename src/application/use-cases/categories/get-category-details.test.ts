@@ -79,6 +79,33 @@ describe('GetCategoryDetails', () => {
     );
   });
 
+  it('returns positive category inflow activity without turning it into Assigned', async () => {
+    const inflowValues = {
+      ...values,
+      assigned: Money.fromCents(20_000),
+      activity: Money.fromCents(4_000),
+      available: Money.fromCents(24_000),
+    };
+    const inflowBudget: BudgetMonthValues = {
+      ...budget,
+      groups: [{ ...budget.groups[0]!, categories: [inflowValues] }],
+    };
+    const result = await new GetCategoryDetails(
+      { execute: async () => inflowBudget },
+      new InMemoryCategoryTargetRepository(),
+      new InMemoryCategoryTargetSnoozeRepository(),
+      clock,
+    ).execute('category-1', '2026-08');
+
+    expect(result.values).toEqual(
+      expect.objectContaining({
+        assigned: Money.fromCents(20_000),
+        activity: Money.fromCents(4_000),
+        available: Money.fromCents(24_000),
+      }),
+    );
+  });
+
   it('calculates target progress from the complete funding history', async () => {
     const targets = new InMemoryCategoryTargetRepository();
     const target: CategoryTarget = {
@@ -127,8 +154,23 @@ describe('GetCategoryDetails', () => {
     });
     await snoozes.save({ categoryId: 'category-1', month: '2026-08' });
 
+    const inflowBudget: BudgetMonthValues = {
+      ...budget,
+      groups: [
+        {
+          ...budget.groups[0]!,
+          categories: [
+            {
+              ...values,
+              activity: Money.fromCents(4_000),
+              available: Money.fromCents(24_000),
+            },
+          ],
+        },
+      ],
+    };
     const result = await new GetCategoryDetails(
-      { execute: async () => budget },
+      { execute: async () => inflowBudget },
       targets,
       snoozes,
       clock,

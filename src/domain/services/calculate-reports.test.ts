@@ -171,4 +171,134 @@ describe('calculateReports', () => {
     });
     expect(result.spending.total).toEqual(Money.fromCents(-3_000));
   });
+
+  it('keeps tracking activity and structural adjustments out of budget income and spending', () => {
+    const result = calculateReports({
+      throughDate: '2026-08-31',
+      spendingInterval: 'month',
+      spendingIntervalCount: 1,
+      numberOfMonths: 1,
+      accounts,
+      categories,
+      groups,
+      transactions: [
+        transaction('tracking-inflow', 'loan', 20_000, '2026-08-01'),
+        transaction('tracking-outflow', 'loan', -5_000, '2026-08-02'),
+        createTransaction({
+          id: 'reconciliation',
+          accountId: 'cash',
+          amount: Money.fromCents(3_000),
+          date: '2026-08-03',
+          status: 'reconciled',
+          kind: 'reconciliation_adjustment',
+          createdAt: '2026-08-03T00:00:00.000Z',
+          updatedAt: '2026-08-03T00:00:00.000Z',
+        }),
+      ],
+    });
+
+    expect(result.months[0]).toMatchObject({
+      income: Money.zero(),
+      spending: Money.zero(),
+      assets: Money.fromCents(18_000),
+      debt: Money.zero(),
+      netWorth: Money.fromCents(18_000),
+    });
+    expect(result.spending.categories).toEqual([]);
+  });
+
+  it('keeps a categorized credit refund in net spending rather than Income', () => {
+    const credit: Account = {
+      ...accounts[0]!,
+      id: 'credit',
+      name: 'Visa',
+      type: 'credit_card',
+    };
+    const result = calculateReports({
+      throughDate: '2026-08-31',
+      spendingInterval: 'month',
+      spendingIntervalCount: 1,
+      numberOfMonths: 1,
+      accounts: [...accounts, credit],
+      categories,
+      groups,
+      transactions: [
+        transaction('purchase', credit.id, -10_000, '2026-08-01', {
+          categoryId: 'food',
+        }),
+        transaction('refund', credit.id, 4_000, '2026-08-02', {
+          categoryId: 'food',
+        }),
+      ],
+    });
+
+    expect(result.months[0]).toMatchObject({
+      income: Money.zero(),
+      spending: Money.fromCents(6_000),
+    });
+    expect(result.spending.total).toEqual(Money.fromCents(6_000));
+  });
+
+  it('keeps statement-credit Income distinct from cash made budgetable after crossing zero', () => {
+    const credit: Account = {
+      ...accounts[0]!,
+      id: 'credit',
+      name: 'Visa',
+      type: 'credit_card',
+    };
+    const result = calculateReports({
+      throughDate: '2026-08-31',
+      spendingInterval: 'month',
+      spendingIntervalCount: 1,
+      numberOfMonths: 1,
+      accounts: [credit],
+      categories,
+      groups,
+      transactions: [
+        transaction('opening-debt', credit.id, -5_000, '2026-08-01', {
+          kind: 'opening_balance',
+        }),
+        transaction('statement-credit', credit.id, 10_000, '2026-08-02'),
+      ],
+    });
+
+    expect(result.months[0]).toMatchObject({
+      income: Money.fromCents(10_000),
+      spending: Money.zero(),
+      assets: Money.fromCents(5_000),
+      netWorth: Money.fromCents(5_000),
+    });
+  });
+
+  it('reports an Uncategorized credit outflow as spending rather than negative Income', () => {
+    const credit: Account = {
+      ...accounts[0]!,
+      id: 'credit',
+      name: 'Visa',
+      type: 'credit_card',
+    };
+    const result = calculateReports({
+      throughDate: '2026-08-31',
+      spendingInterval: 'month',
+      spendingIntervalCount: 1,
+      numberOfMonths: 1,
+      accounts: [credit],
+      categories,
+      groups,
+      transactions: [
+        transaction(
+          'uncategorized-card-purchase',
+          credit.id,
+          -4_000,
+          '2026-08-02',
+        ),
+      ],
+    });
+
+    expect(result.months[0]).toMatchObject({
+      income: Money.zero(),
+      spending: Money.fromCents(4_000),
+      netIncome: Money.fromCents(-4_000),
+    });
+  });
 });

@@ -5,7 +5,6 @@ import type { Account } from '@/domain/entities/account';
 import type { Category } from '@/domain/entities/category';
 import type { Transaction } from '@/domain/entities/transaction';
 import { CannotModifyReconciledTransactionError } from '@/domain/errors/cannot-modify-reconciled-transaction-error';
-import { CategoryInflowNotSupportedForAccountError } from '@/domain/errors/category-inflow-not-supported-for-account-error';
 import { CategoryNotFoundError } from '@/domain/errors/category-not-found-error';
 import { CategoryNotAllowedForTrackingAccountError } from '@/domain/errors/category-not-allowed-for-tracking-account-error';
 import { InvalidTransactionAmountError } from '@/domain/errors/invalid-transaction-amount-error';
@@ -224,7 +223,13 @@ describe('transaction use cases', () => {
         date: '2026-08-18',
         status: 'uncleared',
       }),
-    ).rejects.toThrow(CategoryInflowNotSupportedForAccountError);
+    ).resolves.toEqual(
+      expect.objectContaining({
+        accountId: credit.id,
+        categoryId: category.id,
+        amount: Money.fromCents(100),
+      }),
+    );
   });
 
   it.each([0, -1, 1.5])(
@@ -326,6 +331,76 @@ describe('transaction use cases', () => {
       }),
     ]);
     expect(result[0]?.transaction.status).toBe('cleared');
+  });
+
+  it('finds categorized inflows by account, category, payee, memo and date', async () => {
+    const { accounts, categories, transactions, create } = await setup();
+    const inflow = await create.execute({
+      direction: 'inflow',
+      accountId: account.id,
+      categoryId: category.id,
+      amountCents: 4_000,
+      payee: 'Clothing Store',
+      notes: 'Returned jacket',
+      date: '2026-08-20',
+      status: 'cleared',
+    });
+
+    const result = await new GetTransactions(
+      transactions,
+      accounts,
+      categories,
+    ).execute({
+      accountId: account.id,
+      categoryId: category.id,
+      payee: 'clothing',
+      memo: 'jacket',
+      dateFrom: '2026-08-20',
+      dateTo: '2026-08-20',
+    });
+
+    expect(result).toEqual([
+      expect.objectContaining({
+        transaction: expect.objectContaining({
+          id: inflow.id,
+          categoryId: category.id,
+          amount: Money.fromCents(4_000),
+        }),
+        accountName: account.name,
+        categoryName: category.name,
+      }),
+    ]);
+  });
+
+  it('keeps a historical inflow readable after its category is hidden', async () => {
+    const { accounts, categories, transactions } = await setup();
+    await categories.save({ ...category, hidden: true });
+    await transactions.save({
+      id: 'historical-refund',
+      accountId: account.id,
+      categoryId: category.id,
+      payee: 'Old refund',
+      amount: Money.fromCents(2_000),
+      date: '2026-07-20',
+      status: 'cleared',
+      kind: 'standard',
+      createdAt: '2026-07-20T12:00:00.000Z',
+      updatedAt: '2026-07-20T12:00:00.000Z',
+    });
+
+    await expect(
+      new GetTransactions(transactions, accounts, categories).execute({
+        categoryId: category.id,
+      }),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        categoryName: category.name,
+        transaction: expect.objectContaining({
+          id: 'historical-refund',
+          amount: Money.fromCents(2_000),
+        }),
+      }),
+    ]);
   });
 
   it('filters Uncategorized without including income or categorized expenses', async () => {
@@ -435,6 +510,65 @@ describe('transaction use cases', () => {
 
     expect(updated.amount).toEqual(Money.fromCents(4_000));
     expect(updated.categoryId).toBe(category.id);
+  });
+
+  it('revalidates a category inflow when moving it between cash and credit accounts', async () => {
+    const { accounts, categories, transactions, unitOfWork, clock, create } =
+      await setup();
+    const credit: Account = {
+      ...account,
+      id: 'credit',
+      name: 'Visa',
+      type: 'credit_card',
+    };
+    await accounts.save(credit);
+    const created = await create.execute({
+      direction: 'inflow',
+      accountId: account.id,
+      categoryId: category.id,
+      amountCents: 4_000,
+      date: '2026-08-18',
+      status: 'cleared',
+    });
+    const update = new UpdateTransaction(
+      accounts,
+      categories,
+      transactions,
+      unitOfWork,
+      clock,
+    );
+
+    const onCredit = await update.execute({
+      id: created.id,
+      direction: 'inflow',
+      accountId: credit.id,
+      categoryId: category.id,
+      amountCents: 4_000,
+      date: '2026-08-18',
+      status: 'cleared',
+    });
+    const backToCash = await update.execute({
+      id: created.id,
+      direction: 'inflow',
+      accountId: account.id,
+      categoryId: category.id,
+      amountCents: 4_000,
+      date: '2026-08-18',
+      status: 'cleared',
+    });
+
+    expect(onCredit).toEqual(
+      expect.objectContaining({
+        accountId: credit.id,
+        categoryId: category.id,
+      }),
+    );
+    expect(backToCash).toEqual(
+      expect.objectContaining({
+        accountId: account.id,
+        categoryId: category.id,
+      }),
+    );
   });
 
   it('deletes an editable transaction', async () => {

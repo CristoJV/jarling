@@ -1,4 +1,4 @@
-import { isCashAccountType, type Account } from '@/domain/entities/account';
+import type { Account } from '@/domain/entities/account';
 import { assertValidBudgetMonth } from '@/domain/entities/budget-allocation';
 import type { Category } from '@/domain/entities/category';
 import type { CategoryGroup } from '@/domain/entities/category-group';
@@ -117,23 +117,6 @@ export function calculateReports({
         );
         break;
       case null:
-        if (
-          transaction.kind === 'standard' &&
-          account?.onBudget === true &&
-          !isCashAccountType(account.type)
-        ) {
-          if (transaction.categoryId) {
-            spendingByMonth.set(
-              month,
-              (spendingByMonth.get(month) ?? 0) - transaction.amount.cents,
-            );
-          } else {
-            incomeByMonth.set(
-              month,
-              (incomeByMonth.get(month) ?? 0) + transaction.amount.cents,
-            );
-          }
-        }
         break;
     }
   }

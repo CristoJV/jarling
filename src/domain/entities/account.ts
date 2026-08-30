@@ -31,7 +31,10 @@ export function isCashAccountType(type: AccountType): boolean {
 export function supportsCategoryInflows(
   account: Readonly<{ type: AccountType; onBudget: boolean }>,
 ): boolean {
-  return account.onBudget && isCashAccountType(account.type);
+  return (
+    account.onBudget &&
+    (isCashAccountType(account.type) || isCreditAccountType(account.type))
+  );
 }
 
 export type Account = Readonly<{
