@@ -142,4 +142,33 @@ describe('calculateReports', () => {
       ],
     });
   });
+
+  it('classifies income, category inflows and Uncategorized by sign and destination', () => {
+    const result = calculateReports({
+      throughDate: '2026-08-31',
+      spendingInterval: 'month',
+      spendingIntervalCount: 1,
+      numberOfMonths: 1,
+      accounts,
+      categories,
+      groups,
+      transactions: [
+        transaction('salary', 'cash', 100_000, '2026-08-01'),
+        transaction('expense', 'cash', -10_000, '2026-08-02', {
+          categoryId: 'food',
+        }),
+        transaction('refund', 'cash', 15_000, '2026-08-03', {
+          categoryId: 'food',
+        }),
+        transaction('uncategorized', 'cash', -2_000, '2026-08-04'),
+      ],
+    });
+
+    expect(result.months[0]).toMatchObject({
+      income: Money.fromCents(100_000),
+      spending: Money.fromCents(-3_000),
+      netIncome: Money.fromCents(103_000),
+    });
+    expect(result.spending.total).toEqual(Money.fromCents(-3_000));
+  });
 });

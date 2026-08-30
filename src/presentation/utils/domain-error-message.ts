@@ -5,6 +5,7 @@ import { CategoryGroupNotFoundError } from '@/domain/errors/category-group-not-f
 import { CategoryNotFoundError } from '@/domain/errors/category-not-found-error';
 import { CategoryReassignmentRequiredError } from '@/domain/errors/category-reassignment-required-error';
 import { CategoryNotAllowedForTrackingAccountError } from '@/domain/errors/category-not-allowed-for-tracking-account-error';
+import { CategoryInflowNotSupportedForAccountError } from '@/domain/errors/category-inflow-not-supported-for-account-error';
 import { CannotModifyReconciledTransactionError } from '@/domain/errors/cannot-modify-reconciled-transaction-error';
 import { ClosedAccountError } from '@/domain/errors/closed-account-error';
 import { InsufficientReadyToAssignError } from '@/domain/errors/insufficient-ready-to-assign-error';
@@ -89,6 +90,10 @@ export function domainErrorMessage(error: unknown, t: Translate): string {
 
   if (error instanceof CategoryNotAllowedForTrackingAccountError) {
     return t('errors.trackingCategory');
+  }
+
+  if (error instanceof CategoryInflowNotSupportedForAccountError) {
+    return t('errors.categoryInflowAccount');
   }
 
   if (error instanceof ClosedAccountError) {

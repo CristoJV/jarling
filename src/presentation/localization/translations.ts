@@ -385,6 +385,10 @@ export const english = {
   'transactions.transferDescription': 'Move money between two accounts.',
   'transactions.readyToAssign': 'Ready to Assign',
   'transactions.uncategorized': 'Uncategorized',
+  'transactions.inflowRtaDescription': 'For new income.',
+  'transactions.inflowCategoriesTitle': 'Categories',
+  'transactions.inflowCategoryDescription':
+    'For refunds, reimbursements, or other money returning to a category.',
   'transactions.memo': 'Memo',
   'transactions.addMemo': 'Add Memo',
   'transactions.memoTitle': 'Transaction Memo',
@@ -516,6 +520,8 @@ export const english = {
     'The confirmed balance does not match. Review the amount or authorize the adjustment.',
   'errors.trackingCategory':
     'Budget categories can only be used with accounts included in the budget.',
+  'errors.categoryInflowAccount':
+    'Category inflows are currently available only for cash accounts.',
   'errors.closedAccount': 'Transactions cannot be added to a closed account.',
   'errors.transactionNotFound': 'The transaction no longer exists.',
   'errors.reconciledTransaction':
@@ -933,6 +939,10 @@ export const spanish: TranslationDictionary = {
   'transactions.transferDescription': 'Mover dinero entre dos cuentas.',
   'transactions.readyToAssign': 'Disponible para asignar',
   'transactions.uncategorized': 'Sin categoría',
+  'transactions.inflowRtaDescription': 'Para ingresos nuevos.',
+  'transactions.inflowCategoriesTitle': 'Categorías',
+  'transactions.inflowCategoryDescription':
+    'Para devoluciones, reembolsos u otro dinero que vuelve a una categoría.',
   'transactions.memo': 'Nota',
   'transactions.addMemo': 'Añadir nota',
   'transactions.memoTitle': 'Nota de la transacción',
@@ -1067,6 +1077,8 @@ export const spanish: TranslationDictionary = {
     'El saldo confirmado no coincide. Revisa el importe o autoriza el ajuste.',
   'errors.trackingCategory':
     'Las categorías solo se pueden usar con cuentas incluidas en el presupuesto.',
+  'errors.categoryInflowAccount':
+    'Las entradas por categoría solo están disponibles actualmente en cuentas de efectivo.',
   'errors.closedAccount':
     'No se pueden añadir movimientos a una cuenta cerrada.',
   'errors.transactionNotFound': 'La transacción ya no existe.',

@@ -105,7 +105,7 @@ export function TransactionFlowScreen() {
   const save = useCallback(
     async (input: TransactionInput | TransferInput) => {
       try {
-        if (input.kind === 'transfer') {
+        if (!('direction' in input)) {
           const transactionGroupId =
             data?.transaction?.transaction.transactionGroupId;
           if (transactionGroupId) {

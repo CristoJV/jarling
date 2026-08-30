@@ -57,6 +57,9 @@ type Props = Readonly<{
   onSelect: (selection: CategorySelection) => void | Promise<void>;
   overlay?: boolean;
   readyToAssignAmount?: Money;
+  readyToAssignDescription?: string;
+  categorySectionDescription?: string;
+  categorySectionTitle?: string;
   selectedCategoryId?: string;
   selectedSpecial?: 'ready-to-assign' | 'uncategorized';
   showReadyToAssign?: boolean;
@@ -77,6 +80,9 @@ export function SelectCategoryScreen({
   onSelect,
   overlay = false,
   readyToAssignAmount,
+  readyToAssignDescription,
+  categorySectionDescription,
+  categorySectionTitle,
   selectedCategoryId,
   selectedSpecial,
   showReadyToAssign = false,
@@ -222,6 +228,7 @@ export function SelectCategoryScreen({
                 {showReadyToAssign && !query ? (
                   <SelectionRow
                     available={readyToAssignAmount}
+                    description={readyToAssignDescription}
                     disabled={disabled || selecting}
                     label={t('budget.readyToAssign')}
                     onPress={() =>
@@ -229,6 +236,18 @@ export function SelectCategoryScreen({
                     }
                     selected={selectedSpecial === 'ready-to-assign'}
                   />
+                ) : null}
+                {categorySectionTitle && !query ? (
+                  <View style={styles.sectionIntroduction}>
+                    <Text style={styles.sectionIntroductionTitle}>
+                      {categorySectionTitle}
+                    </Text>
+                    {categorySectionDescription ? (
+                      <Text style={styles.sectionIntroductionDescription}>
+                        {categorySectionDescription}
+                      </Text>
+                    ) : null}
+                  </View>
                 ) : null}
                 {showUncategorized && !query ? (
                   <SelectionRow
@@ -310,6 +329,7 @@ function ActionRow({
 function SelectionRow({
   assigned,
   available,
+  description,
   disabled,
   label,
   onPress,
@@ -317,6 +337,7 @@ function SelectionRow({
 }: Readonly<{
   assigned?: Money;
   available?: Money;
+  description?: string;
   disabled?: boolean;
   label: string;
   onPress: () => void;
@@ -338,6 +359,9 @@ function SelectionRow({
     >
       <View style={styles.categoryCopy}>
         <Text style={styles.categoryLabel}>{label}</Text>
+        {description ? (
+          <Text style={styles.categoryDescription}>{description}</Text>
+        ) : null}
       </View>
       {available ? (
         <CategoryBudgetAmounts assigned={assigned} available={available} />
@@ -423,6 +447,31 @@ const createStyles = (theme: AppTheme) =>
       color: theme.colors.text,
       fontSize: 16,
       fontWeight: '600',
+    },
+    categoryDescription: {
+      marginTop: 3,
+      color: theme.colors.textMuted,
+      fontSize: 12,
+      lineHeight: 17,
+    },
+    sectionIntroduction: {
+      marginTop: 8,
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      paddingBottom: 8,
+      borderTopColor: theme.colors.border,
+      borderTopWidth: StyleSheet.hairlineWidth,
+    },
+    sectionIntroductionTitle: {
+      color: theme.colors.text,
+      fontSize: 15,
+      fontWeight: '800',
+    },
+    sectionIntroductionDescription: {
+      marginTop: 3,
+      color: theme.colors.textMuted,
+      fontSize: 12,
+      lineHeight: 17,
     },
     selected: { backgroundColor: theme.colors.surfacePressed },
     pressed: { opacity: 0.72 },

@@ -1,9 +1,10 @@
-import type { Account } from '@/domain/entities/account';
+import { isCashAccountType, type Account } from '@/domain/entities/account';
 import { assertValidBudgetMonth } from '@/domain/entities/budget-allocation';
 import type { Category } from '@/domain/entities/category';
 import type { CategoryGroup } from '@/domain/entities/category-group';
 import type { Transaction } from '@/domain/entities/transaction';
 import { Money } from '@/domain/value-objects/money';
+import { classifyStandardBudgetTransaction } from '@/domain/services/classify-standard-budget-transaction';
 import {
   calculateSpendingReport,
   type SpendingIntervalUnit,
@@ -99,20 +100,42 @@ export function calculateReports({
     );
     balanceChangesByMonth.set(month, changes);
 
-    if (transaction.kind !== 'standard' || account?.onBudget !== true) {
-      continue;
+    const role = classifyStandardBudgetTransaction(transaction, account);
+    switch (role) {
+      case 'ready-to-assign-inflow':
+        incomeByMonth.set(
+          month,
+          (incomeByMonth.get(month) ?? 0) + transaction.amount.cents,
+        );
+        break;
+      case 'category-inflow':
+      case 'category-expense':
+      case 'uncategorized-expense':
+        spendingByMonth.set(
+          month,
+          (spendingByMonth.get(month) ?? 0) - transaction.amount.cents,
+        );
+        break;
+      case null:
+        if (
+          transaction.kind === 'standard' &&
+          account?.onBudget === true &&
+          !isCashAccountType(account.type)
+        ) {
+          if (transaction.categoryId) {
+            spendingByMonth.set(
+              month,
+              (spendingByMonth.get(month) ?? 0) - transaction.amount.cents,
+            );
+          } else {
+            incomeByMonth.set(
+              month,
+              (incomeByMonth.get(month) ?? 0) + transaction.amount.cents,
+            );
+          }
+        }
+        break;
     }
-    if (!transaction.categoryId) {
-      incomeByMonth.set(
-        month,
-        (incomeByMonth.get(month) ?? 0) + transaction.amount.cents,
-      );
-      continue;
-    }
-    spendingByMonth.set(
-      month,
-      (spendingByMonth.get(month) ?? 0) - transaction.amount.cents,
-    );
   }
 
   const runningBalances = new Map(startingBalanceByAccount);
@@ -123,7 +146,7 @@ export function calculateReports({
         (runningBalances.get(accountId) ?? 0) + change,
       );
     }
-    const spendingCents = Math.max(0, spendingByMonth.get(month) ?? 0);
+    const spendingCents = spendingByMonth.get(month) ?? 0;
     const incomeCents = incomeByMonth.get(month) ?? 0;
     const balances = accounts.map(
       (account) => runningBalances.get(account.id) ?? 0,

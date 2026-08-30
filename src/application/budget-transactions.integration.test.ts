@@ -51,6 +51,7 @@ describe('accounts, transactions and budget integration', () => {
       'category-1',
       'allocation-1',
       'expense-1',
+      'refund-1',
       'target-1',
     ]);
     const account = await new CreateAccount(
@@ -107,11 +108,27 @@ describe('accounts, transactions and budget integration', () => {
       ids,
       clock,
     ).execute({
-      kind: 'expense',
+      direction: 'outflow',
       accountId: account.id,
       categoryId: category.id,
       amountCents: 6_000,
       payee: 'Mercadona',
+      date: '2026-08-18',
+      status: 'cleared',
+    });
+    await new CreateTransaction(
+      accounts,
+      categories,
+      transactions,
+      unitOfWork,
+      ids,
+      clock,
+    ).execute({
+      direction: 'inflow',
+      accountId: account.id,
+      categoryId: category.id,
+      amountCents: 2_000,
+      payee: 'Refund',
       date: '2026-08-18',
       status: 'cleared',
     });
@@ -140,14 +157,14 @@ describe('accounts, transactions and budget integration', () => {
     const afterTarget = await getBudget.execute('2026-08');
 
     expect(accountsOverview.accounts[0]?.balance).toEqual(
-      Money.fromCents(194_000),
+      Money.fromCents(196_000),
     );
     expect(budget.readyToAssign).toEqual(Money.fromCents(160_000));
     expect(values).toEqual(
       expect.objectContaining({
         assigned: Money.fromCents(40_000),
-        activity: Money.fromCents(-6_000),
-        available: Money.fromCents(34_000),
+        activity: Money.fromCents(-4_000),
+        available: Money.fromCents(36_000),
       }),
     );
     expect(afterTarget).toEqual(beforeTarget);

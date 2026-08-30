@@ -207,6 +207,66 @@ describe('calculateBudgetMonth', () => {
     expect(after.readyToAssign).toEqual(before.readyToAssign);
   });
 
+  it('returns a category inflow to the envelope without changing Assigned or Ready to Assign', () => {
+    const result = calculate({
+      transactions: [
+        transaction('income', 100_000, '2026-08-01'),
+        transaction('expense', -10_000, '2026-08-10', groceries.id),
+        transaction('refund', 4_000, '2026-08-20', groceries.id),
+      ],
+      allocations: [
+        allocation('groceries-aug', groceries.id, '2026-08', 10_000),
+      ],
+    });
+
+    expect(result.readyToAssign).toEqual(Money.fromCents(90_000));
+    expect(result.groups[0]?.categories[0]).toEqual(
+      expect.objectContaining({
+        assigned: Money.fromCents(10_000),
+        activity: Money.fromCents(-6_000),
+        available: Money.fromCents(4_000),
+      }),
+    );
+  });
+
+  it('rolls a category inflow into later months without rewriting its original month', () => {
+    const transactions = [
+      transaction('income', 100_000, '2026-08-01'),
+      transaction('expense', -10_000, '2026-08-10', groceries.id),
+      transaction('refund', 4_000, '2026-09-05', groceries.id),
+    ];
+    const allocations = [
+      allocation('groceries-aug', groceries.id, '2026-08', 10_000),
+    ];
+
+    const august = calculate({
+      month: '2026-08',
+      transactions,
+      allocations,
+    });
+    const september = calculate({
+      month: '2026-09',
+      transactions,
+      allocations,
+    });
+
+    expect(august.groups[0]?.categories[0]).toEqual(
+      expect.objectContaining({
+        activity: Money.fromCents(-10_000),
+        available: Money.zero(),
+      }),
+    );
+    expect(september.groups[0]?.categories[0]).toEqual(
+      expect.objectContaining({
+        availableFromPreviousMonth: Money.zero(),
+        assigned: Money.zero(),
+        activity: Money.fromCents(4_000),
+        available: Money.fromCents(4_000),
+      }),
+    );
+    expect(september.readyToAssign).toEqual(Money.fromCents(90_000));
+  });
+
   it('summarizes only current-month on-budget uncategorized expenses', () => {
     const result = calculate({
       transactions: [

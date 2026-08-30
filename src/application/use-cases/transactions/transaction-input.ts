@@ -1,9 +1,12 @@
 import type { TransactionStatus } from '@/domain/entities/transaction';
+import { supportsCategoryInflows } from '@/domain/entities/account';
 import { AccountNotFoundError } from '@/domain/errors/account-not-found-error';
 import { CategoryNotFoundError } from '@/domain/errors/category-not-found-error';
 import { CategoryNotAllowedForTrackingAccountError } from '@/domain/errors/category-not-allowed-for-tracking-account-error';
+import { CategoryInflowNotSupportedForAccountError } from '@/domain/errors/category-inflow-not-supported-for-account-error';
 import { ClosedAccountError } from '@/domain/errors/closed-account-error';
 import { InvalidTransactionAmountError } from '@/domain/errors/invalid-transaction-amount-error';
+import { ProtectedCategoryError } from '@/domain/errors/protected-category-error';
 import type { AccountRepository } from '@/domain/repositories/account-repository';
 import type { CategoryRepository } from '@/domain/repositories/category-repository';
 import { Money } from '@/domain/value-objects/money';
@@ -23,8 +26,10 @@ type TransactionInputBase = Readonly<{
 }>;
 
 export type TransactionInput =
-  | (TransactionInputBase & Readonly<{ kind: 'expense'; categoryId?: string }>)
-  | (TransactionInputBase & Readonly<{ kind: 'income'; categoryId?: never }>);
+  | (TransactionInputBase &
+      Readonly<{ direction: 'outflow'; categoryId?: string }>)
+  | (TransactionInputBase &
+      Readonly<{ direction: 'inflow'; categoryId?: string }>);
 
 export type PreparedTransactionInput = Readonly<{
   accountId: string;
@@ -54,17 +59,17 @@ export async function prepareTransactionInput(
     throw new ClosedAccountError(account.id);
   }
 
-  if (input.kind === 'expense') {
+  if (input.direction === 'outflow') {
     if (!account.onBudget) {
       throw new CategoryNotAllowedForTrackingAccountError();
     }
-    if (input.categoryId && !(await categories.findById(input.categoryId))) {
-      throw new CategoryNotFoundError(input.categoryId);
-    }
+    const category = input.categoryId
+      ? await requireNormalCategory(input.categoryId, categories)
+      : undefined;
 
     return {
       accountId: input.accountId,
-      ...(input.categoryId ? { categoryId: input.categoryId } : {}),
+      ...(category ? { categoryId: category.id } : {}),
       payee: input.payee,
       amount: Money.fromCents(-input.amountCents),
       date: input.date,
@@ -73,12 +78,33 @@ export async function prepareTransactionInput(
     };
   }
 
+  const category = input.categoryId
+    ? await requireNormalCategory(input.categoryId, categories)
+    : undefined;
+  if (category && !account.onBudget) {
+    throw new CategoryNotAllowedForTrackingAccountError();
+  }
+  if (category && !supportsCategoryInflows(account)) {
+    throw new CategoryInflowNotSupportedForAccountError();
+  }
+
   return {
     accountId: input.accountId,
+    ...(category ? { categoryId: category.id } : {}),
     payee: input.payee,
     amount: Money.fromCents(input.amountCents),
     date: input.date,
     notes: input.notes,
     status: input.status,
   };
+}
+
+async function requireNormalCategory(
+  categoryId: string,
+  categories: CategoryRepository,
+) {
+  const category = await categories.findById(categoryId);
+  if (!category) throw new CategoryNotFoundError(categoryId);
+  if (category.linkedAccountId) throw new ProtectedCategoryError();
+  return category;
 }
