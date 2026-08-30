@@ -140,6 +140,62 @@ const emptySnapshot = {
   },
 };
 
+const categoryInflowSnapshot = {
+  ...emptySnapshot,
+  tables: {
+    ...emptySnapshot.tables,
+    accounts: [
+      {
+        id: 'cash',
+        name: 'Cash',
+        type: 'checking',
+        on_budget: 1,
+        closed: 0,
+        created_at: '2026-08-25T12:00:00.000Z',
+        updated_at: '2026-08-25T12:00:00.000Z',
+      },
+    ],
+    category_groups: [
+      {
+        id: 'needs',
+        name: 'Needs',
+        sort_order: 0,
+        created_at: '2026-08-25T12:00:00.000Z',
+        updated_at: '2026-08-25T12:00:00.000Z',
+      },
+    ],
+    categories: [
+      {
+        id: 'clothing',
+        group_id: 'needs',
+        name: 'Clothing',
+        notes: null,
+        hidden: 0,
+        linked_account_id: null,
+        sort_order: 0,
+        created_at: '2026-08-25T12:00:00.000Z',
+        updated_at: '2026-08-25T12:00:00.000Z',
+      },
+    ],
+    transactions: [
+      {
+        id: 'refund',
+        account_id: 'cash',
+        category_id: 'clothing',
+        payee: 'Refund',
+        amount: 4_000,
+        date: '2026-08-25',
+        notes: null,
+        status: 'cleared',
+        kind: 'standard',
+        transaction_group_id: null,
+        created_at: '2026-08-25T12:00:00.000Z',
+        updated_at: '2026-08-25T12:00:00.000Z',
+      },
+    ],
+  },
+};
+
 describe('encrypted Jarling backup codec', () => {
   const cipher = new WebCryptoTestCipher();
   const productionCipher = new NobleBackupCipher(async (length) =>
@@ -200,6 +256,24 @@ describe('encrypted Jarling backup codec', () => {
     await expect(
       verifyEncryptedBackupDocument(backup, password, serialized, cipher),
     ).resolves.toBeUndefined();
+  });
+
+  it('round-trips an encrypted standard category inflow', async () => {
+    const serialized = JSON.stringify(categoryInflowSnapshot);
+    const backup = await createEncryptedBackupDocument(
+      serialized,
+      password,
+      cipher,
+    );
+    const decoded = await decryptEncryptedBackupDocument(
+      JSON.parse(JSON.stringify(backup)),
+      password,
+      cipher,
+    );
+
+    expect(parsePlanSnapshot(JSON.parse(decoded.snapshotJson))).toEqual(
+      categoryInflowSnapshot,
+    );
   });
 
   it('fails verification when the decrypted snapshot differs from its source', async () => {

@@ -1,4 +1,5 @@
 import { InvalidAccountNameError } from '@/domain/errors/invalid-account-name-error';
+import { CategoryInflowNotSupportedForAccountError } from '@/domain/errors/category-inflow-not-supported-for-account-error';
 import { InvalidMoneyError } from '@/domain/errors/invalid-money-error';
 import {
   translate,
@@ -28,5 +29,14 @@ describe('domainErrorMessage', () => {
     expect(message(new Error('unexpected'), 'es')).toBe(
       'No se pudo completar la operación. Inténtalo de nuevo.',
     );
+  });
+
+  it('explains the P0 cash-account boundary for category inflows', () => {
+    expect(
+      message(new CategoryInflowNotSupportedForAccountError(), 'en'),
+    ).toContain('cash accounts');
+    expect(
+      message(new CategoryInflowNotSupportedForAccountError(), 'es'),
+    ).toContain('cuentas de efectivo');
   });
 });

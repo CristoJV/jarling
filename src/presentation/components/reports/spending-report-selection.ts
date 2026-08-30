@@ -28,12 +28,12 @@ export function categorySelectionMetrics(
   }
 
   const spending = category.spendingByInterval[intervalIndex] ?? Money.zero();
+  const intervalCategory = interval.categories.find(
+    ({ categoryId }) => categoryId === category.categoryId,
+  );
   return {
     spending,
-    percentage:
-      interval.spending.cents > 0
-        ? spending.cents / interval.spending.cents
-        : 0,
+    percentage: intervalCategory?.percentageOfInterval ?? 0,
   };
 }
 
@@ -52,16 +52,13 @@ export function intervalSelectionMetrics(
     };
   }
 
-  const spending =
-    interval.categories.find(
-      ({ categoryId }) => categoryId === selectedCategoryId,
-    )?.spending ?? Money.zero();
+  const category = interval.categories.find(
+    ({ categoryId }) => categoryId === selectedCategoryId,
+  );
+  const spending = category?.spending ?? Money.zero();
   return {
     spending,
-    percentage:
-      interval.spending.cents > 0
-        ? spending.cents / interval.spending.cents
-        : 0,
+    percentage: category?.percentageOfInterval ?? 0,
   };
 }
 

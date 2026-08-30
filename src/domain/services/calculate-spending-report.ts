@@ -1,4 +1,4 @@
-import type { Account } from '@/domain/entities/account';
+import { isCashAccountType, type Account } from '@/domain/entities/account';
 import type { Category } from '@/domain/entities/category';
 import type { CategoryGroup } from '@/domain/entities/category-group';
 import {
@@ -6,6 +6,10 @@ import {
   type Transaction,
 } from '@/domain/entities/transaction';
 import { Money } from '@/domain/value-objects/money';
+import { classifyStandardBudgetTransaction } from '@/domain/services/classify-standard-budget-transaction';
+
+export const UNCATEGORIZED_REPORT_CATEGORY_ID = 'report-category-uncategorized';
+export const UNCATEGORIZED_REPORT_GROUP_ID = 'report-group-uncategorized';
 
 export type SpendingIntervalUnit = 'day' | 'week' | 'month' | 'year';
 
@@ -99,39 +103,56 @@ export function calculateSpendingReport({
     const intervalIndex = intervalIndexByKey.get(
       isoDate(startOfInterval(parseDate(transaction.date), interval)),
     );
-    if (
-      intervalIndex === undefined ||
-      transaction.kind !== 'standard' ||
-      !transaction.categoryId ||
-      accountById.get(transaction.accountId)?.onBudget !== true
-    ) {
-      continue;
-    }
+    if (intervalIndex === undefined) continue;
+
+    const account = accountById.get(transaction.accountId);
+    const role = classifyStandardBudgetTransaction(transaction, account);
+    const categoryId =
+      role === 'category-expense' || role === 'category-inflow'
+        ? transaction.categoryId
+        : role === 'uncategorized-expense'
+          ? UNCATEGORIZED_REPORT_CATEGORY_ID
+          : transaction.kind === 'standard' &&
+              account?.onBudget === true &&
+              !isCashAccountType(account.type) &&
+              transaction.categoryId
+            ? transaction.categoryId
+            : undefined;
+    if (!categoryId) continue;
 
     const values =
-      spendingByCategory.get(transaction.categoryId) ??
+      spendingByCategory.get(categoryId) ??
       Array.from({ length: intervalCount }, () => 0);
     values[intervalIndex] =
       (values[intervalIndex] ?? 0) - transaction.amount.cents;
-    spendingByCategory.set(transaction.categoryId, values);
+    spendingByCategory.set(categoryId, values);
   }
 
   const categoryRows = [...spendingByCategory]
     .map(([categoryId, values]) => {
       const totalCents = values.reduce((sum, value) => sum + value, 0);
-      const category = categoryById.get(categoryId);
+      const uncategorized = categoryId === UNCATEGORIZED_REPORT_CATEGORY_ID;
+      const category = uncategorized ? undefined : categoryById.get(categoryId);
       return {
         categoryId,
-        categoryName: category?.name ?? 'Unknown category',
-        ...(category ? { groupId: category.groupId } : {}),
-        groupName: category
-          ? (groupById.get(category.groupId)?.name ?? 'Other')
-          : 'Other',
+        categoryName: uncategorized
+          ? 'Uncategorized'
+          : (category?.name ?? 'Unknown category'),
+        ...(uncategorized
+          ? { groupId: UNCATEGORIZED_REPORT_GROUP_ID }
+          : category
+            ? { groupId: category.groupId }
+            : {}),
+        groupName: uncategorized
+          ? 'Uncategorized'
+          : category
+            ? (groupById.get(category.groupId)?.name ?? 'Other')
+            : 'Other',
         values,
         totalCents,
       };
     })
-    .filter(({ totalCents }) => totalCents > 0)
+    .filter(({ totalCents }) => totalCents !== 0)
     .sort((left, right) => right.totalCents - left.totalCents);
   const totalCents = categoryRows.reduce(
     (sum, category) => sum + category.totalCents,
@@ -143,25 +164,36 @@ export function calculateSpendingReport({
       0,
     ),
   );
+  const positiveTotalCents = categoryRows.reduce(
+    (sum, category) => sum + Math.max(0, category.totalCents),
+    0,
+  );
+  const positiveIntervalTotals = intervals.map((_, index) =>
+    categoryRows.reduce(
+      (sum, category) => sum + Math.max(0, category.values[index] ?? 0),
+      0,
+    ),
+  );
 
   return {
     interval,
     intervalCount,
     intervals: intervals.map((dateInterval, index) => {
       const intervalTotalCents = intervalTotals[index] ?? 0;
+      const positiveIntervalTotalCents = positiveIntervalTotals[index] ?? 0;
       return {
         ...dateInterval,
         spending: Money.fromCents(intervalTotalCents),
         categories: categoryRows.flatMap((category) => {
           const spendingCents = category.values[index] ?? 0;
-          return spendingCents > 0
+          return spendingCents !== 0
             ? [
                 {
                   categoryId: category.categoryId,
                   spending: Money.fromCents(spendingCents),
                   percentageOfInterval:
-                    intervalTotalCents > 0
-                      ? spendingCents / intervalTotalCents
+                    spendingCents > 0 && positiveIntervalTotalCents > 0
+                      ? spendingCents / positiveIntervalTotalCents
                       : 0,
                 },
               ]
@@ -187,7 +219,9 @@ export function calculateSpendingReport({
           Money.fromCents(value),
         ),
         percentageOfTotal:
-          totalCents === 0 ? 0 : category.totalCents / totalCents,
+          category.totalCents > 0 && positiveTotalCents > 0
+            ? category.totalCents / positiveTotalCents
+            : 0,
         lowestInterval: intervalExtreme(
           intervals[lowestIndex]!,
           category.values[lowestIndex] ?? 0,

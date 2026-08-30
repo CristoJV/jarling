@@ -181,6 +181,7 @@ describe('category deletion', () => {
     await categories.save(category('source', 'Old'));
     await categories.save(category('destination', 'New'));
     await transactions.save(expense('transaction-1', 'source', -2_000));
+    await transactions.save(expense('refund-1', 'source', 500));
     await allocations.save(
       allocation('source-aug', 'source', '2026-08', 30_000),
     );
@@ -199,6 +200,12 @@ describe('category deletion', () => {
     await expect(categories.findById('source')).resolves.toBeNull();
     await expect(transactions.findById('transaction-1')).resolves.toEqual(
       expect.objectContaining({ categoryId: 'destination' }),
+    );
+    await expect(transactions.findById('refund-1')).resolves.toEqual(
+      expect.objectContaining({
+        categoryId: 'destination',
+        amount: Money.fromCents(500),
+      }),
     );
     await expect(allocations.findByCategory('source')).resolves.toEqual([]);
     await expect(allocations.findByCategory('destination')).resolves.toEqual([

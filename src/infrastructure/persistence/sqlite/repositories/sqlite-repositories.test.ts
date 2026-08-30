@@ -153,6 +153,46 @@ describe('SQLite repositories', () => {
     );
   });
 
+  it('round-trips a positive standard transaction with a category', async () => {
+    const categoryInflowRow: TransactionRow = {
+      ...transactionRow,
+      id: 'refund-1',
+      category_id: 'category-1',
+      payee: 'Refund',
+      amount: 4_000,
+      kind: 'standard',
+    };
+    const { database, runAsync } = databaseMock({
+      firstRow: categoryInflowRow,
+    });
+    const repository = new SQLiteTransactionRepository(database);
+
+    const categoryInflow = await repository.findById(categoryInflowRow.id);
+    expect(categoryInflow).toEqual(
+      expect.objectContaining({
+        categoryId: 'category-1',
+        amount: Money.fromCents(4_000),
+        kind: 'standard',
+      }),
+    );
+    await repository.save(categoryInflow!);
+    expect(runAsync).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO transactions'),
+      'refund-1',
+      'account-1',
+      'category-1',
+      'Refund',
+      4_000,
+      '2026-08-18',
+      null,
+      'cleared',
+      'standard',
+      null,
+      '2026-08-18T10:00:00.000Z',
+      '2026-08-18T10:00:00.000Z',
+    );
+  });
+
   it('queries transactions with bound filters and deletes by ID', async () => {
     const { database, getAllAsync, runAsync } = databaseMock({
       allRows: [transactionRow],

@@ -19,6 +19,7 @@ import type { CategoryGroupSummary } from '@/application/use-cases/categories/ge
 import type { TransactionSummary } from '@/application/use-cases/transactions/get-transactions';
 import type { TransactionInput } from '@/application/use-cases/transactions/transaction-input';
 import type { TransferInput } from '@/application/use-cases/transfers/transfer-input';
+import { supportsCategoryInflows } from '@/domain/entities/account';
 import type { Category } from '@/domain/entities/category';
 import type { BudgetMonthValues } from '@/domain/services/calculate-budget-month';
 import { Money } from '@/domain/value-objects/money';
@@ -205,6 +206,13 @@ export function TransactionEditorScreen({
   const selectedCategory = availableCategories.find(
     (category) => category.id === categoryId,
   );
+  const selectedAccount = availableAccounts.find(
+    ({ account }) => account.id === accountId,
+  )?.account;
+  const categoryInflowEnabled =
+    kind === 'income' &&
+    selectedAccount !== undefined &&
+    supportsCategoryInflows(selectedAccount);
   const categoryName = selectedCategory
     ? categoryDisplayName(selectedCategory, t)
     : undefined;
@@ -324,15 +332,16 @@ export function TransactionEditorScreen({
           : kind === 'expense'
             ? {
                 ...common,
-                kind,
+                direction: 'outflow',
                 accountId,
                 ...(categoryId ? { categoryId } : {}),
                 payee: payee.trim() || undefined,
               }
             : {
                 ...common,
-                kind,
+                direction: 'inflow',
                 accountId,
+                ...(categoryId ? { categoryId } : {}),
                 payee: payee.trim() || undefined,
               },
       );
@@ -345,6 +354,13 @@ export function TransactionEditorScreen({
   }
 
   function selectKind(value: TransactionKind) {
+    if (
+      value !== kind &&
+      (value === 'expense' || value === 'income') &&
+      (kind === 'expense' || kind === 'income')
+    ) {
+      setCategoryId('');
+    }
     setKind(value);
     if (
       value === 'expense' &&
@@ -355,6 +371,20 @@ export function TransactionEditorScreen({
         availableAccounts.find(({ account }) => account.onBudget)?.account.id ??
           '',
       );
+    }
+  }
+
+  function selectAccount(value: string) {
+    setAccountId(value);
+    const account = availableAccounts.find(
+      ({ account: candidate }) => candidate.id === value,
+    )?.account;
+    if (
+      kind === 'income' &&
+      categoryId &&
+      (!account || !supportsCategoryInflows(account))
+    ) {
+      setCategoryId('');
     }
   }
 
@@ -409,7 +439,7 @@ export function TransactionEditorScreen({
         <FullScreenSelectionScreen
           overlay
           onBack={closeEditor}
-          onSelect={setAccountId}
+          onSelect={selectAccount}
           options={selectableSourceAccounts
             .filter(
               ({ account }) =>
@@ -452,8 +482,26 @@ export function TransactionEditorScreen({
             )
           }
           selectedCategoryId={categoryId || undefined}
-          selectedSpecial={categoryId ? undefined : 'uncategorized'}
-          showUncategorized
+          selectedSpecial={
+            categoryId
+              ? undefined
+              : kind === 'income'
+                ? 'ready-to-assign'
+                : 'uncategorized'
+          }
+          showReadyToAssign={kind === 'income'}
+          showUncategorized={kind === 'expense'}
+          {...(kind === 'income'
+            ? {
+                readyToAssignDescription: t(
+                  'transactions.inflowRtaDescription',
+                ),
+                categorySectionDescription: t(
+                  'transactions.inflowCategoryDescription',
+                ),
+                categorySectionTitle: t('transactions.inflowCategoriesTitle'),
+              }
+            : {})}
           title={t('transactions.chooseCategory')}
         />
       );
@@ -550,10 +598,17 @@ export function TransactionEditorScreen({
                   onPress={() => openEditor('payee')}
                 />
               ) : null}
-              {kind === 'expense' ? (
+              {kind === 'expense' ||
+              categoryInflowEnabled ||
+              (kind === 'income' && categoryId) ? (
                 <FormRow
                   icon={categoryName ? 'shape-outline' : undefined}
-                  label={categoryName ?? t('transactions.uncategorized')}
+                  label={
+                    categoryName ??
+                    (kind === 'income'
+                      ? t('transactions.readyToAssign')
+                      : t('transactions.uncategorized'))
+                  }
                   muted={!categoryName}
                   onPress={() => openEditor('category')}
                 />

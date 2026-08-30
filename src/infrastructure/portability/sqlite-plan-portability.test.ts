@@ -484,6 +484,69 @@ describe('Jarling plan snapshots', () => {
     ).toEqual(expect.objectContaining({ category_id: null, amount: -1000 }));
   });
 
+  it('round-trips a standard category inflow without changing backup version', () => {
+    const snapshot = {
+      ...emptySnapshot,
+      version: 3,
+      tables: {
+        ...emptySnapshot.tables,
+        category_groups: [
+          {
+            id: 'group-1',
+            name: 'Needs',
+            sort_order: 0,
+            created_at: '2026-08-19T10:00:00.000Z',
+            updated_at: '2026-08-19T10:00:00.000Z',
+          },
+        ],
+        categories: [
+          {
+            id: 'category-1',
+            group_id: 'group-1',
+            name: 'Clothing',
+            notes: null,
+            hidden: 0,
+            linked_account_id: null,
+            sort_order: 0,
+            created_at: '2026-08-19T10:00:00.000Z',
+            updated_at: '2026-08-19T10:00:00.000Z',
+          },
+        ],
+        accounts: [
+          {
+            id: 'account-1',
+            name: 'Cash',
+            type: 'checking',
+            on_budget: 1,
+            closed: 0,
+            created_at: '2026-08-19T10:00:00.000Z',
+            updated_at: '2026-08-19T10:00:00.000Z',
+          },
+        ],
+        transactions: [
+          {
+            id: 'refund-1',
+            account_id: 'account-1',
+            category_id: 'category-1',
+            payee: 'Refund',
+            amount: 4_000,
+            date: '2026-08-19',
+            notes: null,
+            status: 'cleared',
+            kind: 'standard',
+            transaction_group_id: null,
+            created_at: '2026-08-19T10:00:00.000Z',
+            updated_at: '2026-08-19T10:00:00.000Z',
+          },
+        ],
+        category_target_snoozes: [],
+      },
+    };
+
+    const serialized = JSON.stringify(snapshot);
+    expect(parsePlanSnapshot(JSON.parse(serialized))).toEqual(snapshot);
+  });
+
   it('normalizes the legacy Uncategorized envelope into null category ids', () => {
     const parsed = parsePlanSnapshot({
       ...emptySnapshot,

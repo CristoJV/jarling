@@ -7,6 +7,7 @@ import { Money } from '@/domain/value-objects/money';
 import {
   buildSpendingIntervals,
   calculateSpendingReport,
+  UNCATEGORIZED_REPORT_CATEGORY_ID,
   type SpendingIntervalUnit,
 } from './calculate-spending-report';
 
@@ -269,5 +270,61 @@ describe('calculateSpendingReport', () => {
 
     expect(report.total).toEqual(Money.fromCents(8_000));
     expect(report.intervals[0]?.spending).toEqual(Money.fromCents(8_000));
+  });
+
+  it('preserves net credits and includes Uncategorized spending', () => {
+    const categoryInflow = createTransaction({
+      id: 'refund',
+      accountId: 'cash',
+      categoryId: 'food',
+      amount: Money.fromCents(15_000),
+      date: '2026-08-09',
+      status: 'cleared',
+      kind: 'standard',
+      createdAt: '2026-08-09T00:00:00.000Z',
+      updatedAt: '2026-08-09T00:00:00.000Z',
+    });
+    const uncategorized = createTransaction({
+      id: 'uncategorized',
+      accountId: 'cash',
+      amount: Money.fromCents(-2_000),
+      date: '2026-08-09',
+      status: 'cleared',
+      kind: 'standard',
+      createdAt: '2026-08-09T00:00:00.000Z',
+      updatedAt: '2026-08-09T00:00:00.000Z',
+    });
+
+    const report = calculateSpendingReport({
+      throughDate: '2026-08-09',
+      interval: 'week',
+      intervalCount: 1,
+      accounts,
+      categories,
+      groups,
+      transactions: [
+        expense('expense', 10_000, '2026-08-03', 'food'),
+        categoryInflow,
+        uncategorized,
+      ],
+    });
+
+    expect(report.total).toEqual(Money.fromCents(-3_000));
+    expect(report.average).toEqual(Money.fromCents(-3_000));
+    expect(report.intervals[0]?.spending).toEqual(Money.fromCents(-3_000));
+    expect(report.categories).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          categoryId: UNCATEGORIZED_REPORT_CATEGORY_ID,
+          total: Money.fromCents(2_000),
+          percentageOfTotal: 1,
+        }),
+        expect.objectContaining({
+          categoryId: 'food',
+          total: Money.fromCents(-5_000),
+          percentageOfTotal: 0,
+        }),
+      ]),
+    );
   });
 });

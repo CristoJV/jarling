@@ -5,8 +5,11 @@ import type { Account } from '@/domain/entities/account';
 import type { Category } from '@/domain/entities/category';
 import type { Transaction } from '@/domain/entities/transaction';
 import { CannotModifyReconciledTransactionError } from '@/domain/errors/cannot-modify-reconciled-transaction-error';
+import { CategoryInflowNotSupportedForAccountError } from '@/domain/errors/category-inflow-not-supported-for-account-error';
 import { CategoryNotFoundError } from '@/domain/errors/category-not-found-error';
+import { CategoryNotAllowedForTrackingAccountError } from '@/domain/errors/category-not-allowed-for-tracking-account-error';
 import { InvalidTransactionAmountError } from '@/domain/errors/invalid-transaction-amount-error';
+import { ProtectedCategoryError } from '@/domain/errors/protected-category-error';
 import { InvalidTransactionDateError } from '@/domain/errors/invalid-transaction-date-error';
 import { TransactionNotFoundError } from '@/domain/errors/transaction-not-found-error';
 import { ProtectedTransactionError } from '@/domain/errors/protected-transaction-error';
@@ -92,7 +95,7 @@ describe('transaction use cases', () => {
     const { create, transactions, unitOfWork } = await setup();
 
     const result = await create.execute({
-      kind: 'expense',
+      direction: 'outflow',
       accountId: account.id,
       categoryId: category.id,
       amountCents: 6_000,
@@ -124,7 +127,7 @@ describe('transaction use cases', () => {
 
     await expect(
       create.execute({
-        kind: 'income',
+        direction: 'inflow',
         accountId: account.id,
         amountCents: 230_000,
         payee: 'Salary',
@@ -136,6 +139,94 @@ describe('transaction use cases', () => {
     );
   });
 
+  it('creates a category inflow with a positive amount', async () => {
+    const { create } = await setup();
+
+    await expect(
+      create.execute({
+        direction: 'inflow',
+        accountId: account.id,
+        categoryId: category.id,
+        amountCents: 4_000,
+        payee: 'Refund',
+        date: '2026-08-18',
+        status: 'cleared',
+      }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        categoryId: category.id,
+        amount: Money.fromCents(4_000),
+      }),
+    );
+  });
+
+  it('validates categories used by inflows', async () => {
+    const { accounts, categories, create } = await setup();
+
+    await expect(
+      create.execute({
+        direction: 'inflow',
+        accountId: account.id,
+        categoryId: 'missing',
+        amountCents: 100,
+        date: '2026-08-18',
+        status: 'uncleared',
+      }),
+    ).rejects.toThrow(CategoryNotFoundError);
+
+    const protectedCategory = {
+      ...category,
+      id: 'credit-payment',
+      linkedAccountId: 'credit',
+    };
+    await categories.save(protectedCategory);
+    await expect(
+      create.execute({
+        direction: 'inflow',
+        accountId: account.id,
+        categoryId: protectedCategory.id,
+        amountCents: 100,
+        date: '2026-08-18',
+        status: 'uncleared',
+      }),
+    ).rejects.toThrow(ProtectedCategoryError);
+
+    const tracking = {
+      ...account,
+      id: 'tracking',
+      type: 'tracking' as const,
+      onBudget: false,
+    };
+    await accounts.save(tracking);
+    await expect(
+      create.execute({
+        direction: 'inflow',
+        accountId: tracking.id,
+        categoryId: category.id,
+        amountCents: 100,
+        date: '2026-08-18',
+        status: 'uncleared',
+      }),
+    ).rejects.toThrow(CategoryNotAllowedForTrackingAccountError);
+
+    const credit = {
+      ...account,
+      id: 'credit',
+      type: 'credit_card' as const,
+    };
+    await accounts.save(credit);
+    await expect(
+      create.execute({
+        direction: 'inflow',
+        accountId: credit.id,
+        categoryId: category.id,
+        amountCents: 100,
+        date: '2026-08-18',
+        status: 'uncleared',
+      }),
+    ).rejects.toThrow(CategoryInflowNotSupportedForAccountError);
+  });
+
   it.each([0, -1, 1.5])(
     'rejects invalid input amount %p',
     async (amountCents) => {
@@ -143,7 +234,7 @@ describe('transaction use cases', () => {
 
       await expect(
         create.execute({
-          kind: 'income',
+          direction: 'inflow',
           accountId: account.id,
           amountCents,
           date: '2026-08-18',
@@ -160,7 +251,7 @@ describe('transaction use cases', () => {
 
     await expect(
       create.execute({
-        kind: 'income',
+        direction: 'inflow',
         accountId: account.id,
         amountCents: 100,
         date: '2026-02-30',
@@ -174,7 +265,7 @@ describe('transaction use cases', () => {
 
     await expect(
       create.execute({
-        kind: 'expense',
+        direction: 'outflow',
         accountId: account.id,
         categoryId: 'missing',
         amountCents: 100,
@@ -188,7 +279,7 @@ describe('transaction use cases', () => {
     const { create } = await setup();
 
     const result = await create.execute({
-      kind: 'expense',
+      direction: 'outflow',
       accountId: account.id,
       amountCents: 100,
       date: '2026-08-18',
@@ -202,7 +293,7 @@ describe('transaction use cases', () => {
   it('filters and enriches transactions for presentation', async () => {
     const { accounts, categories, transactions, create } = await setup();
     const cleared = await create.execute({
-      kind: 'expense',
+      direction: 'outflow',
       accountId: account.id,
       categoryId: category.id,
       amountCents: 6_000,
@@ -240,7 +331,7 @@ describe('transaction use cases', () => {
   it('filters Uncategorized without including income or categorized expenses', async () => {
     const { accounts, categories, transactions, create } = await setup();
     await create.execute({
-      kind: 'expense',
+      direction: 'outflow',
       accountId: account.id,
       amountCents: 1_000,
       payee: 'Unsorted expense',
@@ -277,7 +368,7 @@ describe('transaction use cases', () => {
     const { accounts, categories, transactions, unitOfWork, clock, create } =
       await setup();
     const created = await create.execute({
-      kind: 'expense',
+      direction: 'outflow',
       accountId: account.id,
       categoryId: category.id,
       amountCents: 6_000,
@@ -293,7 +384,7 @@ describe('transaction use cases', () => {
       clock,
     ).execute({
       id: created.id,
-      kind: 'income',
+      direction: 'inflow',
       accountId: account.id,
       amountCents: 10_000,
       payee: 'Refund',
@@ -314,10 +405,42 @@ describe('transaction use cases', () => {
     });
   });
 
+  it('updates an expense into a categorized inflow', async () => {
+    const { accounts, categories, transactions, unitOfWork, clock, create } =
+      await setup();
+    const created = await create.execute({
+      direction: 'outflow',
+      accountId: account.id,
+      categoryId: category.id,
+      amountCents: 6_000,
+      date: '2026-08-18',
+      status: 'uncleared',
+    });
+
+    const updated = await new UpdateTransaction(
+      accounts,
+      categories,
+      transactions,
+      unitOfWork,
+      clock,
+    ).execute({
+      id: created.id,
+      direction: 'inflow',
+      accountId: account.id,
+      categoryId: category.id,
+      amountCents: 4_000,
+      date: '2026-08-19',
+      status: 'cleared',
+    });
+
+    expect(updated.amount).toEqual(Money.fromCents(4_000));
+    expect(updated.categoryId).toBe(category.id);
+  });
+
   it('deletes an editable transaction', async () => {
     const { transactions, unitOfWork, create } = await setup();
     const created = await create.execute({
-      kind: 'income',
+      direction: 'inflow',
       accountId: account.id,
       amountCents: 100,
       date: '2026-08-18',
@@ -353,7 +476,7 @@ describe('transaction use cases', () => {
         clock,
       ).execute({
         id: reconciled.id,
-        kind: 'income',
+        direction: 'inflow',
         accountId: account.id,
         amountCents: 200,
         date: '2026-08-18',
@@ -388,7 +511,7 @@ describe('transaction use cases', () => {
         clock,
       ).execute({
         id: opening.id,
-        kind: 'income',
+        direction: 'inflow',
         accountId: account.id,
         amountCents: 200,
         date: '2026-08-18',
