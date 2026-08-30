@@ -241,6 +241,40 @@ describe('budget use cases', () => {
     ).toEqual(Money.zero());
   });
 
+  it('does not duplicate category inflow cash against future assignments', async () => {
+    const { allocations, transactions, getBudget } = await setup();
+    await allocations.save({
+      id: 'future-allocation',
+      categoryId: category.id,
+      month: '2026-09',
+      amount: Money.fromCents(200_000),
+      createdAt: instant,
+      updatedAt: instant,
+    });
+    await transactions.save({
+      ...openingBalance,
+      id: 'category-refund',
+      categoryId: category.id,
+      amount: Money.fromCents(40_000),
+      date: '2026-08-20',
+      kind: 'standard',
+    });
+
+    const august = await getBudget.execute('2026-08');
+    expect(august.groups[0]?.categories[0]).toEqual(
+      expect.objectContaining({
+        assigned: Money.zero(),
+        activity: Money.fromCents(40_000),
+        available: Money.fromCents(40_000),
+      }),
+    );
+    expect(august.readyToAssign).toEqual(Money.zero());
+    expect(august.funding.assignableNow).toEqual(Money.fromCents(200_000));
+    expect(august.funding.futureAssignmentsAvailable).toEqual(
+      Money.fromCents(200_000),
+    );
+  });
+
   it('clears future usage when the user reduces the future assignment', async () => {
     const { assign, allocations, getBudget } = await setup();
     const future: BudgetAllocation = {

@@ -108,6 +108,46 @@ describe('account reconciliation', () => {
     );
   });
 
+  it('reconciles categorized inflows by sign without reclassifying them', async () => {
+    const { accounts, transactions } = await setup();
+    await transactions.save(
+      createTransaction({
+        id: 'category-refund',
+        accountId: 'account-1',
+        categoryId: 'category-1',
+        amount: Money.fromCents(4_000),
+        date: clock.now().date,
+        status: 'cleared',
+        kind: 'standard',
+        createdAt: clock.now().instant,
+        updatedAt: clock.now().instant,
+      }),
+    );
+    const reconcile = new ReconcileAccount(
+      accounts,
+      transactions,
+      new ImmediateUnitOfWork(),
+      ids,
+      clock,
+    );
+
+    await expect(
+      new GetReconciliation(accounts, transactions, clock).execute('account-1'),
+    ).resolves.toEqual(
+      expect.objectContaining({ clearedBalance: Money.fromCents(106_000) }),
+    );
+    await expect(
+      reconcile.execute({
+        accountId: 'account-1',
+        actualBalanceCents: 106_000,
+        createAdjustment: false,
+      }),
+    ).resolves.toEqual({ reconciledCount: 2 });
+    expect((await transactions.findById('category-refund'))?.status).toBe(
+      'reconciled',
+    );
+  });
+
   it('marks only cleared transactions as reconciled when balances match', async () => {
     const { accounts, transactions } = await setup();
     const reconcile = new ReconcileAccount(

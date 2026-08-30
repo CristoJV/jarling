@@ -30,6 +30,15 @@ const accounts: readonly Account[] = [
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
   },
+  {
+    id: 'credit',
+    name: 'Credit Card',
+    type: 'credit_card',
+    onBudget: true,
+    closed: false,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  },
 ];
 const groups: readonly CategoryGroup[] = [
   {
@@ -326,5 +335,36 @@ describe('calculateSpendingReport', () => {
         }),
       ]),
     );
+  });
+
+  it('reports an Uncategorized credit outflow as spending', () => {
+    const uncategorizedCreditExpense = createTransaction({
+      id: 'uncategorized-credit-expense',
+      accountId: 'credit',
+      amount: Money.fromCents(-4_000),
+      date: '2026-08-09',
+      status: 'cleared',
+      kind: 'standard',
+      createdAt: '2026-08-09T00:00:00.000Z',
+      updatedAt: '2026-08-09T00:00:00.000Z',
+    });
+
+    const report = calculateSpendingReport({
+      throughDate: '2026-08-09',
+      interval: 'week',
+      intervalCount: 1,
+      accounts,
+      categories,
+      groups,
+      transactions: [uncategorizedCreditExpense],
+    });
+
+    expect(report.total).toEqual(Money.fromCents(4_000));
+    expect(report.categories).toEqual([
+      expect.objectContaining({
+        categoryId: UNCATEGORIZED_REPORT_CATEGORY_ID,
+        total: Money.fromCents(4_000),
+      }),
+    ]);
   });
 });

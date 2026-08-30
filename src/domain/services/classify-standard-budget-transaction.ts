@@ -1,4 +1,7 @@
-import { isCashAccountType, type Account } from '@/domain/entities/account';
+import {
+  supportsCategoryInflows,
+  type Account,
+} from '@/domain/entities/account';
 import type { Transaction } from '@/domain/entities/transaction';
 
 export type StandardBudgetTransactionRole =
@@ -13,8 +16,8 @@ export function classifyStandardBudgetTransaction(
 ): StandardBudgetTransactionRole | null {
   if (
     transaction.kind !== 'standard' ||
-    account?.onBudget !== true ||
-    !isCashAccountType(account.type)
+    !account ||
+    !supportsCategoryInflows(account)
   ) {
     return null;
   }

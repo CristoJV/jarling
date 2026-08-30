@@ -213,6 +213,10 @@ export function TransactionEditorScreen({
     kind === 'income' &&
     selectedAccount !== undefined &&
     supportsCategoryInflows(selectedAccount);
+  const showsCategoryDestination =
+    kind === 'expense' ||
+    categoryInflowEnabled ||
+    (kind === 'income' && Boolean(categoryId));
   const categoryName = selectedCategory
     ? categoryDisplayName(selectedCategory, t)
     : undefined;
@@ -598,9 +602,7 @@ export function TransactionEditorScreen({
                   onPress={() => openEditor('payee')}
                 />
               ) : null}
-              {kind === 'expense' ||
-              categoryInflowEnabled ||
-              (kind === 'income' && categoryId) ? (
+              {showsCategoryDestination ? (
                 <FormRow
                   icon={categoryName ? 'shape-outline' : undefined}
                   label={

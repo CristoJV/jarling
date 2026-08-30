@@ -3,6 +3,7 @@ import type { IdGenerator } from '@/application/ports/id-generator';
 import { DeleteTransaction } from '@/application/use-cases/transactions/delete-transaction';
 import { createAccount } from '@/domain/entities/account';
 import { createCategory } from '@/domain/entities/category';
+import { CannotModifyReconciledTransactionError } from '@/domain/errors/cannot-modify-reconciled-transaction-error';
 import { InvalidTransferError } from '@/domain/errors/invalid-transfer-error';
 import { ProtectedTransactionError } from '@/domain/errors/protected-transaction-error';
 import { calculateBudgetMonth } from '@/domain/services/calculate-budget-month';
@@ -233,5 +234,71 @@ describe('transfers', () => {
     expect(budget.readyToAssign).toEqual(Money.zero());
     expect(budget.funding.status).toBe('assigned-too-much');
     expect(budget.funding.assignedTooMuch).toEqual(Money.fromCents(25_000));
+  });
+
+  it('keeps tracking-to-tracking transfers outside the budget', async () => {
+    const { accounts, transactions, create } = await setup();
+    await accounts.save(
+      createAccount({
+        id: 'tracking-2',
+        name: 'Pension',
+        type: 'tracking',
+        onBudget: false,
+        createdAt: clock.now().instant,
+        updatedAt: clock.now().instant,
+      }),
+    );
+
+    const pair = await create.execute({
+      kind: 'transfer',
+      sourceAccountId: 'tracking',
+      destinationAccountId: 'tracking-2',
+      amountCents: 25_000,
+      date: '2026-08-18',
+      status: 'cleared',
+    });
+    const budget = calculateBudgetMonth({
+      month: '2026-08',
+      accounts: await accounts.findAll(),
+      transactions: await transactions.findAll(),
+      allocations: [],
+      categories: [],
+      groups: [],
+    });
+
+    expect(pair.source.amount).toEqual(Money.fromCents(-25_000));
+    expect(pair.destination.amount).toEqual(Money.fromCents(25_000));
+    expect(budget.readyToAssign).toEqual(Money.zero());
+  });
+
+  it('protects both transfer legs when either one is reconciled', async () => {
+    const { transactions, create, update, remove } = await setup();
+    const pair = await create.execute({
+      kind: 'transfer',
+      sourceAccountId: 'source',
+      destinationAccountId: 'destination',
+      amountCents: 25_000,
+      date: '2026-08-18',
+      status: 'cleared',
+    });
+    await transactions.save({ ...pair.destination, status: 'reconciled' });
+
+    await expect(remove.execute(pair.source.id)).rejects.toThrow(
+      CannotModifyReconciledTransactionError,
+    );
+    await expect(
+      update.execute({
+        kind: 'transfer',
+        transactionGroupId: pair.source.transactionGroupId!,
+        sourceAccountId: 'source',
+        destinationAccountId: 'destination',
+        amountCents: 10_000,
+        date: '2026-08-19',
+        status: 'cleared',
+      }),
+    ).rejects.toThrow(CannotModifyReconciledTransactionError);
+    expect(
+      await transactions.findByGroup(pair.source.transactionGroupId!),
+    ).toHaveLength(2);
   });
 });
