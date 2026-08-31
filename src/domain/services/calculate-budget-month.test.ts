@@ -8,7 +8,10 @@ import {
 } from '@/domain/entities/transaction';
 import { Money } from '@/domain/value-objects/money';
 
-import { calculateBudgetMonth } from './calculate-budget-month';
+import {
+  calculateBudgetMonth,
+  calculateCategoryPeriodUsage,
+} from './calculate-budget-month';
 
 const instant = '2026-08-01T10:00:00.000Z';
 const group: CategoryGroup = {
@@ -227,6 +230,35 @@ describe('calculateBudgetMonth', () => {
         available: Money.fromCents(4_000),
       }),
     );
+    expect(
+      calculateCategoryPeriodUsage(result.groups[0]!.categories[0]!),
+    ).toEqual({
+      startingAvailable: Money.fromCents(10_000),
+      netSpending: Money.fromCents(6_000),
+    });
+  });
+
+  it('derives starting capacity from carryover and assignments while netting category inflows', () => {
+    const result = calculate({
+      month: '2026-09',
+      transactions: [
+        transaction('aug-expense', -5_000, '2026-08-10', groceries.id),
+        transaction('sep-expense', -5_000, '2026-09-10', groceries.id),
+        transaction('sep-refund', 2_500, '2026-09-20', groceries.id),
+      ],
+      allocations: [
+        allocation('aug', groceries.id, '2026-08', 7_500),
+        allocation('sep', groceries.id, '2026-09', 7_500),
+      ],
+    });
+    const values = result.groups[0]!.categories[0]!;
+
+    expect(values.availableFromPreviousMonth).toEqual(Money.fromCents(2_500));
+    expect(calculateCategoryPeriodUsage(values)).toEqual({
+      startingAvailable: Money.fromCents(10_000),
+      netSpending: Money.fromCents(2_500),
+    });
+    expect(values.available).toEqual(Money.fromCents(7_500));
   });
 
   it('rolls a category inflow into later months without rewriting its original month', () => {

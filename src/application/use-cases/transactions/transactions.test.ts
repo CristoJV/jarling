@@ -4,7 +4,7 @@ import type { UnitOfWork } from '@/application/ports/unit-of-work';
 import type { Account } from '@/domain/entities/account';
 import type { Category } from '@/domain/entities/category';
 import type { Transaction } from '@/domain/entities/transaction';
-import { CannotModifyReconciledTransactionError } from '@/domain/errors/cannot-modify-reconciled-transaction-error';
+import { TransactionAccountLockedError } from '@/domain/errors/transaction-account-locked-error';
 import { CategoryNotFoundError } from '@/domain/errors/category-not-found-error';
 import { CategoryNotAllowedForTrackingAccountError } from '@/domain/errors/category-not-allowed-for-tracking-account-error';
 import { InvalidTransactionAmountError } from '@/domain/errors/invalid-transaction-amount-error';
@@ -13,6 +13,7 @@ import { InvalidTransactionDateError } from '@/domain/errors/invalid-transaction
 import { TransactionNotFoundError } from '@/domain/errors/transaction-not-found-error';
 import { ProtectedTransactionError } from '@/domain/errors/protected-transaction-error';
 import { Money } from '@/domain/value-objects/money';
+import { calculateBudgetMonth } from '@/domain/services/calculate-budget-month';
 import { InMemoryAccountRepository } from '@/infrastructure/persistence/in-memory/in-memory-account-repository';
 import { InMemoryCategoryRepository } from '@/infrastructure/persistence/in-memory/in-memory-category-repository';
 import { InMemoryTransactionRepository } from '@/infrastructure/persistence/in-memory/in-memory-transaction-repository';
@@ -586,13 +587,57 @@ describe('transaction use cases', () => {
     expect(await transactions.findById(created.id)).toBeNull();
   });
 
-  it('protects reconciled transactions from update and deletion', async () => {
+  it('updates and deletes a reconciled transaction while preserving its status', async () => {
     const { accounts, categories, transactions, unitOfWork, clock } =
       await setup();
     const reconciled: Transaction = {
       id: 'reconciled-1',
       accountId: account.id,
       amount: Money.fromCents(100),
+      date: '2026-08-18',
+      status: 'reconciled',
+      kind: 'standard',
+      createdAt: '2026-08-18T10:00:00.000Z',
+      updatedAt: '2026-08-18T10:00:00.000Z',
+    };
+    await transactions.save(reconciled);
+
+    const updated = await new UpdateTransaction(
+      accounts,
+      categories,
+      transactions,
+      unitOfWork,
+      clock,
+    ).execute({
+      id: reconciled.id,
+      direction: 'inflow',
+      accountId: account.id,
+      amountCents: 200,
+      date: '2026-09-18',
+      status: 'cleared',
+    });
+
+    expect(updated).toEqual(
+      expect.objectContaining({
+        amount: Money.fromCents(200),
+        date: '2026-09-18',
+        status: 'reconciled',
+      }),
+    );
+    await new DeleteTransaction(transactions, unitOfWork).execute(
+      reconciled.id,
+    );
+    expect(await transactions.findById(reconciled.id)).toBeNull();
+  });
+
+  it('prevents moving a reconciled transaction to another account', async () => {
+    const { accounts, categories, transactions, unitOfWork, clock } =
+      await setup();
+    await accounts.save({ ...account, id: 'account-2', name: 'Savings' });
+    const reconciled: Transaction = {
+      id: 'reconciled-account',
+      accountId: account.id,
+      amount: Money.fromCents(-100),
       date: '2026-08-18',
       status: 'reconciled',
       kind: 'standard',
@@ -610,25 +655,77 @@ describe('transaction use cases', () => {
         clock,
       ).execute({
         id: reconciled.id,
-        direction: 'inflow',
-        accountId: account.id,
-        amountCents: 200,
-        date: '2026-08-18',
+        direction: 'outflow',
+        accountId: 'account-2',
+        amountCents: 100,
+        date: reconciled.date,
         status: 'cleared',
       }),
-    ).rejects.toThrow(CannotModifyReconciledTransactionError);
-    await expect(
-      new DeleteTransaction(transactions, unitOfWork).execute(reconciled.id),
-    ).rejects.toThrow(CannotModifyReconciledTransactionError);
+    ).rejects.toThrow(TransactionAccountLockedError);
   });
 
-  it('protects technical transactions from the generic editor', async () => {
+  it.each(['2026-08-20', '2026-07-31', '2026-09-01', '2027-01-01'])(
+    'edits an opening balance date to %s without losing its identity',
+    async (date) => {
+      const { accounts, categories, transactions, unitOfWork, clock } =
+        await setup();
+      const opening: Transaction = {
+        id: 'opening',
+        accountId: account.id,
+        amount: Money.fromCents(100),
+        date: '2026-08-18',
+        status: 'cleared',
+        kind: 'opening_balance',
+        createdAt: '2026-08-18T10:00:00.000Z',
+        updatedAt: '2026-08-18T10:00:00.000Z',
+      };
+      await transactions.save(opening);
+      const updated = await new UpdateTransaction(
+        accounts,
+        categories,
+        transactions,
+        unitOfWork,
+        clock,
+      ).execute({
+        id: opening.id,
+        direction: 'inflow',
+        accountId: account.id,
+        categoryId: category.id,
+        amountCents: 1_100,
+        payee: '  Corrected opening balance ',
+        notes: '  Imported statement ',
+        date,
+        status: 'cleared',
+      });
+
+      expect(updated).toEqual(
+        expect.objectContaining({
+          id: opening.id,
+          accountId: opening.accountId,
+          amount: Money.fromCents(1_100),
+          payee: 'Corrected opening balance',
+          notes: 'Imported statement',
+          date,
+          kind: 'opening_balance',
+          createdAt: opening.createdAt,
+        }),
+      );
+      expect(updated.categoryId).toBeUndefined();
+      expect(await transactions.findById(opening.id)).toEqual(updated);
+      await expect(
+        new DeleteTransaction(transactions, unitOfWork).execute(opening.id),
+      ).rejects.toThrow(ProtectedTransactionError);
+    },
+  );
+
+  it('prevents moving an opening balance to another account', async () => {
     const { accounts, categories, transactions, unitOfWork, clock } =
       await setup();
+    await accounts.save({ ...account, id: 'account-2', name: 'Savings' });
     const opening: Transaction = {
-      id: 'opening',
+      id: 'opening-account',
       accountId: account.id,
-      amount: Money.fromCents(100),
+      amount: Money.fromCents(1_000),
       date: '2026-08-18',
       status: 'cleared',
       kind: 'opening_balance',
@@ -636,6 +733,7 @@ describe('transaction use cases', () => {
       updatedAt: '2026-08-18T10:00:00.000Z',
     };
     await transactions.save(opening);
+
     await expect(
       new UpdateTransaction(
         accounts,
@@ -646,15 +744,107 @@ describe('transaction use cases', () => {
       ).execute({
         id: opening.id,
         direction: 'inflow',
-        accountId: account.id,
-        amountCents: 200,
-        date: '2026-08-18',
+        accountId: 'account-2',
+        amountCents: 1_100,
+        date: opening.date,
         status: 'cleared',
       }),
-    ).rejects.toThrow(ProtectedTransactionError);
-    await expect(
-      new DeleteTransaction(transactions, unitOfWork).execute(opening.id),
-    ).rejects.toThrow(ProtectedTransactionError);
+    ).rejects.toThrow(TransactionAccountLockedError);
+  });
+
+  it('recalculates historical budget balances after changing an opening balance date and amount', async () => {
+    const { accounts, categories, transactions, unitOfWork, clock } =
+      await setup();
+    const opening: Transaction = {
+      id: 'opening-history',
+      accountId: account.id,
+      amount: Money.fromCents(100_000),
+      date: '2026-08-01',
+      status: 'cleared',
+      kind: 'opening_balance',
+      createdAt: '2026-08-01T10:00:00.000Z',
+      updatedAt: '2026-08-01T10:00:00.000Z',
+    };
+    await transactions.save(opening);
+
+    await new UpdateTransaction(
+      accounts,
+      categories,
+      transactions,
+      unitOfWork,
+      clock,
+    ).execute({
+      id: opening.id,
+      direction: 'inflow',
+      accountId: account.id,
+      amountCents: 110_000,
+      date: '2026-09-01',
+      status: 'cleared',
+    });
+    const ledger = await transactions.findAll();
+    const calculate = (month: string) =>
+      calculateBudgetMonth({
+        month,
+        accounts: [account],
+        allocations: [],
+        categories: [],
+        groups: [],
+        transactions: ledger,
+      });
+
+    expect(calculate('2026-08').readyToAssign).toEqual(Money.zero());
+    expect(calculate('2026-09').readyToAssign).toEqual(
+      Money.fromCents(110_000),
+    );
+  });
+
+  it('edits and deletes a reconciliation adjustment without losing its kind', async () => {
+    const { accounts, categories, transactions, unitOfWork, clock } =
+      await setup();
+    const adjustment: Transaction = {
+      id: 'reconciliation-adjustment',
+      accountId: account.id,
+      amount: Money.fromCents(-500),
+      payee: 'Reconciliation Adjustment',
+      date: '2026-08-18',
+      status: 'reconciled',
+      kind: 'reconciliation_adjustment',
+      createdAt: '2026-08-18T10:00:00.000Z',
+      updatedAt: '2026-08-18T10:00:00.000Z',
+    };
+    await transactions.save(adjustment);
+
+    const updated = await new UpdateTransaction(
+      accounts,
+      categories,
+      transactions,
+      unitOfWork,
+      clock,
+    ).execute({
+      id: adjustment.id,
+      direction: 'outflow',
+      accountId: account.id,
+      categoryId: category.id,
+      amountCents: 750,
+      payee: 'Corrected adjustment',
+      date: '2026-08-19',
+      status: 'cleared',
+    });
+
+    expect(updated).toEqual(
+      expect.objectContaining({
+        kind: 'reconciliation_adjustment',
+        status: 'reconciled',
+        amount: Money.fromCents(-750),
+        payee: 'Corrected adjustment',
+      }),
+    );
+    expect(updated.categoryId).toBeUndefined();
+
+    await new DeleteTransaction(transactions, unitOfWork).execute(
+      adjustment.id,
+    );
+    expect(await transactions.findById(adjustment.id)).toBeNull();
   });
 
   it('deletes only the selected standard transaction', async () => {

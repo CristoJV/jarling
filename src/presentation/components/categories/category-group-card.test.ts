@@ -90,4 +90,33 @@ describe('categoryStatus', () => {
     expect(status?.tone).toBe('positive');
     expect(status?.label).toContain('Spent');
   });
+
+  it('shows net spending against starting available after a partial refund', () => {
+    const values: BudgetCategoryValues = {
+      category,
+      availableFromPreviousMonth: Money.fromCents(2_500),
+      assigned: Money.fromCents(7_500),
+      activity: Money.fromCents(-2_500),
+      available: Money.fromCents(7_500),
+      spendingTransactions: [Money.fromCents(5_000)],
+    };
+
+    const status = categoryStatus(values, undefined, t);
+    expect(status?.label).toBe(
+      `Spent ${formatMoney(Money.fromCents(2_500))} of ${formatMoney(Money.fromCents(10_000))}`,
+    );
+  });
+
+  it('does not show a spending message when category inflows exceed outflows', () => {
+    const values: BudgetCategoryValues = {
+      category,
+      availableFromPreviousMonth: Money.zero(),
+      assigned: Money.fromCents(10_000),
+      activity: Money.fromCents(2_500),
+      available: Money.fromCents(12_500),
+      spendingTransactions: [Money.fromCents(5_000)],
+    };
+
+    expect(categoryStatus(values, undefined, t)).toBeNull();
+  });
 });

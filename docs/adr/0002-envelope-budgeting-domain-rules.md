@@ -34,8 +34,9 @@ plan impossible to reconstruct or trust.
 - A target recommends funding but never moves money automatically.
 - A transfer is two opposite transaction legs committed atomically under one
   transaction group.
-- Reconciled transactions are immutable unless reconciliation is explicitly
-  undone by a future product decision.
+- Reconciliation records that the ledger matched at a point in time. A
+  reconciled transaction may be corrected or deleted after warning, but it
+  cannot be moved to a different account and its reconciled status is retained.
 
 ## Consequences
 

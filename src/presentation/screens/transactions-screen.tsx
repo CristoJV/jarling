@@ -213,13 +213,16 @@ export function TransactionsScreen() {
 
   function requestDelete(summary: TransactionSummary) {
     const transfer = summary.transaction.kind === 'transfer';
+    const reconciled = summary.transaction.status === 'reconciled';
     Alert.alert(
       transfer
         ? t('transactions.deleteTransfer')
         : t('transactions.deleteConfirmTitle'),
-      transfer
-        ? t('transactions.deleteTransferBody')
-        : t('transactions.deleteConfirmBody'),
+      reconciled
+        ? t('transactions.deleteReconciledBody')
+        : transfer
+          ? t('transactions.deleteTransferBody')
+          : t('transactions.deleteConfirmBody'),
       [
         { text: t('common.cancel'), style: 'cancel' },
         {
@@ -232,13 +235,6 @@ export function TransactionsScreen() {
   }
 
   function edit(summary: TransactionSummary) {
-    if (summary.transaction.status === 'reconciled') {
-      Alert.alert(
-        t('transactions.reconciledTitle'),
-        t('transactions.reconciledBody'),
-      );
-      return;
-    }
     router.push(routes.transaction(summary.transaction.id));
   }
 

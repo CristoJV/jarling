@@ -51,6 +51,30 @@ export type CalculateBudgetMonthInput = Readonly<{
   transactions: readonly Transaction[];
 }>;
 
+export type CategoryPeriodUsage = Readonly<{
+  startingAvailable: Money;
+  netSpending: Money;
+}>;
+
+/**
+ * Describes this month's category usage without persisting another balance.
+ * Activity is signed, so an inflow reduces net spending and never becomes
+ * starting budget capacity.
+ */
+export function calculateCategoryPeriodUsage(
+  values: Pick<
+    BudgetCategoryValues,
+    'availableFromPreviousMonth' | 'assigned' | 'activity'
+  >,
+): CategoryPeriodUsage {
+  return {
+    startingAvailable: Money.fromCents(
+      values.availableFromPreviousMonth.cents + values.assigned.cents,
+    ),
+    netSpending: Money.fromCents(-values.activity.cents),
+  };
+}
+
 export function calculateBudgetMonth(
   input: CalculateBudgetMonthInput,
 ): BudgetMonthValues {
