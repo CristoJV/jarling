@@ -2,6 +2,7 @@ import type { CategoryTarget } from '@/domain/entities/category-target';
 import { assertValidBudgetMonth } from '@/domain/entities/budget-allocation';
 import { InvalidCategoryTargetError } from '@/domain/errors/invalid-category-target-error';
 import type { BudgetCategoryValues } from '@/domain/services/calculate-budget-month';
+import { isValidIsoDate } from '@/domain/value-objects/iso-date';
 import { Money } from '@/domain/value-objects/money';
 
 export type TargetProgressStatus =
@@ -38,17 +39,6 @@ export type CalculateTargetProgressInput = Readonly<{
 }>;
 
 const ZERO = Money.zero();
-
-function isValidIsoDate(value: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const [year, month, day] = value.split('-').map(Number);
-  const date = new Date(Date.UTC(year!, month! - 1, day));
-  return (
-    date.getUTCFullYear() === year &&
-    date.getUTCMonth() + 1 === month &&
-    date.getUTCDate() === day
-  );
-}
 
 function parseDate(value: string): Date {
   const [year, month, day] = value.split('-').map(Number);

@@ -11,6 +11,9 @@ import type { CategoryRepository } from '@/domain/repositories/category-reposito
 import type { CategoryTargetRepository } from '@/domain/repositories/category-target-repository';
 import type { CategoryTargetSnoozeRepository } from '@/domain/repositories/category-target-snooze-repository';
 import type { TransactionRepository } from '@/domain/repositories/transaction-repository';
+import { nextSortOrder } from '@/domain/services/sort-order';
+
+import { reassignCategoryRecords } from './reassign-category-records';
 
 export type CreateCategoryReplacementInput = Readonly<{
   sourceCategoryId: string;
@@ -49,30 +52,27 @@ export class CreateCategoryReplacement {
       groupId: input.groupId,
       name: input.name,
       hidden: false,
-      sortOrder:
-        siblings.reduce(
-          (maximum, category) => Math.max(maximum, category.sortOrder),
-          -1,
-        ) + 1,
+      sortOrder: nextSortOrder(siblings),
       createdAt: instant,
       updatedAt: instant,
     });
 
     return this.unitOfWork.run(async () => {
       await this.categories.save(destination);
-      await this.transactions.reassignCategory(
-        source.id,
-        destination.id,
-        instant,
+      await reassignCategoryRecords(
+        {
+          sourceCategoryId: source.id,
+          destinationCategoryId: destination.id,
+          updatedAt: instant,
+        },
+        {
+          categories: this.categories,
+          transactions: this.transactions,
+          allocations: this.allocations,
+          targets: this.targets,
+          snoozes: this.snoozes,
+        },
       );
-      await this.allocations.reassignCategory(
-        source.id,
-        destination.id,
-        instant,
-      );
-      await this.snoozes.deleteByCategory(source.id);
-      await this.targets.deleteByCategory(source.id);
-      await this.categories.deleteById(source.id);
       return destination;
     });
   }

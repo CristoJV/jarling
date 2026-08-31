@@ -1,5 +1,8 @@
 import type { TransactionStatus } from '@/domain/entities/transaction';
-import { supportsCategoryInflows } from '@/domain/entities/account';
+import {
+  supportsBudgetCategories,
+  supportsCategoryInflows,
+} from '@/domain/entities/account';
 import { AccountNotFoundError } from '@/domain/errors/account-not-found-error';
 import { CategoryNotFoundError } from '@/domain/errors/category-not-found-error';
 import { CategoryNotAllowedForTrackingAccountError } from '@/domain/errors/category-not-allowed-for-tracking-account-error';
@@ -60,7 +63,7 @@ export async function prepareTransactionInput(
   }
 
   if (input.direction === 'outflow') {
-    if (!account.onBudget) {
+    if (!supportsBudgetCategories(account)) {
       throw new CategoryNotAllowedForTrackingAccountError();
     }
     const category = input.categoryId
@@ -81,7 +84,7 @@ export async function prepareTransactionInput(
   const category = input.categoryId
     ? await requireNormalCategory(input.categoryId, categories)
     : undefined;
-  if (category && !account.onBudget) {
+  if (category && !supportsBudgetCategories(account)) {
     throw new CategoryNotAllowedForTrackingAccountError();
   }
   if (category && !supportsCategoryInflows(account)) {

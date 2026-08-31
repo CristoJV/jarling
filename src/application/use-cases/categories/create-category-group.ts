@@ -6,6 +6,7 @@ import {
   type CategoryGroup,
 } from '@/domain/entities/category-group';
 import type { CategoryGroupRepository } from '@/domain/repositories/category-group-repository';
+import { nextSortOrder } from '@/domain/services/sort-order';
 
 export class CreateCategoryGroup {
   constructor(
@@ -21,11 +22,7 @@ export class CreateCategoryGroup {
     const group = createCategoryGroup({
       id: this.ids.next(),
       name,
-      sortOrder:
-        groups.reduce(
-          (maximum, item) => Math.max(maximum, item.sortOrder),
-          -1,
-        ) + 1,
+      sortOrder: nextSortOrder(groups),
       createdAt: instant,
       updatedAt: instant,
     });

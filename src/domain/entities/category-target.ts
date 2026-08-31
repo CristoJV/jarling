@@ -1,4 +1,5 @@
 import { InvalidCategoryTargetError } from '@/domain/errors/invalid-category-target-error';
+import { isValidIsoDate } from '@/domain/value-objects/iso-date';
 import type { Money } from '@/domain/value-objects/money';
 
 export const TARGET_KINDS = ['weekly', 'monthly', 'yearly', 'custom'] as const;
@@ -22,17 +23,6 @@ export type CategoryTarget = Readonly<{
   createdAt: string;
   updatedAt: string;
 }>;
-
-function isValidDate(value: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const [year, month, day] = value.split('-').map(Number);
-  const date = new Date(Date.UTC(year ?? 0, (month ?? 0) - 1, day));
-  return (
-    date.getUTCFullYear() === year &&
-    date.getUTCMonth() + 1 === month &&
-    date.getUTCDate() === day
-  );
-}
 
 function hasOnlyWeeklyFields(target: CategoryTarget): boolean {
   return (
@@ -81,7 +71,7 @@ export function createCategoryTarget(
   if (target.amount.cents <= 0) {
     throw new InvalidCategoryTargetError('amount must be positive');
   }
-  if (!isValidDate(target.startsOn)) {
+  if (!isValidIsoDate(target.startsOn)) {
     throw new InvalidCategoryTargetError('startsOn must be a valid date');
   }
 
@@ -118,7 +108,7 @@ export function createCategoryTarget(
       if (
         !target.targetDate ||
         !['set_aside', 'refill_up_to'].includes(target.fundingMode ?? '') ||
-        !isValidDate(target.targetDate) ||
+        !isValidIsoDate(target.targetDate) ||
         !hasOnlyYearlyFields(target)
       ) {
         throw new InvalidCategoryTargetError(
@@ -131,7 +121,8 @@ export function createCategoryTarget(
         !['set_aside', 'fill_up_to', 'balance'].includes(
           target.customFundingMode ?? '',
         ) ||
-        (target.targetDate !== undefined && !isValidDate(target.targetDate)) ||
+        (target.targetDate !== undefined &&
+          !isValidIsoDate(target.targetDate)) ||
         !hasOnlyCustomFields(target)
       ) {
         throw new InvalidCategoryTargetError(
