@@ -1,28 +1,53 @@
 # Jarling documentation
 
-This directory contains the durable product and engineering documentation for
-Jarling. Completed implementation plans are intentionally not kept here: their
-result belongs in the specifications, architectural decisions, and changelog.
+This is the entry point for Jarling's English documentation. Each section has a
+different purpose and only one section owns the complete explanation of a
+concept.
 
-## Product
+## Choose your path
 
-- [Product specification](product-specification.md): current scope, financial
-  behavior, and supported capabilities.
-- [Interaction design](interaction-design.md): navigation, keyboard, money
-  input, and screen behavior.
-- [Privacy and data protection](privacy.md): user-facing storage, export, and
-  backup guarantees in English and Spanish.
-- [Spanish project overview](README.es.md).
+### Use Jarling
 
-## Engineering
+- [Getting started](user/getting-started.md)
+- [Budgeting and monthly rollover](user/budgeting.md)
+- [Transactions and accounts](user/transactions-and-accounts.md)
+- [Targets and reports](user/targets-and-reports.md)
+- [Privacy, backups, and data](user/privacy-and-data.md)
 
-- [Architecture Decision Records](adr/README.md): long-lived architectural and
-  product decisions with their rationale.
+These guides describe what the released application does and what users should
+expect. They deliberately avoid storage and code-level details.
 
-## Release history
+### Develop Jarling
 
-- [Changelog](../CHANGELOG.md): concise user-facing changes by release.
+- [Architecture](technical/architecture.md)
+- [Financial model](technical/financial-model.md)
+- [Persistence and portability](technical/persistence-and-portability.md)
+- [Interaction design](technical/interaction-design.md)
+- [Testing and contributing](technical/testing-and-contributing.md)
 
-Implementation details belong next to the code and tests. Temporary plans may
-be used while work is active, but must be folded into the documents above or
-removed before a release.
+Technical documents describe the current system: boundaries, invariants, and
+contracts that changes must preserve. They are not class-by-class API docs.
+
+### Understand decisions and possible futures
+
+- [Architecture Decision Records](adr/README.md) explain accepted historical
+  decisions and their trade-offs. Current behavior still belongs in `user/` or
+  `technical/`.
+- [Requests for Comments](rfc/README.md) describe proposals that are not
+  implemented. An RFC is not a product promise.
+- [Changelog](../CHANGELOG.md) records concise release history.
+
+## Canonical-document rule
+
+`user/` and `technical/` describe the present. `adr/` explains decisions that
+were made. `rfc/` describes potential future changes. A proposal must not be
+presented as existing behavior, and a completed implementation must be folded
+into the present-tense documentation instead of remaining an active plan.
+
+## Update policy
+
+Documentation is reviewed deliberately and in batches. Do not update guides,
+create ADRs, or create RFCs automatically for every implementation or
+refactor. Perform a documentation synchronization only when explicitly
+requested. During that review, use current code and tests as the authority,
+remove obsolete material, and update this index when ownership changes.

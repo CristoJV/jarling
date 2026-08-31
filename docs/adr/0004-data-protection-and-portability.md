@@ -9,6 +9,11 @@ Database encryption and key recovery previously added startup complexity and
 failure modes that were disproportionate for the first release. Users still
 need an accurate privacy model and a safe way to move their data.
 
+## Problem
+
+Device-key database encryption risked unrecoverable startup failures, while
+unencrypted portability alone would leave users without a protected backup.
+
 ## Decision
 
 - The active SQLite database is not encrypted by Jarling. It lives in the

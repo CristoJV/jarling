@@ -10,6 +10,11 @@ parsing, duplicate detection, category semantics, backup format, UI, and real
 bank-file compatibility. The first release should validate the budgeting core
 before taking on that variability.
 
+## Problem
+
+Shipping unfinished import infrastructure would expand schema, UI, test, and
+support obligations before the budgeting core had a stable release boundary.
+
 ## Decision
 
 Version 1 ships budgeting, accounts, transactions, transfers, reconciliation,

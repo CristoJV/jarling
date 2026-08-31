@@ -10,6 +10,12 @@ default-data setup perform multiple repository writes. Partial persistence
 would break financial invariants. Expo's exclusive transaction API requires
 queries to use the transaction object supplied to its callback.
 
+## Problem
+
+A failure between related writes could leave transfers or financial state only
+partially persisted, and using the wrong Expo connection could falsely appear
+transactional.
+
 ## Decision
 
 All compound application writes run through one `UnitOfWork`. On native
