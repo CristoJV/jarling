@@ -5,11 +5,15 @@ import type { Category } from '@/domain/entities/category';
 import type { CategoryGroup } from '@/domain/entities/category-group';
 import type { Transaction } from '@/domain/entities/transaction';
 import { Money } from '@/domain/value-objects/money';
-import { calculateCreditCardPaymentState } from '@/domain/services/calculate-credit-card-payment-state';
+import {
+  calculateCreditCardPaymentState,
+  type CreditCardPaymentState,
+} from '@/domain/services/calculate-credit-card-payment-state';
 import {
   calculateBudgetFundingState,
   type BudgetFundingState,
 } from '@/domain/services/calculate-budget-funding-state';
+import { classifyStandardBudgetTransaction } from '@/domain/services/classify-standard-budget-transaction';
 
 export type BudgetCategoryValues = Readonly<{
   category: Category;
@@ -105,6 +109,94 @@ export function calculateBudgetMonth(
 
 type BudgetMonthSnapshot = Omit<BudgetMonthValues, 'funding'>;
 
+function calculateCategoryValues(
+  category: Category,
+  month: string,
+  allocations: readonly BudgetAllocation[],
+  transactions: readonly Transaction[],
+  cardFunding: CreditCardPaymentState,
+): BudgetCategoryValues {
+  const currentMonthTransactions = transactions.filter(
+    (transaction) => transaction.date.slice(0, 7) === month,
+  );
+  const creditCardActivity = category.linkedAccountId
+    ? (cardFunding.totalByAccount.get(category.linkedAccountId) ?? 0)
+    : 0;
+  const currentCreditCardActivity = category.linkedAccountId
+    ? (cardFunding.currentByAccount.get(category.linkedAccountId) ?? 0)
+    : 0;
+  const assigned = Money.fromCents(
+    allocations
+      .filter((allocation) => allocation.month === month)
+      .reduce((sum, allocation) => sum + allocation.amount.cents, 0),
+  );
+  const activity = Money.fromCents(
+    currentMonthTransactions.reduce(
+      (sum, transaction) => sum + transaction.amount.cents,
+      0,
+    ) + currentCreditCardActivity,
+  );
+  const available = Money.fromCents(
+    allocations.reduce((sum, allocation) => sum + allocation.amount.cents, 0) +
+      transactions.reduce(
+        (sum, transaction) => sum + transaction.amount.cents,
+        0,
+      ) +
+      creditCardActivity,
+  );
+  const spendingTransactions = currentMonthTransactions.filter(
+    (transaction) => transaction.amount.cents < 0,
+  );
+
+  return {
+    category,
+    availableFromPreviousMonth: Money.fromCents(
+      available.cents - assigned.cents - activity.cents,
+    ),
+    assigned,
+    activity,
+    available,
+    spendingTransactions: category.linkedAccountId
+      ? []
+      : spendingTransactions.map((transaction) =>
+          Money.fromCents(Math.abs(transaction.amount.cents)),
+        ),
+    assignedHistory: allocations.map((allocation) => ({
+      month: allocation.month,
+      amount: allocation.amount,
+    })),
+    spendingHistory: transactions
+      .filter((transaction) => transaction.amount.cents < 0)
+      .map((transaction) => ({
+        month: transaction.date.slice(0, 7),
+        amount: Money.fromCents(Math.abs(transaction.amount.cents)),
+      })),
+  };
+}
+
+function calculateBudgetableCash(
+  accounts: readonly Account[],
+  transactions: readonly Transaction[],
+): number {
+  const balanceByAccount = new Map<string, number>();
+  for (const transaction of transactions) {
+    balanceByAccount.set(
+      transaction.accountId,
+      (balanceByAccount.get(transaction.accountId) ?? 0) +
+        transaction.amount.cents,
+    );
+  }
+  return accounts
+    .filter(({ onBudget }) => onBudget)
+    .reduce((sum, account) => {
+      const balance = balanceByAccount.get(account.id) ?? 0;
+      return (
+        sum +
+        (isCreditAccountType(account.type) ? Math.max(0, balance) : balance)
+      );
+    }, 0);
+}
+
 function calculateBudgetMonthSnapshot(
   input: CalculateBudgetMonthInput,
 ): BudgetMonthSnapshot {
@@ -113,6 +205,9 @@ function calculateBudgetMonthSnapshot(
     input.accounts
       .filter((account) => account.onBudget)
       .map((account) => account.id),
+  );
+  const accountById = new Map(
+    input.accounts.map((account) => [account.id, account] as const),
   );
   const transactions = input.transactions.filter(
     (transaction) =>
@@ -149,92 +244,21 @@ function calculateBudgetMonthSnapshot(
       group,
       categories: [...(categoriesByGroup.get(group.id) ?? [])]
         .sort((left, right) => left.sortOrder - right.sortOrder)
-        .map((category) => {
-          const categoryAllocations =
-            allocationsByCategory.get(category.id) ?? [];
-          const categoryTransactions =
-            transactionsByCategory.get(category.id) ?? [];
-          const currentMonthTransactions = categoryTransactions.filter(
-            (transaction) => transaction.date.slice(0, 7) === input.month,
-          );
-          const creditCardActivity = category.linkedAccountId
-            ? (cardFunding.totalByAccount.get(category.linkedAccountId) ?? 0)
-            : 0;
-          const currentCreditCardActivity = category.linkedAccountId
-            ? (cardFunding.currentByAccount.get(category.linkedAccountId) ?? 0)
-            : 0;
-
-          const assigned = Money.fromCents(
-            categoryAllocations
-              .filter((allocation) => allocation.month === input.month)
-              .reduce((sum, allocation) => sum + allocation.amount.cents, 0),
-          );
-          const activity = Money.fromCents(
-            currentMonthTransactions.reduce(
-              (sum, transaction) => sum + transaction.amount.cents,
-              0,
-            ) + currentCreditCardActivity,
-          );
-          const available = Money.fromCents(
-            categoryAllocations.reduce(
-              (sum, allocation) => sum + allocation.amount.cents,
-              0,
-            ) +
-              categoryTransactions.reduce(
-                (sum, transaction) => sum + transaction.amount.cents,
-                0,
-              ) +
-              creditCardActivity,
-          );
-          return {
+        .map((category) =>
+          calculateCategoryValues(
             category,
-            availableFromPreviousMonth: Money.fromCents(
-              available.cents - assigned.cents - activity.cents,
-            ),
-            assigned,
-            activity,
-            available,
-            spendingTransactions: category.linkedAccountId
-              ? []
-              : currentMonthTransactions
-                  .filter((transaction) => transaction.amount.cents < 0)
-                  .map((transaction) =>
-                    Money.fromCents(Math.abs(transaction.amount.cents)),
-                  ),
-            assignedHistory: categoryAllocations.map((allocation) => ({
-              month: allocation.month,
-              amount: allocation.amount,
-            })),
-            spendingHistory: categoryTransactions
-              .filter((transaction) => transaction.amount.cents < 0)
-              .map((transaction) => ({
-                month: transaction.date.slice(0, 7),
-                amount: Money.fromCents(Math.abs(transaction.amount.cents)),
-              })),
-          };
-        }),
+            input.month,
+            allocationsByCategory.get(category.id) ?? [],
+            transactionsByCategory.get(category.id) ?? [],
+            cardFunding,
+          ),
+        ),
     }));
 
   // Ready to Assign is the residual of the accounting identity. A credit
   // account contributes only when it has a positive balance (money owed to the
   // user); debt never creates budgetable cash.
-  const balanceByAccount = new Map<string, number>();
-  for (const transaction of transactions) {
-    balanceByAccount.set(
-      transaction.accountId,
-      (balanceByAccount.get(transaction.accountId) ?? 0) +
-        transaction.amount.cents,
-    );
-  }
-  const budgetableCash = input.accounts
-    .filter(({ onBudget }) => onBudget)
-    .reduce((sum, account) => {
-      const balance = balanceByAccount.get(account.id) ?? 0;
-      return (
-        sum +
-        (isCreditAccountType(account.type) ? Math.max(0, balance) : balance)
-      );
-    }, 0);
+  const budgetableCash = calculateBudgetableCash(input.accounts, transactions);
   const envelopeBalances = groups.reduce(
     (groupSum, group) =>
       groupSum +
@@ -247,9 +271,10 @@ function calculateBudgetMonthSnapshot(
   const uncategorizedTransactions = transactions.filter(
     (transaction) =>
       transaction.date.slice(0, 7) === input.month &&
-      transaction.kind === 'standard' &&
-      transaction.amount.cents < 0 &&
-      !transaction.categoryId,
+      classifyStandardBudgetTransaction(
+        transaction,
+        accountById.get(transaction.accountId),
+      ) === 'uncategorized-expense',
   );
 
   return {

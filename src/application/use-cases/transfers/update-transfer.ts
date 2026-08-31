@@ -7,14 +7,12 @@ import {
 import { CannotModifyReconciledTransactionError } from '@/domain/errors/cannot-modify-reconciled-transaction-error';
 import { InvalidTransferError } from '@/domain/errors/invalid-transfer-error';
 import type { AccountRepository } from '@/domain/repositories/account-repository';
-import { isCreditAccountType } from '@/domain/entities/account';
 import type { CategoryRepository } from '@/domain/repositories/category-repository';
 import type { TransactionRepository } from '@/domain/repositories/transaction-repository';
-import { paymentCategoryForAccount } from '@/domain/services/credit-card-payment';
 import { Money } from '@/domain/value-objects/money';
 import { parseTransferPair } from '@/domain/services/transfer-pair';
 
-import { prepareTransferAccounts, type TransferInput } from './transfer-input';
+import { prepareTransferInput, type TransferInput } from './transfer-input';
 import type { TransferPair } from './create-transfer';
 
 export type UpdateTransferInput = TransferInput &
@@ -38,29 +36,23 @@ export class UpdateTransfer {
     if (current.some(({ status }) => status === 'reconciled')) {
       throw new CannotModifyReconciledTransactionError();
     }
-    const { source: sourceAccount, destination: destinationAccount } =
-      await prepareTransferAccounts(input, this.accounts);
+    const {
+      source: sourceAccount,
+      destination: destinationAccount,
+      plan,
+    } = await prepareTransferInput(input, this.accounts, this.categories);
     const updatedAt = this.clock.now().instant;
-    const paymentCategory = isCreditAccountType(destinationAccount.type)
-      ? paymentCategoryForAccount(
-          await this.categories.findAll(),
-          destinationAccount.id,
-        )
-      : undefined;
     const source = updateLeg(pair.source, {
       accountId: sourceAccount.id,
-      categoryId:
-        sourceAccount.onBudget && paymentCategory
-          ? paymentCategory.id
-          : undefined,
-      payee: `Transfer to ${destinationAccount.name}`,
+      categoryId: plan.sourceCategoryId,
+      payee: plan.sourcePayee,
       amountCents: -input.amountCents,
       input,
       updatedAt,
     });
     const destination = updateLeg(pair.destination, {
       accountId: destinationAccount.id,
-      payee: `Transfer from ${sourceAccount.name}`,
+      payee: plan.destinationPayee,
       amountCents: input.amountCents,
       input,
       updatedAt,

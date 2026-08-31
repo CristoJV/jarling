@@ -739,6 +739,14 @@ describe('calculateBudgetMonth', () => {
 
     expect(debt.readyToAssign).toEqual(Money.fromCents(100_000));
     expect(positiveBalance.readyToAssign).toEqual(Money.fromCents(6_000));
+    expect(debt.uncategorized).toEqual({
+      amount: Money.fromCents(-4_000),
+      transactionCount: 1,
+    });
+    expect(positiveBalance.uncategorized).toEqual({
+      amount: Money.fromCents(-4_000),
+      transactionCount: 1,
+    });
   });
 
   it('preserves the accounting identity across cash, debt and envelopes', () => {

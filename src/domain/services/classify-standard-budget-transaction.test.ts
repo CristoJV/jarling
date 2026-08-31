@@ -78,5 +78,6 @@ describe('classifyStandardBudgetTransaction', () => {
         cash,
       ),
     ).toBeNull();
+    expect(classifyStandardBudgetTransaction(standard(0), cash)).toBeNull();
   });
 });

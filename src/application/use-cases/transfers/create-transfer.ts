@@ -6,13 +6,11 @@ import {
   type Transaction,
 } from '@/domain/entities/transaction';
 import type { AccountRepository } from '@/domain/repositories/account-repository';
-import { isCreditAccountType } from '@/domain/entities/account';
 import type { CategoryRepository } from '@/domain/repositories/category-repository';
 import type { TransactionRepository } from '@/domain/repositories/transaction-repository';
-import { paymentCategoryForAccount } from '@/domain/services/credit-card-payment';
 import { Money } from '@/domain/value-objects/money';
 
-import { prepareTransferAccounts, type TransferInput } from './transfer-input';
+import { prepareTransferInput, type TransferInput } from './transfer-input';
 
 export type TransferPair = Readonly<{
   source: Transaction;
@@ -30,16 +28,13 @@ export class CreateTransfer {
   ) {}
 
   async execute(input: TransferInput): Promise<TransferPair> {
-    const { source: sourceAccount, destination: destinationAccount } =
-      await prepareTransferAccounts(input, this.accounts);
+    const {
+      source: sourceAccount,
+      destination: destinationAccount,
+      plan,
+    } = await prepareTransferInput(input, this.accounts, this.categories);
     const groupId = this.ids.next();
     const { instant } = this.clock.now();
-    const paymentCategory = isCreditAccountType(destinationAccount.type)
-      ? paymentCategoryForAccount(
-          await this.categories.findAll(),
-          destinationAccount.id,
-        )
-      : undefined;
     const common = {
       date: input.date,
       notes: input.notes,
@@ -53,17 +48,15 @@ export class CreateTransfer {
       ...common,
       id: this.ids.next(),
       accountId: sourceAccount.id,
-      ...(sourceAccount.onBudget && paymentCategory
-        ? { categoryId: paymentCategory.id }
-        : {}),
-      payee: `Transfer to ${destinationAccount.name}`,
+      ...(plan.sourceCategoryId ? { categoryId: plan.sourceCategoryId } : {}),
+      payee: plan.sourcePayee,
       amount: Money.fromCents(-input.amountCents),
     });
     const destination = createTransaction({
       ...common,
       id: this.ids.next(),
       accountId: destinationAccount.id,
-      payee: `Transfer from ${sourceAccount.name}`,
+      payee: plan.destinationPayee,
       amount: Money.fromCents(input.amountCents),
     });
     return this.unitOfWork.run(async () => {

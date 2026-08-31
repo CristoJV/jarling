@@ -4,7 +4,8 @@ import { AccountNotFoundError } from '@/domain/errors/account-not-found-error';
 import { ClosedAccountError } from '@/domain/errors/closed-account-error';
 import type { AccountRepository } from '@/domain/repositories/account-repository';
 import type { TransactionRepository } from '@/domain/repositories/transaction-repository';
-import { Money } from '@/domain/value-objects/money';
+import { calculateAccountBalanceState } from '@/domain/services/calculate-account-balance';
+import type { Money } from '@/domain/value-objects/money';
 
 export type ReconciliationPreview = Readonly<{
   account: Account;
@@ -32,22 +33,15 @@ export class GetReconciliation {
       accountId,
       dateTo: throughDate,
     });
-    const cleared = transactions.filter(({ status }) => status !== 'uncleared');
+    const balances = calculateAccountBalanceState(transactions);
 
     return {
       account,
       throughDate,
-      clearedBalance: Money.fromCents(
-        cleared.reduce((sum, transaction) => sum + transaction.amount.cents, 0),
-      ),
-      workingBalance: Money.fromCents(
-        transactions.reduce(
-          (sum, transaction) => sum + transaction.amount.cents,
-          0,
-        ),
-      ),
-      clearedCount: cleared.length,
-      unclearedCount: transactions.length - cleared.length,
+      clearedBalance: balances.cleared,
+      workingBalance: balances.working,
+      clearedCount: balances.clearedCount,
+      unclearedCount: balances.unclearedCount,
     };
   }
 }

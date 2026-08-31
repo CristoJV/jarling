@@ -24,17 +24,26 @@ export function isCreditAccountType(type: AccountType): boolean {
   return accountClassFor(type) === 'credit';
 }
 
-export function isCashAccountType(type: AccountType): boolean {
-  return accountClassFor(type) === 'cash';
+export function resolveAccountOnBudget(
+  type: AccountType,
+  requestedOnBudget: boolean,
+): boolean {
+  const accountClass = accountClassFor(type);
+  if (accountClass === 'credit') return true;
+  if (accountClass === 'tracking') return false;
+  return requestedOnBudget;
+}
+
+export function supportsBudgetCategories(
+  account: Readonly<{ type: AccountType; onBudget: boolean }>,
+): boolean {
+  return account.onBudget && accountClassFor(account.type) !== 'tracking';
 }
 
 export function supportsCategoryInflows(
   account: Readonly<{ type: AccountType; onBudget: boolean }>,
 ): boolean {
-  return (
-    account.onBudget &&
-    (isCashAccountType(account.type) || isCreditAccountType(account.type))
-  );
+  return supportsBudgetCategories(account);
 }
 
 export type Account = Readonly<{
@@ -61,11 +70,7 @@ export function createAccount(properties: CreateAccountProperties): Account {
   return {
     ...properties,
     name,
-    onBudget: isCreditAccountType(properties.type)
-      ? true
-      : properties.type === 'tracking' || properties.type === 'loan'
-        ? false
-        : properties.onBudget,
+    onBudget: resolveAccountOnBudget(properties.type, properties.onBudget),
     closed: false,
   };
 }

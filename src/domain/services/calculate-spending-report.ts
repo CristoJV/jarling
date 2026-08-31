@@ -1,11 +1,9 @@
 import type { Account } from '@/domain/entities/account';
 import type { Category } from '@/domain/entities/category';
 import type { CategoryGroup } from '@/domain/entities/category-group';
-import {
-  isValidTransactionDate,
-  type Transaction,
-} from '@/domain/entities/transaction';
+import type { Transaction } from '@/domain/entities/transaction';
 import { Money } from '@/domain/value-objects/money';
+import { isValidIsoDate } from '@/domain/value-objects/iso-date';
 import { classifyStandardBudgetTransaction } from '@/domain/services/classify-standard-budget-transaction';
 
 export const UNCATEGORIZED_REPORT_CATEGORY_ID = 'report-category-uncategorized';
@@ -251,7 +249,7 @@ export function buildSpendingIntervals({
   interval: SpendingIntervalUnit;
   intervalCount: number;
 }>): readonly DateInterval[] {
-  if (!isValidTransactionDate(throughDate)) {
+  if (!isValidIsoDate(throughDate)) {
     throw new RangeError('throughDate must be a valid ISO date');
   }
   if (!Number.isSafeInteger(intervalCount) || intervalCount < 1) {

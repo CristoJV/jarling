@@ -10,6 +10,8 @@ import type { CategoryTargetRepository } from '@/domain/repositories/category-ta
 import type { CategoryTargetSnoozeRepository } from '@/domain/repositories/category-target-snooze-repository';
 import type { TransactionRepository } from '@/domain/repositories/transaction-repository';
 
+import { reassignCategoryRecords } from './reassign-category-records';
+
 export type DeleteCategoryInput = Readonly<{
   categoryId: string;
   replacementCategoryId?: string;
@@ -59,22 +61,26 @@ export class DeleteCategory {
     const { instant } = this.clock.now();
     await this.unitOfWork.run(async () => {
       if (replacementCategoryId) {
-        await this.transactions.reassignCategory(
-          category.id,
-          replacementCategoryId,
-          instant,
-        );
-        await this.allocations.reassignCategory(
-          category.id,
-          replacementCategoryId,
-          instant,
+        await reassignCategoryRecords(
+          {
+            sourceCategoryId: category.id,
+            destinationCategoryId: replacementCategoryId,
+            updatedAt: instant,
+          },
+          {
+            categories: this.categories,
+            transactions: this.transactions,
+            allocations: this.allocations,
+            targets: this.targets,
+            snoozes: this.snoozes,
+          },
         );
       } else {
         await this.allocations.deleteByCategory(category.id);
+        await this.snoozes.deleteByCategory(category.id);
+        await this.targets.deleteByCategory(category.id);
+        await this.categories.deleteById(category.id);
       }
-      await this.snoozes.deleteByCategory(category.id);
-      await this.targets.deleteByCategory(category.id);
-      await this.categories.deleteById(category.id);
     });
   }
 }

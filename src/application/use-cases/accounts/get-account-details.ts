@@ -3,7 +3,8 @@ import type { Account } from '@/domain/entities/account';
 import { AccountNotFoundError } from '@/domain/errors/account-not-found-error';
 import type { AccountRepository } from '@/domain/repositories/account-repository';
 import type { TransactionRepository } from '@/domain/repositories/transaction-repository';
-import { Money } from '@/domain/value-objects/money';
+import { calculateAccountBalanceState } from '@/domain/services/calculate-account-balance';
+import type { Money } from '@/domain/value-objects/money';
 
 export type AccountDetails = Readonly<{
   account: Account;
@@ -30,31 +31,15 @@ export class GetAccountDetails {
       accountId,
       dateTo: throughDate,
     });
-    const clearedTransactions = transactions.filter(
-      ({ status }) => status !== 'uncleared',
-    );
-    const clearedBalance = Money.fromCents(
-      clearedTransactions.reduce(
-        (sum, transaction) => sum + transaction.amount.cents,
-        0,
-      ),
-    );
-    const workingBalance = Money.fromCents(
-      transactions.reduce(
-        (sum, transaction) => sum + transaction.amount.cents,
-        0,
-      ),
-    );
+    const balances = calculateAccountBalanceState(transactions);
     return {
       account,
       throughDate,
-      workingBalance,
-      clearedBalance,
-      unclearedBalance: Money.fromCents(
-        workingBalance.cents - clearedBalance.cents,
-      ),
-      clearedCount: clearedTransactions.length,
-      unclearedCount: transactions.length - clearedTransactions.length,
+      workingBalance: balances.working,
+      clearedBalance: balances.cleared,
+      unclearedBalance: balances.uncleared,
+      clearedCount: balances.clearedCount,
+      unclearedCount: balances.unclearedCount,
     };
   }
 }

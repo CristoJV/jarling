@@ -5,6 +5,7 @@ import { createCategory, type Category } from '@/domain/entities/category';
 import { CategoryGroupNotFoundError } from '@/domain/errors/category-group-not-found-error';
 import type { CategoryGroupRepository } from '@/domain/repositories/category-group-repository';
 import type { CategoryRepository } from '@/domain/repositories/category-repository';
+import { nextSortOrder } from '@/domain/services/sort-order';
 
 export type CreateCategoryInput = Readonly<{
   groupId: string;
@@ -32,11 +33,7 @@ export class CreateCategory {
       groupId: input.groupId,
       name: input.name,
       hidden: false,
-      sortOrder:
-        categories.reduce(
-          (maximum, item) => Math.max(maximum, item.sortOrder),
-          -1,
-        ) + 1,
+      sortOrder: nextSortOrder(categories),
       createdAt: instant,
       updatedAt: instant,
     });

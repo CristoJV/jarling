@@ -330,6 +330,7 @@ describe('Jarling plan snapshots', () => {
         ...emptySnapshot,
         tables: {
           ...emptySnapshot.tables,
+          category_target_snoozes: [],
           accounts: [
             {
               id: 'account-1',
@@ -545,6 +546,102 @@ describe('Jarling plan snapshots', () => {
 
     const serialized = JSON.stringify(snapshot);
     expect(parsePlanSnapshot(JSON.parse(serialized))).toEqual(snapshot);
+  });
+
+  it.each([-4_000, 4_000])(
+    'rejects categorized standard activity on a tracking account (%s cents)',
+    (amount) => {
+      const snapshot = {
+        ...emptySnapshot,
+        version: 3,
+        tables: {
+          ...emptySnapshot.tables,
+          accounts: [
+            {
+              id: 'tracking-1',
+              name: 'Broker',
+              type: 'tracking',
+              on_budget: 0,
+              closed: 0,
+              created_at: '2026-08-19T10:00:00.000Z',
+              updated_at: '2026-08-19T10:00:00.000Z',
+            },
+          ],
+          category_groups: [
+            {
+              id: 'group-1',
+              name: 'Needs',
+              sort_order: 0,
+              created_at: '2026-08-19T10:00:00.000Z',
+              updated_at: '2026-08-19T10:00:00.000Z',
+            },
+          ],
+          categories: [
+            {
+              id: 'category-1',
+              group_id: 'group-1',
+              name: 'Clothing',
+              notes: null,
+              hidden: 0,
+              linked_account_id: null,
+              sort_order: 0,
+              created_at: '2026-08-19T10:00:00.000Z',
+              updated_at: '2026-08-19T10:00:00.000Z',
+            },
+          ],
+          transactions: [
+            {
+              id: 'tracking-activity',
+              account_id: 'tracking-1',
+              category_id: 'category-1',
+              payee: 'Invalid category activity',
+              amount,
+              date: '2026-08-19',
+              notes: null,
+              status: 'cleared',
+              kind: 'standard',
+              transaction_group_id: null,
+              created_at: '2026-08-19T10:00:00.000Z',
+              updated_at: '2026-08-19T10:00:00.000Z',
+            },
+          ],
+          category_target_snoozes: [],
+        },
+      };
+
+      expect(() => parsePlanSnapshot(snapshot)).toThrow('unsupported account');
+    },
+  );
+
+  it.each([
+    ['tracking', 1],
+    ['loan', 1],
+    ['credit_card', 0],
+    ['line_of_credit', 0],
+  ] as const)('rejects the invalid %s on-budget state %s', (type, onBudget) => {
+    const snapshot = {
+      ...emptySnapshot,
+      version: 3,
+      tables: {
+        ...emptySnapshot.tables,
+        category_target_snoozes: [],
+        accounts: [
+          {
+            id: 'invalid-account',
+            name: 'Invalid account',
+            type,
+            on_budget: onBudget,
+            closed: 0,
+            created_at: '2026-08-19T10:00:00.000Z',
+            updated_at: '2026-08-19T10:00:00.000Z',
+          },
+        ],
+      },
+    };
+
+    expect(() => parsePlanSnapshot(snapshot)).toThrow(
+      'invalid account budget state',
+    );
   });
 
   it('normalizes the legacy Uncategorized envelope into null category ids', () => {

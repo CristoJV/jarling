@@ -10,7 +10,12 @@ import type {
   RestoreProgressPhase,
 } from '@/application/ports/plan-portability';
 import { PlanPortabilityError } from '@/application/errors/plan-portability-error';
-import { ACCOUNT_TYPES } from '@/domain/entities/account';
+import {
+  ACCOUNT_TYPES,
+  resolveAccountOnBudget,
+  supportsBudgetCategories,
+  type AccountType,
+} from '@/domain/entities/account';
 import { isValidBudgetMonth } from '@/domain/entities/budget-allocation';
 import { CATEGORY_NOTES_MAX_LENGTH } from '@/domain/entities/category';
 import {
@@ -369,7 +374,7 @@ function nullableString(row: DataRow, field: string): string | undefined {
 
 function validateSnapshotSemantics(snapshot: PlanSnapshot): void {
   const accountIds = new Set<string>();
-  const accountTypes = new Map<string, string>();
+  const accountTypes = new Map<string, AccountType>();
   const accountBudgetState = new Map<string, boolean>();
   for (const row of snapshot.tables.accounts) {
     const id = requiredText(row, 'id');
@@ -377,15 +382,21 @@ function validateSnapshotSemantics(snapshot: PlanSnapshot): void {
     if (accountIds.has(id) || !ACCOUNT_TYPES.includes(type as never)) {
       throw new Error('The backup contains an invalid or duplicate account.');
     }
-    if (![0, 1].includes(integer(row, 'on_budget'))) {
+    const rawOnBudget = integer(row, 'on_budget');
+    if (![0, 1].includes(rawOnBudget)) {
       throw new Error('The backup contains an invalid account budget flag.');
     }
     if (![0, 1].includes(integer(row, 'closed'))) {
       throw new Error('The backup contains an invalid account state.');
     }
+    const accountType = type as AccountType;
+    const onBudget = rawOnBudget === 1;
+    if (resolveAccountOnBudget(accountType, onBudget) !== onBudget) {
+      throw new Error('The backup contains an invalid account budget state.');
+    }
     accountIds.add(id);
-    accountTypes.set(id, type);
-    accountBudgetState.set(id, integer(row, 'on_budget') === 1);
+    accountTypes.set(id, accountType);
+    accountBudgetState.set(id, onBudget);
   }
 
   const groupIds = new Set<string>();
@@ -460,6 +471,17 @@ function validateSnapshotSemantics(snapshot: PlanSnapshot): void {
       !(kind === 'transfer' && amount < 0)
     ) {
       throw new Error('The backup contains an invalid transaction category.');
+    }
+    if (categoryId !== undefined && kind === 'standard') {
+      const type = accountTypes.get(accountId);
+      const onBudget = accountBudgetState.get(accountId) === true;
+      const categoryAllowed =
+        type !== undefined && supportsBudgetCategories({ type, onBudget });
+      if (!categoryAllowed) {
+        throw new Error(
+          'The backup assigns a budget category to an unsupported account.',
+        );
+      }
     }
     if (kind === 'transfer') {
       if (!groupId) throw new Error('A transfer is missing its group.');

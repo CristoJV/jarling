@@ -10,6 +10,7 @@ import { ClosedAccountError } from '@/domain/errors/closed-account-error';
 import { InvalidReconciliationError } from '@/domain/errors/invalid-reconciliation-error';
 import type { AccountRepository } from '@/domain/repositories/account-repository';
 import type { TransactionRepository } from '@/domain/repositories/transaction-repository';
+import { calculateAccountBalanceState } from '@/domain/services/calculate-account-balance';
 import { Money } from '@/domain/value-objects/money';
 
 export type ReconcileAccountInput = Readonly<{
@@ -46,10 +47,8 @@ export class ReconcileAccount {
         accountId: input.accountId,
         dateTo: now.date,
       });
-      const clearedBalanceCents = current
-        .filter(({ status }) => status !== 'uncleared')
-        .reduce((sum, transaction) => sum + transaction.amount.cents, 0);
-      const differenceCents = input.actualBalanceCents - clearedBalanceCents;
+      const balances = calculateAccountBalanceState(current);
+      const differenceCents = input.actualBalanceCents - balances.cleared.cents;
       if (differenceCents !== 0 && !input.createAdjustment) {
         throw new InvalidReconciliationError(
           'the confirmed balance does not match the cleared balance',
