@@ -87,3 +87,44 @@ export function calculateCategoryFundingState(
     fundingStatus,
   };
 }
+
+/**
+ * Recalculates the authoritative funding suggestion against an unsaved editor
+ * value. The draft changes this month's allocation and Available by the same
+ * delta, but never mutates persisted budget data.
+ */
+export function calculateCategoryFundingStateForAssignedDraft(
+  input: Readonly<{
+    values: BudgetCategoryValues;
+    assignedCents: number;
+    target?: CategoryTarget;
+    targetSnoozed?: boolean;
+    month: string;
+    today: string;
+  }>,
+): CategoryFundingState {
+  const assigned = Money.fromCents(input.assignedCents);
+  const difference = assigned.cents - input.values.assigned.cents;
+  const assignedHistory = input.values.assignedHistory
+    ? [
+        ...input.values.assignedHistory.filter(
+          ({ month }) => month !== input.month,
+        ),
+        { month: input.month, amount: assigned },
+      ].sort((left, right) => left.month.localeCompare(right.month))
+    : undefined;
+  const values: BudgetCategoryValues = {
+    ...input.values,
+    assigned,
+    available: Money.fromCents(input.values.available.cents + difference),
+    ...(assignedHistory ? { assignedHistory } : {}),
+  };
+
+  return calculateCategoryFundingState({
+    values,
+    ...(input.target ? { target: input.target } : {}),
+    targetSnoozed: input.targetSnoozed,
+    month: input.month,
+    today: input.today,
+  });
+}

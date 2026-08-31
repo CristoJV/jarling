@@ -30,30 +30,27 @@ import {
   useThemedStyles,
 } from '@/presentation/theme/theme-provider';
 import { categoryDisplayName } from '@/presentation/utils/category-name';
+import { applySmartAssignToDraft } from '@/presentation/utils/smart-assign-draft';
 
 type CategoryBudgetModalProps = Readonly<{
   values: BudgetCategoryValues;
-  funding: CategoryFundingState;
-  readyToAssignCents: number;
+  fundingForAssigned: (amountCents: number) => CategoryFundingState;
   monthLabel: string;
   onDismiss: () => void;
   onDetails: () => void;
   onMoveMoney: () => void;
   onSave: (amountCents: number) => Promise<void>;
-  onSmartAssign: () => Promise<void>;
   onToggleSnooze: () => Promise<void>;
 }>;
 
 export function CategoryBudgetModal({
   values,
-  funding,
-  readyToAssignCents,
+  fundingForAssigned,
   monthLabel,
   onDismiss,
   onDetails,
   onMoveMoney,
   onSave,
-  onSmartAssign,
   onToggleSnooze,
 }: CategoryBudgetModalProps) {
   const { t } = useTranslation();
@@ -67,9 +64,9 @@ export function CategoryBudgetModal({
     useState<MoneyCalculatorExpression | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [smartSubmitting, setSmartSubmitting] = useState(false);
   const [snoozeSubmitting, setSnoozeSubmitting] = useState(false);
 
+  const funding = fundingForAssigned(amountCents);
   const requiredCents = funding.requiredAssignment.cents;
   const snoozeAction = targetSnoozeAction(funding);
   const hasContextualActions = requiredCents > 0 || snoozeAction !== null;
@@ -88,17 +85,11 @@ export function CategoryBudgetModal({
     }
   }
 
-  async function runSmartAssign() {
-    if (smartSubmitting) return;
-    setSmartSubmitting(true);
-    setError(null);
-    try {
-      await onSmartAssign();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : t('form.couldNotSave'));
-    } finally {
-      setSmartSubmitting(false);
-    }
+  function applySmartAssign() {
+    const currentDraft = keypadRef.current?.resolve() ?? amountCents;
+    const currentFunding = fundingForAssigned(currentDraft);
+    setAmountCents(applySmartAssignToDraft(currentDraft, currentFunding));
+    setAmountExpression(null);
   }
 
   async function toggleSnooze() {
@@ -193,8 +184,7 @@ export function CategoryBudgetModal({
             <View style={styles.contextualActions}>
               {requiredCents > 0 ? (
                 <Pressable
-                  disabled={smartSubmitting}
-                  onPress={() => void runSmartAssign()}
+                  onPress={applySmartAssign}
                   style={({ pressed }) => [
                     styles.assignAction,
                     pressed && styles.actionPressed,
@@ -210,13 +200,6 @@ export function CategoryBudgetModal({
                       },
                     )}
                   </Text>
-                  {readyToAssignCents < requiredCents ? (
-                    <MaterialCommunityIcons
-                      color={theme.colors.onPrimary}
-                      name="swap-horizontal"
-                      size={18}
-                    />
-                  ) : null}
                 </Pressable>
               ) : null}
               {snoozeAction ? (
