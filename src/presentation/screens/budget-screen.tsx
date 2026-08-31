@@ -13,9 +13,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { BudgetCategoryValues } from '@/domain/services/calculate-budget-month';
-import { calculateCategoryFundingState } from '@/domain/services/calculate-category-funding-state';
-import { planCategoryAssignment } from '@/domain/services/plan-category-assignment';
-import { Money } from '@/domain/value-objects/money';
+import {
+  calculateCategoryFundingState,
+  calculateCategoryFundingStateForAssignedDraft,
+} from '@/domain/services/calculate-category-funding-state';
 import { CategoryBudgetModal } from '@/presentation/components/budget/category-budget-modal';
 import { BudgetStatusBanner } from '@/presentation/components/budget/budget-status-banner';
 import { CategoryGroupCard } from '@/presentation/components/categories/category-group-card';
@@ -387,10 +388,19 @@ export function BudgetScreen() {
 
       {categoryEditor ? (
         <CategoryBudgetModal
-          funding={fundingByCategoryId.get(categoryEditor.category.id)!}
+          fundingForAssigned={(assignedCents) => {
+            const target = targetsByCategoryId.get(categoryEditor.category.id);
+            return calculateCategoryFundingStateForAssignedDraft({
+              values: categoryEditor,
+              assignedCents,
+              ...(target ? { target } : {}),
+              targetSnoozed: snoozedCategoryIds.has(categoryEditor.category.id),
+              month,
+              today: todayKey(),
+            });
+          }}
           key={`${categoryEditor.category.id}-${categoryEditor.assigned.cents}`}
           values={categoryEditor}
-          readyToAssignCents={budget?.funding.assignableNow.cents ?? 0}
           monthLabel={monthLabel}
           onDetails={() =>
             openCategoryDetails(categoryEditor, () => setCategoryEditorId(null))
@@ -403,30 +413,6 @@ export function BudgetScreen() {
           onSave={(amountCents) =>
             assign(categoryEditor.category.id, amountCents)
           }
-          onSmartAssign={async () => {
-            const funding = fundingByCategoryId.get(categoryEditor.category.id);
-            if (!funding || funding.requiredAssignment.cents <= 0) return;
-            const assignmentPlan = planCategoryAssignment(
-              funding.requiredAssignment,
-              budget?.funding.assignableNow ?? Money.zero(),
-            );
-            if (assignmentPlan.kind === 'assign-directly') {
-              await assign(
-                categoryEditor.category.id,
-                categoryEditor.assigned.cents + assignmentPlan.amountCents,
-              );
-              return;
-            }
-            if (assignmentPlan.kind === 'none') return;
-            setCategoryEditorId(null);
-            router.push(
-              routes.moveBudget(
-                month,
-                categoryEditor.category.id,
-                assignmentPlan.amountCents,
-              ),
-            );
-          }}
           onToggleSnooze={() => {
             const funding = fundingByCategoryId.get(categoryEditor.category.id);
             return setTargetSnoozed(

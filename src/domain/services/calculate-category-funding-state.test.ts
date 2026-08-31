@@ -5,7 +5,10 @@ import type {
 import type { BudgetCategoryValues } from '@/domain/services/calculate-budget-month';
 import { Money } from '@/domain/value-objects/money';
 
-import { calculateCategoryFundingState } from './calculate-category-funding-state';
+import {
+  calculateCategoryFundingState,
+  calculateCategoryFundingStateForAssignedDraft,
+} from './calculate-category-funding-state';
 
 const instant = '2026-08-01T00:00:00.000Z';
 
@@ -184,5 +187,79 @@ describe('calculateCategoryFundingState', () => {
     expect(state.targetSnoozed).toBe(false);
     expect(state.canToggleSnooze).toBe(false);
     expect(state.requiredAssignment).toEqual(Money.zero());
+  });
+
+  it('recalculates a target suggestion from the current assignment draft', () => {
+    const monthly = target('monthly');
+    const initial = values(4_000);
+
+    const fromInitialDraft = calculateCategoryFundingStateForAssignedDraft({
+      values: initial,
+      assignedCents: 4_000,
+      target: monthly,
+      month: '2026-08',
+      today: '2026-08-20',
+    });
+    const fromEditedDraft = calculateCategoryFundingStateForAssignedDraft({
+      values: initial,
+      assignedCents: 2_000,
+      target: monthly,
+      month: '2026-08',
+      today: '2026-08-20',
+    });
+    const fromCompletedDraft = calculateCategoryFundingStateForAssignedDraft({
+      values: initial,
+      assignedCents: 10_000,
+      target: monthly,
+      month: '2026-08',
+      today: '2026-08-20',
+    });
+
+    expect(fromInitialDraft.requiredAssignment).toEqual(Money.fromCents(6_000));
+    expect(fromEditedDraft.requiredAssignment).toEqual(Money.fromCents(8_000));
+    expect(fromCompletedDraft.requiredAssignment).toEqual(Money.zero());
+  });
+
+  it('recalculates overspending against the current assignment draft', () => {
+    const initial = values(4_000, -2_000);
+
+    const funding = calculateCategoryFundingStateForAssignedDraft({
+      values: initial,
+      assignedCents: 1_000,
+      month: '2026-08',
+      today: '2026-08-20',
+    });
+
+    expect(funding.requiredForOverspending).toEqual(Money.fromCents(5_000));
+    expect(funding.requiredAssignment).toEqual(Money.fromCents(5_000));
+  });
+
+  it('replaces this month in assignment history for dated target drafts', () => {
+    const dated: CategoryTarget = {
+      ...target('custom'),
+      amount: Money.fromCents(30_000),
+      targetDate: '2026-09-30',
+    };
+    const initial: BudgetCategoryValues = {
+      ...values(4_000),
+      assignedHistory: [
+        { month: '2026-07', amount: Money.fromCents(10_000) },
+        { month: '2026-08', amount: Money.fromCents(4_000) },
+      ],
+      spendingHistory: [],
+    };
+
+    const funding = calculateCategoryFundingStateForAssignedDraft({
+      values: initial,
+      assignedCents: 15_000,
+      target: dated,
+      month: '2026-08',
+      today: '2026-08-20',
+    });
+
+    expect(funding.targetProgress?.fundedThisMonth).toEqual(
+      Money.fromCents(15_000),
+    );
+    expect(funding.requiredAssignment).toEqual(Money.zero());
   });
 });
