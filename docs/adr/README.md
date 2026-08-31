@@ -6,10 +6,10 @@ ADR that supersedes the previous one instead of rewriting history.
 
 ## Status values
 
-- **Proposed**: under discussion and not yet binding.
 - **Accepted**: the current architectural contract.
 - **Superseded**: replaced by a later ADR, which must be linked.
-- **Rejected**: considered but deliberately not adopted.
+- **Deprecated**: retained for history but no longer recommended; a replacement
+  is not necessarily available.
 
 ## Index
 
@@ -22,10 +22,13 @@ ADR that supersedes the previous one instead of rewriting history.
 | [0005](0005-first-release-scope.md)                    | First-release scope and deferred CSV import        | Accepted |
 | [0006](0006-atomic-sqlite-application-writes.md)       | Atomic SQLite application writes                   | Accepted |
 | [0007](0007-full-screen-navigation-flows.md)           | Route-backed full-screen creation flows            | Accepted |
+| [0008](0008-defer-reimbursement-tracking.md)           | Defer reimbursement tracking beyond 1.2.0          | Accepted |
 
 ## Creating an ADR
 
-Copy the structure used by the existing records, choose the next four-digit
-number, and include context, decision, consequences, and alternatives. Keep
-implementation detail in code or technical documentation unless it explains a
-long-lived trade-off.
+Create ADRs only during an explicitly requested documentation or decision task.
+Choose the next four-digit number and include Status, Date, Context, Problem,
+Decision, Alternatives considered, and Consequences. Accepted ADRs are
+historical records: replace a changed decision with a new ADR and mark the old
+one Superseded instead of silently rewriting it. Keep current operational
+behavior in `user/` and `technical/`.

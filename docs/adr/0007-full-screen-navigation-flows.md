@@ -12,6 +12,11 @@ exposed a white background in dark mode. Nested full-screen modals for payee and
 category selection compounded the delay and made Android back behavior
 inconsistent.
 
+## Problem
+
+Tab-mediated modal workflows exposed intermediate UI, rebuilt editor state,
+and produced platform-specific transition and Back behavior.
+
 ## Decision
 
 Primary creation and editing flows use opaque routes in the root Expo Router

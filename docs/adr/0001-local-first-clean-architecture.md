@@ -10,6 +10,11 @@ an account, network connection, or Jarling-operated backend. Its financial
 rules also need to be testable independently from React Native, Expo, and
 SQLite.
 
+## Problem
+
+Without an explicit dependency direction, UI lifecycle, platform APIs, and
+storage details could become inseparable from financial policy.
+
 ## Decision
 
 Jarling is local-first and uses this dependency direction:

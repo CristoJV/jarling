@@ -9,6 +9,11 @@ Jarling has not shipped a public database yet. Replaying development-era
 migrations would add code and failure paths that no released installation
 needs. Once version 1 is public, existing user databases must be preserved.
 
+## Problem
+
+The project needed a clean first public schema without sacrificing safe upgrades
+for databases created after that baseline.
+
 ## Decision
 
 Fresh installations create the complete current schema directly from

@@ -10,10 +10,6 @@
 </p>
 
 <p align="center">
-  <strong>English</strong> · <a href="docs/README.es.md">Español</a>
-</p>
-
-<p align="center">
   <a href="https://github.com/CristoJV/jarling/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/CristoJV/jarling/actions/workflows/ci.yml/badge.svg" /></a>
   <img alt="Expo" src="https://img.shields.io/badge/Expo-57-000020?logo=expo" />
   <img alt="React Native" src="https://img.shields.io/badge/React%20Native-0.86-61DAFB?logo=react" />
@@ -50,9 +46,11 @@ long-term goals.
 - Monthly envelope budgets organized into flexible groups and categories.
 - Weekly, monthly, yearly, and custom funding targets.
 - Clear funded, underfunded, spent, available, and overspent states.
-- Transactions, account transfers, payees, memos, and refinable search.
+- Transactions, category inflows, account transfers, payees, memos, and
+  refinable search.
 - Account balances and reconciliation against the real-world balance.
-- Income, spending, and net-worth reports.
+- Income, net category spending, and net-worth reports. Inflows sent directly
+  to a category offset its spending without becoming new income.
 - Local SQLite storage in the application's private directory, with no account
   required.
 - Readable JSON exports and portable, independently password-encrypted
@@ -72,7 +70,8 @@ long-term goals.
 
 ## Getting started
 
-You need Node.js 22.13–24 and npm. Native builds additionally require Android
+You need Node.js 22.13 or newer within the Node 22 release line (the exact CI
+version is in `.nvmrc`) and npm. Native builds additionally require Android
 Studio with JDK 17 and NDK 27.1.12297006 or, on macOS, a compatible Xcode
 installation.
 
@@ -107,19 +106,15 @@ npm run export:ios
 npm run test:e2e # requires Maestro and a native build/emulator
 ```
 
-## Architecture and release status
-
-Jarling uses a pragmatic clean architecture and a versioned SQLite schema.
-Fresh installations create the current schema directly, while the retained
-forward-only migration runner upgrades databases created by earlier releases.
-Jarling deliberately excludes CSV import, bank connectivity, cloud sync, and
-scheduled transactions for now.
+## Documentation
 
 - [Documentation index](docs/README.md)
-- [Product specification](docs/product-specification.md)
-- [Interaction design](docs/interaction-design.md)
+- [Get started](docs/user/getting-started.md)
+- [Budgeting guide](docs/user/budgeting.md)
+- [Technical architecture](docs/technical/architecture.md)
 - [Architecture decisions](docs/adr/README.md)
-- [Privacy and data protection](docs/privacy.md)
+- [Future proposals](docs/rfc/README.md)
+- [Privacy and data protection](docs/user/privacy-and-data.md)
 - [Changelog](CHANGELOG.md)
 
 ## License

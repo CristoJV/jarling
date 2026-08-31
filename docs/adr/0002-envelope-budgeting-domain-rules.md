@@ -9,6 +9,11 @@ Small inconsistencies in budget calculations compound into incorrect balances.
 The source of truth and sign conventions therefore need to be stable across UI,
 reports, backups, and future imports.
 
+## Problem
+
+Multiple representations of money or derived totals could disagree and make a
+plan impossible to reconstruct or trust.
+
 ## Decision
 
 - Money is represented as safe integer minor units; floating-point values are
