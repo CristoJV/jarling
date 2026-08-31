@@ -2,7 +2,7 @@
   "expo": {
     "name": "Jarling",
     "slug": "jarling",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "description": "Private, local-first envelope budgeting.",
     "orientation": "portrait",
     "icon": "./assets/images/jarling-app-icon.png",
@@ -10,7 +10,7 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/images/jarling-app-icon.png",
-      "buildNumber": "1.1.0",
+      "buildNumber": "1.2.0",
       "supportsTablet": false,
       "bundleIdentifier": "com.cristojv.jarling"
     },
@@ -23,7 +23,7 @@
       "predictiveBackGestureEnabled": false,
       "softwareKeyboardLayoutMode": "resize",
       "allowBackup": false,
-      "versionCode": 570010100,
+      "versionCode": 570010200,
       "package": "com.cristojv.jarling"
     },
     "web": {
@@ -63,8 +63,14 @@
         "expo-localization",
         {
           "supportedLocales": {
-            "ios": ["en", "es"],
-            "android": ["en", "es"]
+            "ios": [
+              "en",
+              "es"
+            ],
+            "android": [
+              "en",
+              "es"
+            ]
           }
         }
       ],
