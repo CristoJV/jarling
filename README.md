@@ -70,8 +70,8 @@ long-term goals.
 
 ## Getting started
 
-You need Node.js 22.13 or newer within the Node 22 release line (the exact CI
-version is in `.nvmrc`) and npm. Native builds additionally require Android
+You need Node.js 24.11 or newer within the Node 24 LTS release line (the exact
+CI version is in `.nvmrc`) and npm 11. Native builds additionally require Android
 Studio with JDK 17 and NDK 27.1.12297006 or, on macOS, a compatible Xcode
 installation.
 
