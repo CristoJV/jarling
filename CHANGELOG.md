@@ -5,21 +5,19 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## [1.2.0](https://github.com/CristoJV/jarling/compare/v1.1.0...v1.2.0) (2026-08-31)
 
-
 ### Features
 
-* **budget:** account for future assignments in Ready to Assign ([79b9e01](https://github.com/CristoJV/jarling/commit/79b9e017a30bee76f3a280d25810695d379dae82))
-* **search:** improve transaction filters and budget persistence ([cd99262](https://github.com/CristoJV/jarling/commit/cd99262f0ba852885a2e5166e5b79860c7c41d4c))
-* **targets:** add monthly snooze and smart category actions ([0aeeb28](https://github.com/CristoJV/jarling/commit/0aeeb28d40ed8c3366facdf6e03f6ab0d8713f11))
-* **transactions:** support category inflows ([00fd670](https://github.com/CristoJV/jarling/commit/00fd670c7a5d034c3b935702cd19769148ebd385))
-* **transactions:** support category inflows ([959e862](https://github.com/CristoJV/jarling/commit/959e862d5ed51841b6cf60a0e28b192211de9782))
-
+- **budget:** account for future assignments in Ready to Assign ([79b9e01](https://github.com/CristoJV/jarling/commit/79b9e017a30bee76f3a280d25810695d379dae82))
+- **search:** improve transaction filters and budget persistence ([cd99262](https://github.com/CristoJV/jarling/commit/cd99262f0ba852885a2e5166e5b79860c7c41d4c))
+- **targets:** add monthly snooze and smart category actions ([0aeeb28](https://github.com/CristoJV/jarling/commit/0aeeb28d40ed8c3366facdf6e03f6ab0d8713f11))
+- **transactions:** support category inflows ([00fd670](https://github.com/CristoJV/jarling/commit/00fd670c7a5d034c3b935702cd19769148ebd385))
+- **transactions:** support category inflows ([959e862](https://github.com/CristoJV/jarling/commit/959e862d5ed51841b6cf60a0e28b192211de9782))
 
 ### Bug Fixes
 
-* apply Smart Assign to the current budget draft ([d672d6d](https://github.com/CristoJV/jarling/commit/d672d6dc0c5b9de8b0dd51051e5e2c2dfbc9f6ee))
-* correct budget progress and reconciled transaction editing ([a55c3bd](https://github.com/CristoJV/jarling/commit/a55c3bd23843487692b3df0e80a08c95ccabf2fd))
-* **reports:** refine spending filters and selection dialogs ([aec3680](https://github.com/CristoJV/jarling/commit/aec3680189e539bf3f175ca4833ca8bfe79b2db8))
+- apply Smart Assign to the current budget draft ([d672d6d](https://github.com/CristoJV/jarling/commit/d672d6dc0c5b9de8b0dd51051e5e2c2dfbc9f6ee))
+- correct budget progress and reconciled transaction editing ([a55c3bd](https://github.com/CristoJV/jarling/commit/a55c3bd23843487692b3df0e80a08c95ccabf2fd))
+- **reports:** refine spending filters and selection dialogs ([aec3680](https://github.com/CristoJV/jarling/commit/aec3680189e539bf3f175ca4833ca8bfe79b2db8))
 
 ## [1.1.0](https://github.com/CristoJV/jarling/compare/v1.0.0...v1.1.0) (2026-08-26)
 
