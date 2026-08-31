@@ -4,12 +4,16 @@ import {
   updateTransaction as applyChanges,
   type Transaction,
 } from '@/domain/entities/transaction';
-import { CannotModifyReconciledTransactionError } from '@/domain/errors/cannot-modify-reconciled-transaction-error';
+import { AccountNotFoundError } from '@/domain/errors/account-not-found-error';
+import { InvalidTransactionAmountError } from '@/domain/errors/invalid-transaction-amount-error';
 import { TransactionNotFoundError } from '@/domain/errors/transaction-not-found-error';
+import { TransactionAccountLockedError } from '@/domain/errors/transaction-account-locked-error';
 import { ProtectedTransactionError } from '@/domain/errors/protected-transaction-error';
 import type { AccountRepository } from '@/domain/repositories/account-repository';
 import type { CategoryRepository } from '@/domain/repositories/category-repository';
 import type { TransactionRepository } from '@/domain/repositories/transaction-repository';
+import { transactionAccountLockReason } from '@/domain/services/transaction-edit-policy';
+import { Money } from '@/domain/value-objects/money';
 
 import {
   prepareTransactionInput,
@@ -35,20 +39,27 @@ export class UpdateTransaction {
       throw new TransactionNotFoundError(input.id);
     }
 
-    if (current.status === 'reconciled') {
-      throw new CannotModifyReconciledTransactionError();
-    }
-    if (current.kind !== 'standard') {
+    if (
+      current.kind !== 'standard' &&
+      current.kind !== 'opening_balance' &&
+      current.kind !== 'reconciliation_adjustment'
+    ) {
       throw new ProtectedTransactionError(current.kind);
     }
 
-    const prepared = await prepareTransactionInput(
-      input,
-      this.accounts,
-      this.categories,
-    );
+    const accountLockReason = transactionAccountLockReason(current);
+    if (accountLockReason && input.accountId !== current.accountId) {
+      throw new TransactionAccountLockedError(accountLockReason);
+    }
+
+    const prepared =
+      current.kind === 'opening_balance' ||
+      current.kind === 'reconciliation_adjustment'
+        ? await this.prepareTechnicalTransaction(input, current)
+        : await prepareTransactionInput(input, this.accounts, this.categories);
     const updated = applyChanges(current, {
       ...prepared,
+      status: current.status === 'reconciled' ? 'reconciled' : prepared.status,
       updatedAt: this.clock.now().instant,
     });
 
@@ -56,5 +67,31 @@ export class UpdateTransaction {
       await this.transactions.save(updated);
       return updated;
     });
+  }
+
+  private async prepareTechnicalTransaction(
+    input: UpdateTransactionInput,
+    current: Transaction,
+  ) {
+    if (
+      !Number.isSafeInteger(input.amountCents) ||
+      input.amountCents < 0 ||
+      (input.amountCents === 0 && current.kind !== 'opening_balance')
+    ) {
+      throw new InvalidTransactionAmountError();
+    }
+    const account = await this.accounts.findById(current.accountId);
+    if (!account) throw new AccountNotFoundError(current.accountId);
+
+    return {
+      accountId: current.accountId,
+      payee: input.payee,
+      amount: Money.fromCents(
+        input.direction === 'outflow' ? -input.amountCents : input.amountCents,
+      ),
+      date: input.date,
+      notes: input.notes,
+      status: current.status,
+    } as const;
   }
 }

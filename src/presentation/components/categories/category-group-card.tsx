@@ -2,7 +2,10 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { CategoryGroupSummary } from '@/application/use-cases/categories/get-category-groups';
-import type { BudgetCategoryValues } from '@/domain/services/calculate-budget-month';
+import {
+  calculateCategoryPeriodUsage,
+  type BudgetCategoryValues,
+} from '@/domain/services/calculate-budget-month';
 import type { CategoryFundingState } from '@/domain/services/calculate-category-funding-state';
 import { Money } from '@/domain/value-objects/money';
 import {
@@ -218,14 +221,12 @@ export function categoryStatus(
 ): CategoryStatus | null {
   const target = funding?.effectiveTarget;
   const progress = funding?.effectiveProgress;
-  const spent = values.spendingTransactions.reduce(
-    (sum, amount) => sum + amount.cents,
-    0,
-  );
-  const funded = Math.max(0, values.available.cents + spent);
+  const usage = calculateCategoryPeriodUsage(values);
+  const spent = Math.max(0, usage.netSpending.cents);
+  const funded = Math.max(0, usage.startingAvailable.cents);
   const underfunded = funding?.fundingStatus === 'underfunded';
   const bar = buildBudgetProgress({
-    spendingCents: values.spendingTransactions.map((amount) => amount.cents),
+    spendingCents: spent > 0 ? [spent] : [],
     availableCents: values.available.cents,
     ...(progress
       ? {

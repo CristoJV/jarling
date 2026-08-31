@@ -4,8 +4,8 @@ import {
   updateTransaction,
   type Transaction,
 } from '@/domain/entities/transaction';
-import { CannotModifyReconciledTransactionError } from '@/domain/errors/cannot-modify-reconciled-transaction-error';
 import { InvalidTransferError } from '@/domain/errors/invalid-transfer-error';
+import { TransactionAccountLockedError } from '@/domain/errors/transaction-account-locked-error';
 import type { AccountRepository } from '@/domain/repositories/account-repository';
 import type { CategoryRepository } from '@/domain/repositories/category-repository';
 import type { TransactionRepository } from '@/domain/repositories/transaction-repository';
@@ -33,8 +33,13 @@ export class UpdateTransfer {
     );
     const pair = parseTransferPair(current, input.transactionGroupId);
     if (!pair) throw new InvalidTransferError('linked pair not found');
-    if (current.some(({ status }) => status === 'reconciled')) {
-      throw new CannotModifyReconciledTransactionError();
+    const reconciled = current.some(({ status }) => status === 'reconciled');
+    if (
+      reconciled &&
+      (input.sourceAccountId !== pair.source.accountId ||
+        input.destinationAccountId !== pair.destination.accountId)
+    ) {
+      throw new TransactionAccountLockedError('reconciled');
     }
     const {
       source: sourceAccount,
@@ -83,7 +88,8 @@ function updateLeg(
     amount: Money.fromCents(values.amountCents),
     date: values.input.date,
     notes: values.input.notes,
-    status: values.input.status,
+    status:
+      current.status === 'reconciled' ? 'reconciled' : values.input.status,
     transactionGroupId: values.input.transactionGroupId,
     updatedAt: values.updatedAt,
   });

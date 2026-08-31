@@ -426,8 +426,17 @@ export const english = {
   'transactions.deleteTransfer': 'Delete transfer?',
   'transactions.deleteTransferBody':
     'Both linked movements will be permanently deleted.',
-  'transactions.reconciledTitle': 'Reconciled transaction',
-  'transactions.reconciledBody': 'A reconciled transaction cannot be changed.',
+  'transactions.reconciledEditTitle': 'This transaction has been reconciled',
+  'transactions.reconciledEditBody':
+    'Changing its amount or date may affect a previous reconciliation and cause the account balance to no longer match.',
+  'transactions.saveAnyway': 'Save Anyway',
+  'transactions.accountLockedTitle': 'Account cannot be changed',
+  'transactions.reconciledAccountLockedBody':
+    'A reconciled transaction must remain in its original account. You can edit its other details.',
+  'transactions.openingBalanceAccountLockedBody':
+    'An opening balance belongs to the account it created. You can edit its amount, date and description.',
+  'transactions.deleteReconciledBody':
+    'Deleting this transaction may affect a previous reconciliation. This action cannot be undone.',
   'transactions.amountRequired': 'Enter an amount greater than zero.',
   'transactions.accountRequired': 'Choose an account.',
   'transactions.destinationRequired': 'Choose a destination account.',
@@ -524,8 +533,8 @@ export const english = {
     'Category inflows are available only for accounts included in the budget.',
   'errors.closedAccount': 'Transactions cannot be added to a closed account.',
   'errors.transactionNotFound': 'The transaction no longer exists.',
-  'errors.reconciledTransaction':
-    'A reconciled transaction cannot be changed or deleted.',
+  'errors.transactionAccountLocked':
+    'This transaction must remain in its original account.',
   'errors.insufficientReadyToAssign':
     'There is not enough money in Ready to Assign for that allocation.',
   'errors.protectedCategory':
@@ -980,9 +989,17 @@ export const spanish: TranslationDictionary = {
   'transactions.deleteTransfer': '¿Eliminar transferencia?',
   'transactions.deleteTransferBody':
     'Se eliminarán definitivamente los dos movimientos enlazados.',
-  'transactions.reconciledTitle': 'Transacción conciliada',
-  'transactions.reconciledBody':
-    'No se puede modificar una transacción conciliada.',
+  'transactions.reconciledEditTitle': 'Esta transacción está conciliada',
+  'transactions.reconciledEditBody':
+    'Cambiar su importe o fecha puede afectar a una conciliación anterior y hacer que el saldo de la cuenta deje de coincidir.',
+  'transactions.saveAnyway': 'Guardar de todos modos',
+  'transactions.accountLockedTitle': 'No se puede cambiar la cuenta',
+  'transactions.reconciledAccountLockedBody':
+    'Una transacción conciliada debe permanecer en su cuenta original. Puedes editar el resto de sus datos.',
+  'transactions.openingBalanceAccountLockedBody':
+    'Un saldo inicial pertenece a la cuenta que lo creó. Puedes editar su importe, fecha y descripción.',
+  'transactions.deleteReconciledBody':
+    'Eliminar esta transacción puede afectar a una conciliación anterior. Esta acción no se puede deshacer.',
   'transactions.amountRequired': 'Introduce un importe mayor que cero.',
   'transactions.accountRequired': 'Selecciona una cuenta.',
   'transactions.destinationRequired': 'Selecciona una cuenta de destino.',
@@ -1082,8 +1099,8 @@ export const spanish: TranslationDictionary = {
   'errors.closedAccount':
     'No se pueden añadir movimientos a una cuenta cerrada.',
   'errors.transactionNotFound': 'La transacción ya no existe.',
-  'errors.reconciledTransaction':
-    'Una transacción conciliada no se puede modificar ni eliminar.',
+  'errors.transactionAccountLocked':
+    'Esta transacción debe permanecer en su cuenta original.',
   'errors.insufficientReadyToAssign':
     'No hay suficiente dinero en Disponible para asignar para esa asignación.',
   'errors.protectedCategory':

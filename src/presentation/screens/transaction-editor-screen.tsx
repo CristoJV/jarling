@@ -22,6 +22,7 @@ import type { TransferInput } from '@/application/use-cases/transfers/transfer-i
 import { supportsCategoryInflows } from '@/domain/entities/account';
 import type { Category } from '@/domain/entities/category';
 import type { BudgetMonthValues } from '@/domain/services/calculate-budget-month';
+import { requiresReconciliationWarning } from '@/domain/services/transaction-edit-policy';
 import { Money } from '@/domain/value-objects/money';
 import { SelectCategoryScreen } from '@/presentation/components/categories/select-category-screen';
 import { BlinkingCursor } from '@/presentation/components/common/blinking-cursor';
@@ -99,9 +100,15 @@ export function TransactionEditorScreen({
   const styles = useThemedStyles(createStyles);
   const existing = summary?.transaction;
   const linked = linkedSummary?.transaction;
+  const existingOpeningBalance = existing?.kind === 'opening_balance';
+  const existingTechnicalTransaction =
+    existingOpeningBalance || existing?.kind === 'reconciliation_adjustment';
   const existingTransfer = Boolean(existing?.transactionGroupId && linked);
   const transferLegs = [existing, linked].filter(
     (transaction) => transaction !== undefined,
+  );
+  const reconciledTransactions = transferLegs.filter(
+    (transaction) => transaction.status === 'reconciled',
   );
   const sourceLeg = existingTransfer
     ? transferLegs.find(({ amount }) => amount.cents < 0)
@@ -214,9 +221,10 @@ export function TransactionEditorScreen({
     selectedAccount !== undefined &&
     supportsCategoryInflows(selectedAccount);
   const showsCategoryDestination =
-    kind === 'expense' ||
-    categoryInflowEnabled ||
-    (kind === 'income' && Boolean(categoryId));
+    !existingTechnicalTransaction &&
+    (kind === 'expense' ||
+      categoryInflowEnabled ||
+      (kind === 'income' && Boolean(categoryId)));
   const categoryName = selectedCategory
     ? categoryDisplayName(selectedCategory, t)
     : undefined;
@@ -295,11 +303,17 @@ export function TransactionEditorScreen({
     restoreKeypad.current = false;
   }
 
-  async function submit(resolvedAmountCents?: number) {
+  async function submit(
+    resolvedAmountCents?: number,
+    reconciliationConfirmed = false,
+  ) {
     if (submitting) return;
     const finalAmountCents =
       resolvedAmountCents ?? keypadRef.current?.resolve() ?? amountCents;
-    if (finalAmountCents <= 0) {
+    if (
+      finalAmountCents < 0 ||
+      (finalAmountCents === 0 && !existingOpeningBalance)
+    ) {
       setError(t('transactions.amountRequired'));
       return;
     }
@@ -316,45 +330,96 @@ export function TransactionEditorScreen({
       return;
     }
 
+    const common = {
+      amountCents: finalAmountCents,
+      date,
+      notes: memo.trim() || undefined,
+      status: cleared ? 'cleared' : 'uncleared',
+    } as const;
+    const input: TransactionInput | TransferInput =
+      kind === 'transfer'
+        ? {
+            ...common,
+            kind,
+            sourceAccountId: accountId,
+            destinationAccountId,
+          }
+        : kind === 'expense'
+          ? {
+              ...common,
+              direction: 'outflow',
+              accountId,
+              ...(!existingTechnicalTransaction && categoryId
+                ? { categoryId }
+                : {}),
+              payee: payee.trim() || undefined,
+            }
+          : {
+              ...common,
+              direction: 'inflow',
+              accountId,
+              ...(!existingTechnicalTransaction && categoryId
+                ? { categoryId }
+                : {}),
+              payee: payee.trim() || undefined,
+            };
+    const changesReconciliation = reconciledTransactions.some((transaction) =>
+      requiresReconciliationWarning([transaction], {
+        amountCents:
+          kind === 'transfer'
+            ? transaction.amount.cents < 0
+              ? -finalAmountCents
+              : finalAmountCents
+            : kind === 'expense'
+              ? -finalAmountCents
+              : finalAmountCents,
+        date,
+      }),
+    );
+    if (changesReconciliation && !reconciliationConfirmed) {
+      Alert.alert(
+        t('transactions.reconciledEditTitle'),
+        t('transactions.reconciledEditBody'),
+        [
+          { text: t('common.cancel'), style: 'cancel' },
+          {
+            text: t('transactions.saveAnyway'),
+            onPress: () => void submit(finalAmountCents, true),
+          },
+        ],
+      );
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
     try {
-      const common = {
-        amountCents: finalAmountCents,
-        date,
-        notes: memo.trim() || undefined,
-        status: cleared ? 'cleared' : 'uncleared',
-      } as const;
-      await onSave(
-        kind === 'transfer'
-          ? {
-              ...common,
-              kind,
-              sourceAccountId: accountId,
-              destinationAccountId,
-            }
-          : kind === 'expense'
-            ? {
-                ...common,
-                direction: 'outflow',
-                accountId,
-                ...(categoryId ? { categoryId } : {}),
-                payee: payee.trim() || undefined,
-              }
-            : {
-                ...common,
-                direction: 'inflow',
-                accountId,
-                ...(categoryId ? { categoryId } : {}),
-                payee: payee.trim() || undefined,
-              },
-      );
+      await onSave(input);
       onDismiss();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : t('form.couldNotSave'));
     } finally {
       setSubmitting(false);
     }
+  }
+
+  function openAccountEditor(value: 'account' | 'destination-account') {
+    const reason =
+      reconciledTransactions.length > 0
+        ? 'reconciled'
+        : existingOpeningBalance
+          ? 'opening_balance'
+          : null;
+    if (!reason) {
+      openEditor(value);
+      return;
+    }
+    Alert.alert(
+      t('transactions.accountLockedTitle'),
+      reason === 'reconciled'
+        ? t('transactions.reconciledAccountLockedBody')
+        : t('transactions.openingBalanceAccountLockedBody'),
+    );
   }
 
   function selectKind(value: TransactionKind) {
@@ -368,6 +433,8 @@ export function TransactionEditorScreen({
     setKind(value);
     if (
       value === 'expense' &&
+      reconciledTransactions.length === 0 &&
+      !existingOpeningBalance &&
       !availableAccounts.find(({ account }) => account.id === accountId)
         ?.account.onBudget
     ) {
@@ -619,7 +686,7 @@ export function TransactionEditorScreen({
                 icon="cash"
                 label={accountName}
                 muted={!accountId}
-                onPress={() => openEditor('account')}
+                onPress={() => openAccountEditor('account')}
                 overline={
                   kind === 'transfer'
                     ? t('transactions.fromAccount')
@@ -631,7 +698,7 @@ export function TransactionEditorScreen({
                   icon="bank-transfer-in"
                   label={destinationAccountName}
                   muted={!destinationAccountId}
-                  onPress={() => openEditor('destination-account')}
+                  onPress={() => openAccountEditor('destination-account')}
                   overline={t('transactions.toAccount')}
                 />
               ) : null}
@@ -650,16 +717,19 @@ export function TransactionEditorScreen({
                     onPress={() => openEditor('memo')}
                     overline={memo ? t('transactions.memo') : undefined}
                   />
-                  <FormRow
-                    icon={cleared ? 'check-circle' : 'circle-outline'}
-                    label={
-                      cleared
-                        ? t('transactions.cleared')
-                        : t('transactions.uncleared')
-                    }
-                    onPress={() => setCleared((current) => !current)}
-                    overline={t('transactions.status')}
-                  />
+                  {existing?.status !== 'reconciled' &&
+                  !existingTechnicalTransaction ? (
+                    <FormRow
+                      icon={cleared ? 'check-circle' : 'circle-outline'}
+                      label={
+                        cleared
+                          ? t('transactions.cleared')
+                          : t('transactions.uncleared')
+                      }
+                      onPress={() => setCleared((current) => !current)}
+                      overline={t('transactions.status')}
+                    />
+                  ) : null}
                 </>
               ) : null}
             </View>

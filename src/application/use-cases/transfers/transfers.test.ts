@@ -3,7 +3,7 @@ import type { IdGenerator } from '@/application/ports/id-generator';
 import { DeleteTransaction } from '@/application/use-cases/transactions/delete-transaction';
 import { createAccount } from '@/domain/entities/account';
 import { createCategory } from '@/domain/entities/category';
-import { CannotModifyReconciledTransactionError } from '@/domain/errors/cannot-modify-reconciled-transaction-error';
+import { TransactionAccountLockedError } from '@/domain/errors/transaction-account-locked-error';
 import { InvalidTransferError } from '@/domain/errors/invalid-transfer-error';
 import { ProtectedTransactionError } from '@/domain/errors/protected-transaction-error';
 import { calculateBudgetMonth } from '@/domain/services/calculate-budget-month';
@@ -271,7 +271,7 @@ describe('transfers', () => {
     expect(budget.readyToAssign).toEqual(Money.zero());
   });
 
-  it('protects both transfer legs when either one is reconciled', async () => {
+  it('updates or deletes a transfer with a reconciled leg while preserving reconciliation', async () => {
     const { transactions, create, update, remove } = await setup();
     const pair = await create.execute({
       kind: 'transfer',
@@ -283,22 +283,46 @@ describe('transfers', () => {
     });
     await transactions.save({ ...pair.destination, status: 'reconciled' });
 
-    await expect(remove.execute(pair.source.id)).rejects.toThrow(
-      CannotModifyReconciledTransactionError,
-    );
+    const updated = await update.execute({
+      kind: 'transfer',
+      transactionGroupId: pair.source.transactionGroupId!,
+      sourceAccountId: 'source',
+      destinationAccountId: 'destination',
+      amountCents: 10_000,
+      date: '2026-08-19',
+      status: 'cleared',
+    });
+    expect(updated.source.amount).toEqual(Money.fromCents(-10_000));
+    expect(updated.destination.status).toBe('reconciled');
+
+    await remove.execute(pair.source.id);
+    expect(
+      await transactions.findByGroup(pair.source.transactionGroupId!),
+    ).toHaveLength(0);
+  });
+
+  it('does not move a reconciled transfer to different accounts', async () => {
+    const { transactions, create, update } = await setup();
+    const pair = await create.execute({
+      kind: 'transfer',
+      sourceAccountId: 'source',
+      destinationAccountId: 'destination',
+      amountCents: 25_000,
+      date: '2026-08-18',
+      status: 'cleared',
+    });
+    await transactions.save({ ...pair.source, status: 'reconciled' });
+
     await expect(
       update.execute({
         kind: 'transfer',
         transactionGroupId: pair.source.transactionGroupId!,
-        sourceAccountId: 'source',
-        destinationAccountId: 'destination',
-        amountCents: 10_000,
-        date: '2026-08-19',
+        sourceAccountId: 'destination',
+        destinationAccountId: 'source',
+        amountCents: 25_000,
+        date: '2026-08-18',
         status: 'cleared',
       }),
-    ).rejects.toThrow(CannotModifyReconciledTransactionError);
-    expect(
-      await transactions.findByGroup(pair.source.transactionGroupId!),
-    ).toHaveLength(2);
+    ).rejects.toThrow(TransactionAccountLockedError);
   });
 });

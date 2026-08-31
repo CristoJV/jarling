@@ -25,14 +25,17 @@ existing transaction names rather than maintained as a separate catalogue.
 Search can be refined step by step using text, payee, memo, status, account,
 category, and date suggestions. Applied filters remain removable. Swipe a
 transaction beyond the delete threshold to request deletion confirmation.
-Reconciled transactions are protected from ordinary editing and deletion.
+Reconciled transactions remain editable and deletable because they are user
+data. Their account stays fixed; changing an amount or date requires explicit
+confirmation because it can invalidate a previous reconciliation.
 
 ## Transfers
 
 A transfer moves money between two accounts through two equal and opposite
 ledger entries. It changes account balances but an internal on-budget transfer
 does not create income or spending. Transfers are saved, edited, and deleted as
-one operation; a reconciled leg protects the pair.
+one operation. If either leg is reconciled, both accounts stay fixed while
+confirmed edits and deletion continue to operate on the complete pair.
 
 Payments from cash to a credit account can interact with the linked credit-card
 payment category. Transfers that cross between Budget and Tracking do not yet
@@ -49,6 +52,10 @@ Reconciliation compares Jarling's cleared balance with the institution's real
 balance. If they match, the included transactions become reconciled. If they do
 not, Jarling explains the difference and can create an explicit adjustment only
 after confirmation; it never hides a discrepancy.
+
+An opening balance can be corrected without changing its identity. Its amount,
+date, description, and memo remain editable, but it cannot be moved to another
+account or turned into a standard categorized transaction.
 
 Tracking accounts and loans affect Net Worth but not Ready to Assign or budget
 Income/Spending.

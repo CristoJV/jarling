@@ -30,8 +30,10 @@ accounts contributes to Ready to Assign. Credit debt never creates budgetable
 cash, while a positive credit balance can contribute owned value.
 
 Working balance includes applicable transactions. Cleared balance includes
-cleared and reconciled entries. Reconciled entries are immutable under current
-product rules.
+cleared and reconciled entries. A reconciliation records that the ledger
+matched at that moment; it does not make user data immutable. Reconciled
+entries retain their account and status, warn before balance-affecting edits,
+and otherwise recalculate the same derived balances as any ledger correction.
 
 ## Standard transaction classification
 

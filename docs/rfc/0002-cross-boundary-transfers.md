@@ -129,7 +129,7 @@ the active database. JSON and `.jarling` continue through the same validator.
 | account change or reversed pair     | incompatible treatment is cleared               |
 | failure saving the second leg       | complete rollback                               |
 | edit or delete                      | both legs remain equal, opposite, and atomic    |
-| one reconciled leg                  | whole pair is protected                         |
+| one reconciled leg                  | accounts fixed; confirmed pair edit is atomic   |
 | closed/same account or invalid pair | rejected before persistence                     |
 | old backup                          | migrates without invented categories            |
 | invalid restored pair               | rejected; active plan remains intact            |

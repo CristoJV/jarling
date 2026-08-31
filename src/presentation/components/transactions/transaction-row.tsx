@@ -37,7 +37,10 @@ export function TransactionRow({
   const styles = useThemedStyles(createStyles);
   const { width } = useWindowDimensions();
   const [translateX] = useState(() => new Animated.Value(0));
-  const swipeable = transaction.status !== 'reconciled';
+  const swipeable =
+    transaction.kind === 'standard' ||
+    transaction.kind === 'transfer' ||
+    transaction.kind === 'reconciliation_adjustment';
   const payeeLabel =
     transaction.kind === 'opening_balance'
       ? t('transactions.openingBalance')

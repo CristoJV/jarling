@@ -1,5 +1,4 @@
 import type { UnitOfWork } from '@/application/ports/unit-of-work';
-import { CannotModifyReconciledTransactionError } from '@/domain/errors/cannot-modify-reconciled-transaction-error';
 import { TransactionNotFoundError } from '@/domain/errors/transaction-not-found-error';
 import { ProtectedTransactionError } from '@/domain/errors/protected-transaction-error';
 import type { TransactionRepository } from '@/domain/repositories/transaction-repository';
@@ -18,7 +17,11 @@ export class DeleteTransaction {
       throw new TransactionNotFoundError(transactionId);
     }
 
-    if (transaction.kind !== 'standard' && transaction.kind !== 'transfer') {
+    if (
+      transaction.kind !== 'standard' &&
+      transaction.kind !== 'transfer' &&
+      transaction.kind !== 'reconciliation_adjustment'
+    ) {
       throw new ProtectedTransactionError(transaction.kind);
     }
 
@@ -33,10 +36,6 @@ export class DeleteTransaction {
       !parseTransferPair(linked, transaction.transactionGroupId)
     ) {
       throw new ProtectedTransactionError('invalid transfer');
-    }
-
-    if (linked.some(({ status }) => status === 'reconciled')) {
-      throw new CannotModifyReconciledTransactionError();
     }
 
     await this.unitOfWork.run(() =>
