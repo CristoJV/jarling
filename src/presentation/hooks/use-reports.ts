@@ -11,6 +11,7 @@ export function useReports(
   throughDate: string,
   spendingInterval: SpendingIntervalUnit,
   spendingIntervalCount: number,
+  numberOfMonths?: number,
 ) {
   const application = useApplication();
   const { t } = useTranslation();
@@ -29,6 +30,7 @@ export function useReports(
         throughDate,
         spendingInterval,
         spendingIntervalCount,
+        ...(numberOfMonths === undefined ? {} : { numberOfMonths }),
       });
       if (requestIdRef.current === requestId) setReports(nextReports);
     } catch (cause) {
@@ -38,7 +40,14 @@ export function useReports(
     } finally {
       if (requestIdRef.current === requestId) setLoading(false);
     }
-  }, [application, spendingInterval, spendingIntervalCount, t, throughDate]);
+  }, [
+    application,
+    numberOfMonths,
+    spendingInterval,
+    spendingIntervalCount,
+    t,
+    throughDate,
+  ]);
 
   useFocusEffect(
     useCallback(() => {

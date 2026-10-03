@@ -101,6 +101,50 @@ describe('calculateReports', () => {
     expect(result.months).toHaveLength(9);
     expect(result.months[0]?.month).toBe('2025-12');
     expect(result.months.at(-1)?.month).toBe('2026-08');
+    expect(result.hasEarlierMonths).toBe(false);
+  });
+
+  it('limits month history and reports whether an earlier page exists', () => {
+    const transactions = [
+      transaction('oldest', 'cash', 10_000, '2025-12-15'),
+      transaction('latest', 'cash', -1_000, '2026-08-10', {
+        categoryId: 'food',
+      }),
+    ];
+    const firstPage = calculateReports({
+      throughDate: '2026-08-31',
+      spendingInterval: 'month',
+      spendingIntervalCount: 6,
+      numberOfMonths: 5,
+      accounts,
+      categories,
+      groups,
+      transactions,
+    });
+    const finalPage = calculateReports({
+      throughDate: '2026-08-31',
+      spendingInterval: 'month',
+      spendingIntervalCount: 6,
+      numberOfMonths: 10,
+      accounts,
+      categories,
+      groups,
+      transactions,
+    });
+
+    expect(firstPage.months.map(({ month }) => month)).toEqual([
+      '2026-04',
+      '2026-05',
+      '2026-06',
+      '2026-07',
+      '2026-08',
+    ]);
+    expect(firstPage).toMatchObject({
+      numberOfMonths: 5,
+      hasEarlierMonths: true,
+    });
+    expect(finalPage.months[0]?.month).toBe('2025-12');
+    expect(finalPage.hasEarlierMonths).toBe(false);
   });
 
   it('derives spending, income and net worth without counting transfers as income', () => {

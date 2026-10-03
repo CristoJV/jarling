@@ -2,6 +2,8 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -55,6 +57,8 @@ const DEFAULT_INTERVAL_COUNT: Readonly<Record<SpendingIntervalUnit, number>> = {
   year: 3,
 };
 
+const INCOME_MONTH_PAGE_SIZE = 5;
+
 function currentDate(): string {
   const date = new Date();
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -77,10 +81,15 @@ export function ReportsScreen() {
   const [selector, setSelector] = useState<ReportSelector>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>();
   const [selectedIntervalKey, setSelectedIntervalKey] = useState<string>();
+  const [incomeMonthCount, setIncomeMonthCount] = useState(
+    INCOME_MONTH_PAGE_SIZE,
+  );
+  const reportMonthCount = kind === 'netWorth' ? undefined : incomeMonthCount;
   const { reports, error, loading, refresh } = useReports(
     throughDate,
     spendingInterval,
     spendingIntervalCount,
+    reportMonthCount,
   );
   const { t } = useTranslation();
   const theme = useAppTheme();
@@ -90,6 +99,13 @@ export function ReportsScreen() {
     reports.spending.intervalCount === spendingIntervalCount
       ? reports
       : null;
+  const incomeReports =
+    reports?.numberOfMonths !== undefined &&
+    reports.numberOfMonths <= incomeMonthCount
+      ? reports
+      : null;
+  const netWorthReports =
+    reports && reports.numberOfMonths === undefined ? reports : null;
 
   const effectiveSelectedCategoryId =
     spendingIntervalCount > 1 &&
@@ -189,9 +205,6 @@ export function ReportsScreen() {
               )}
             </>
           ) : null}
-          {loading && kind !== 'spending' && !reports ? (
-            <ActivityIndicator color={theme.colors.primary} size="large" />
-          ) : null}
           {error ? <Text style={styles.error}>{error}</Text> : null}
           {selectedSpendingReports && kind === 'spending' ? (
             <SpendingCategoryBreakdown
@@ -207,11 +220,26 @@ export function ReportsScreen() {
               selectedIntervalKey={effectiveSelectedIntervalKey}
             />
           ) : null}
-          {reports && kind === 'income' ? (
-            <MonthlyReport kind="income" months={reports.months} />
+          {incomeReports && kind === 'income' ? (
+            <MonthlyReport
+              hasMore={incomeReports.hasEarlierMonths}
+              kind="income"
+              loadingMore={loading}
+              months={incomeReports.months}
+              onLoadMore={() =>
+                setIncomeMonthCount(
+                  (current) => current + INCOME_MONTH_PAGE_SIZE,
+                )
+              }
+            />
           ) : null}
-          {reports && kind === 'netWorth' ? (
-            <MonthlyReport kind="netWorth" months={reports.months} />
+          {netWorthReports && kind === 'netWorth' ? (
+            <MonthlyReport kind="netWorth" months={netWorthReports.months} />
+          ) : null}
+          {loading &&
+          ((kind === 'income' && !incomeReports) ||
+            (kind === 'netWorth' && !netWorthReports)) ? (
+            <ActivityIndicator color={theme.colors.primary} size="large" />
           ) : null}
         </View>
       </ScrollView>
@@ -300,11 +328,17 @@ function ReportSelectorButton({
 }
 
 function MonthlyReport({
+  hasMore = false,
   kind,
+  loadingMore = false,
   months,
+  onLoadMore,
 }: Readonly<{
+  hasMore?: boolean;
   kind: 'income' | 'netWorth';
+  loadingMore?: boolean;
   months: readonly ReportMonth[];
+  onLoadMore?: () => void;
 }>) {
   const { language, t } = useTranslation();
   const theme = useAppTheme();
@@ -323,6 +357,14 @@ function MonthlyReport({
     : (months.at(-1)?.netWorth.cents ?? 0);
   const firstLabel = incomeReport ? t('reports.income') : t('reports.assets');
   const secondLabel = incomeReport ? t('reports.spending') : t('reports.debt');
+  function loadMoreNearEnd(
+    event: NativeSyntheticEvent<NativeScrollEvent>,
+  ): void {
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+    const distanceFromEnd =
+      contentSize.height - layoutMeasurement.height - contentOffset.y;
+    if (distanceFromEnd <= 80 && hasMore && !loadingMore) onLoadMore?.();
+  }
   const monthRows = [...months].reverse().map((month) => {
     const first = incomeReport ? month.income.cents : month.assets.cents;
     const second = incomeReport ? month.spending.cents : month.debt.cents;
@@ -383,13 +425,21 @@ function MonthlyReport({
             ? t('reports.incomeVsSpending')
             : t('reports.netWorthTrend')}
         </Text>
-        {months.length > 5 ? (
+        {(incomeReport && hasMore) || months.length > 5 ? (
           <ScrollView
             nestedScrollEnabled
+            onScroll={incomeReport ? loadMoreNearEnd : undefined}
+            scrollEventThrottle={32}
             showsVerticalScrollIndicator
             style={styles.monthRowsScroll}
           >
             {monthRows}
+            {incomeReport && loadingMore ? (
+              <ActivityIndicator
+                color={theme.colors.primary}
+                style={styles.monthRowsLoader}
+              />
+            ) : null}
           </ScrollView>
         ) : (
           monthRows
@@ -544,6 +594,7 @@ const createStyles = (theme: AppTheme) =>
     cardTitle: { color: theme.colors.text, fontSize: 18, fontWeight: '800' },
     legendDot: { width: 9, height: 9, borderRadius: 5 },
     monthRowsScroll: { maxHeight: 466 },
+    monthRowsLoader: { marginVertical: 12 },
     monthRow: {
       paddingHorizontal: 8,
       paddingVertical: 9,
