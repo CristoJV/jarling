@@ -51,7 +51,7 @@ export function SpendingReportOverview({
     ({ categoryId }) => categoryId === selectedCategoryId,
   );
   const selectedCategory = report.categories[selectedCategoryIndex];
-  const multipleIntervals = report.intervalCount > 1;
+  const multipleIntervals = report.intervals.length > 1;
 
   return (
     <View style={styles.overview}>
@@ -130,7 +130,7 @@ export function SpendingCategoryBreakdown({
   }>) {
   const { language, t } = useTranslation();
   const styles = useThemedStyles(createStyles);
-  const multipleIntervals = report.intervalCount > 1;
+  const multipleIntervals = report.intervals.length > 1;
   const selectedInterval = report.intervals.find(
     ({ key }) => key === selectedIntervalKey,
   );
@@ -142,26 +142,20 @@ export function SpendingCategoryBreakdown({
           {t('reports.spendingBreakdown')}
         </Text>
       </View>
-      <View style={styles.breakdownContext}>
-        {selectedInterval ? (
-          <>
-            <Text style={styles.guidance}>{t('reports.showingFor')}</Text>
-            <FilterChip
-              label={compactIntervalLabel(
-                selectedInterval,
-                report.interval,
-                language,
-              )}
-              onPress={onClearInterval}
-              onRemove={onClearInterval}
-            />
-          </>
-        ) : (
-          <Text style={styles.guidance}>
-            {t('reports.showingAllCategories')}
-          </Text>
-        )}
-      </View>
+      {selectedInterval ? (
+        <View style={styles.breakdownContext}>
+          <Text style={styles.guidance}>{t('reports.showingFor')}</Text>
+          <FilterChip
+            label={compactIntervalLabel(
+              selectedInterval,
+              report.interval,
+              language,
+            )}
+            onPress={onClearInterval}
+            onRemove={onClearInterval}
+          />
+        </View>
+      ) : null}
       <Text style={styles.guidance}>
         {t(`reports.selectCategoryEvolution.${report.interval}`)}
       </Text>
@@ -315,28 +309,22 @@ function TemporalBreakdown({
           {t(`reports.breakdownBy.${report.interval}`)}
         </Text>
       </View>
-      <View style={styles.breakdownContext}>
-        {selectedCategory ? (
-          <>
-            <Text style={styles.guidance}>{t('reports.showingFor')}</Text>
-            <FilterChip
-              label={categoryDisplayName(
-                {
-                  id: selectedCategory.categoryId,
-                  name: selectedCategory.categoryName,
-                },
-                t,
-              )}
-              onPress={onClearCategory}
-              onRemove={onClearCategory}
-            />
-          </>
-        ) : (
-          <Text style={styles.guidance}>
-            {t('reports.showingAllCategories')}
-          </Text>
-        )}
-      </View>
+      {selectedCategory ? (
+        <View style={styles.breakdownContext}>
+          <Text style={styles.guidance}>{t('reports.showingFor')}</Text>
+          <FilterChip
+            label={categoryDisplayName(
+              {
+                id: selectedCategory.categoryId,
+                name: selectedCategory.categoryName,
+              },
+              t,
+            )}
+            onPress={onClearCategory}
+            onRemove={onClearCategory}
+          />
+        </View>
+      ) : null}
       <Text style={styles.guidance}>
         {t(`reports.selectInterval.${report.interval}`)}
       </Text>
@@ -373,7 +361,11 @@ function IntervalRows({
   const theme = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const intervalScrollRef = useRef<ScrollView>(null);
-  const rows = report.intervals.map((item) => {
+  const displayedIntervals =
+    report.interval === 'month'
+      ? [...report.intervals].reverse()
+      : report.intervals;
+  const rows = displayedIntervals.map((item) => {
     const positiveCents = Math.max(0, item.spending.cents);
     const { spending: displayedSpending, percentage: displayedPercentage } =
       intervalSelectionMetrics(report, item, selectedCategoryId);
@@ -431,8 +423,10 @@ function IntervalRows({
     <ScrollView
       contentContainerStyle={styles.intervalRows}
       nestedScrollEnabled
-      onContentSizeChange={() =>
-        intervalScrollRef.current?.scrollToEnd({ animated: false })
+      onContentSizeChange={
+        report.interval === 'month'
+          ? undefined
+          : () => intervalScrollRef.current?.scrollToEnd({ animated: false })
       }
       ref={intervalScrollRef}
       showsVerticalScrollIndicator

@@ -71,6 +71,10 @@ export function CategoryBudgetModal({
 
   const funding = fundingForAssigned(amountCents);
   const requiredCents = funding.requiredAssignment.cents;
+  const assignmentPlan = planCategoryAssignment(
+    funding.requiredAssignment,
+    readyToAssign,
+  );
   const snoozeAction = targetSnoozeAction(funding);
   const hasContextualActions = requiredCents > 0 || snoozeAction !== null;
 
@@ -205,8 +209,12 @@ export function CategoryBudgetModal({
                   <Text numberOfLines={2} style={styles.assignActionText}>
                     {t(
                       funding.assignmentReason === 'overspending'
-                        ? 'budget.assignToCoverOverspending'
-                        : 'budget.assignToReachTarget',
+                        ? assignmentPlan.kind === 'move-money'
+                          ? 'budget.moveToCoverOverspending'
+                          : 'budget.assignToCoverOverspending'
+                        : assignmentPlan.kind === 'move-money'
+                          ? 'budget.moveToReachTarget'
+                          : 'budget.assignToReachTarget',
                       {
                         amount: formatMoney(funding.requiredAssignment),
                       },

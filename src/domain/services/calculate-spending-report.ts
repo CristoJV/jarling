@@ -94,11 +94,25 @@ export function calculateSpendingReport({
   groups,
   transactions,
 }: CalculateSpendingReportInput): SpendingReport {
-  const intervals = buildSpendingIntervals({
+  const requestedIntervals = buildSpendingIntervals({
     throughDate,
     interval,
     intervalCount,
   });
+  const oldestTransactionDate = transactions.reduce<string | undefined>(
+    (oldest, transaction) =>
+      transaction.date <= throughDate &&
+      (oldest === undefined || transaction.date < oldest)
+        ? transaction.date
+        : oldest,
+    undefined,
+  );
+  const intervals = oldestTransactionDate
+    ? requestedIntervals.filter(
+        ({ endDate }) => endDate >= oldestTransactionDate,
+      )
+    : requestedIntervals.slice(-1);
+  const effectiveIntervalCount = intervals.length;
   const accountById = new Map(accounts.map((account) => [account.id, account]));
   const categoryById = new Map(
     categories.map((category) => [category.id, category]),
@@ -127,7 +141,7 @@ export function calculateSpendingReport({
 
     const values =
       spendingByCategory.get(categoryId) ??
-      Array.from({ length: intervalCount }, () => 0);
+      Array.from({ length: effectiveIntervalCount }, () => 0);
     values[intervalIndex] =
       (values[intervalIndex] ?? 0) - transaction.amount.cents;
     spendingByCategory.set(categoryId, values);
@@ -207,7 +221,7 @@ export function calculateSpendingReport({
       };
     }),
     total: Money.fromCents(totalCents),
-    average: Money.fromCents(Math.round(totalCents / intervalCount)),
+    average: Money.fromCents(Math.round(totalCents / effectiveIntervalCount)),
     categories: categoryRows.map((category) => {
       const lowestIndex = extremeIndex(category.values, 'lowest');
       const highestIndex = extremeIndex(category.values, 'highest');
@@ -218,7 +232,7 @@ export function calculateSpendingReport({
         groupName: category.groupName,
         total: Money.fromCents(category.totalCents),
         average: Money.fromCents(
-          Math.round(category.totalCents / intervalCount),
+          Math.round(category.totalCents / effectiveIntervalCount),
         ),
         spendingByInterval: category.values.map((value) =>
           Money.fromCents(value),

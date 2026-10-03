@@ -62,9 +62,10 @@ function currentDate(): string {
 
 function monthLabel(month: string, language: SupportedLanguage): string {
   const [year, number] = month.split('-').map(Number);
-  return new Intl.DateTimeFormat(language, { month: 'short' }).format(
-    new Date(year ?? 0, (number ?? 1) - 1, 1),
-  );
+  return new Intl.DateTimeFormat(language, {
+    month: 'short',
+    year: '2-digit',
+  }).format(new Date(year ?? 0, (number ?? 1) - 1, 1));
 }
 
 export function ReportsScreen() {
@@ -322,6 +323,44 @@ function MonthlyReport({
     : (months.at(-1)?.netWorth.cents ?? 0);
   const firstLabel = incomeReport ? t('reports.income') : t('reports.assets');
   const secondLabel = incomeReport ? t('reports.spending') : t('reports.debt');
+  const monthRows = [...months].reverse().map((month) => {
+    const first = incomeReport ? month.income.cents : month.assets.cents;
+    const second = incomeReport ? month.spending.cents : month.debt.cents;
+    const net = incomeReport ? month.netIncome : month.netWorth;
+    return (
+      <View key={month.month} style={styles.monthRow}>
+        <View style={styles.monthHeader}>
+          <Text style={styles.monthLabel}>
+            {monthLabel(month.month, language)}
+          </Text>
+          <View style={styles.monthNetGroup}>
+            <Text style={styles.monthNetLabel}>
+              {incomeReport
+                ? t('reports.netIncome')
+                : t('reports.netWorthUpper')}
+            </Text>
+            <Text style={[styles.monthNet, net.cents < 0 && styles.negative]}>
+              {formatMoney(net)}
+            </Text>
+          </View>
+        </View>
+        <View style={styles.monthMetrics}>
+          <MetricBar
+            color={theme.colors.positive}
+            label={firstLabel}
+            maximum={maximum}
+            value={first}
+          />
+          <MetricBar
+            color={theme.colors.negative}
+            label={secondLabel}
+            maximum={maximum}
+            value={second}
+          />
+        </View>
+      </View>
+    );
+  });
 
   return (
     <>
@@ -336,57 +375,25 @@ function MonthlyReport({
           incomeReport ? t('reports.netIncome') : t('reports.netWorthUpper')
         }
         negative={netCents < 0}
+        muted={incomeReport}
       />
-      <View style={styles.card}>
+      <View style={[styles.card, incomeReport && styles.incomeCard]}>
         <Text style={styles.cardTitle}>
           {incomeReport
             ? t('reports.incomeVsSpending')
             : t('reports.netWorthTrend')}
         </Text>
-        <View style={styles.legend}>
-          <Legend color={theme.colors.positive} label={firstLabel} />
-          <Legend color={theme.colors.negative} label={secondLabel} />
-        </View>
-        {months.map((month) => {
-          const first = incomeReport ? month.income.cents : month.assets.cents;
-          const second = incomeReport ? month.spending.cents : month.debt.cents;
-          const net = incomeReport ? month.netIncome : month.netWorth;
-          return (
-            <View key={month.month} style={styles.monthRow}>
-              <View style={styles.monthHeader}>
-                <Text style={styles.monthLabel}>
-                  {monthLabel(month.month, language)}
-                </Text>
-                <View style={styles.monthNetGroup}>
-                  <Text style={styles.monthNetLabel}>
-                    {incomeReport
-                      ? t('reports.netIncome')
-                      : t('reports.netWorthUpper')}
-                  </Text>
-                  <Text
-                    style={[styles.monthNet, net.cents < 0 && styles.negative]}
-                  >
-                    {formatMoney(net)}
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.monthMetrics}>
-                <MetricBar
-                  color={theme.colors.positive}
-                  label={firstLabel}
-                  maximum={maximum}
-                  value={first}
-                />
-                <MetricBar
-                  color={theme.colors.negative}
-                  label={secondLabel}
-                  maximum={maximum}
-                  value={second}
-                />
-              </View>
-            </View>
-          );
-        })}
+        {months.length > 5 ? (
+          <ScrollView
+            nestedScrollEnabled
+            showsVerticalScrollIndicator
+            style={styles.monthRowsScroll}
+          >
+            {monthRows}
+          </ScrollView>
+        ) : (
+          monthRows
+        )}
       </View>
     </>
   );
@@ -426,16 +433,6 @@ function MetricBar({
           ]}
         />
       </View>
-    </View>
-  );
-}
-
-function Legend({ color, label }: Readonly<{ color: string; label: string }>) {
-  const styles = useThemedStyles(createStyles);
-  return (
-    <View style={styles.legendItem}>
-      <View style={[styles.legendDot, { backgroundColor: color }]} />
-      <Text style={styles.legendText}>{label}</Text>
     </View>
   );
 }
@@ -543,21 +540,16 @@ const createStyles = (theme: AppTheme) =>
       borderWidth: 1,
       gap: 14,
     },
+    incomeCard: { padding: 14, gap: 8 },
     cardTitle: { color: theme.colors.text, fontSize: 18, fontWeight: '800' },
-    legend: { flexDirection: 'row', gap: 18 },
-    legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     legendDot: { width: 9, height: 9, borderRadius: 5 },
-    legendText: {
-      color: theme.colors.textMuted,
-      fontSize: 11,
-      fontWeight: '700',
-    },
+    monthRowsScroll: { maxHeight: 466 },
     monthRow: {
       paddingHorizontal: 8,
-      paddingVertical: 12,
+      paddingVertical: 9,
       borderTopColor: theme.colors.border,
       borderTopWidth: StyleSheet.hairlineWidth,
-      gap: 12,
+      gap: 8,
     },
     monthHeader: {
       flexDirection: 'row',
@@ -570,8 +562,8 @@ const createStyles = (theme: AppTheme) =>
       fontSize: 15,
       fontWeight: '800',
     },
-    monthMetrics: { gap: 10 },
-    metric: { gap: 5 },
+    monthMetrics: { gap: 7 },
+    metric: { gap: 3 },
     metricHeader: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -595,7 +587,7 @@ const createStyles = (theme: AppTheme) =>
       fontWeight: '800',
     },
     metricTrack: {
-      height: 8,
+      height: 6,
       backgroundColor: theme.colors.track,
       borderRadius: 4,
       overflow: 'hidden',

@@ -82,7 +82,28 @@ function transaction(
 }
 
 describe('calculateReports', () => {
-  it('derives six-month spending, income and net worth without counting transfers as income', () => {
+  it('includes every month back to the oldest transaction by default', () => {
+    const result = calculateReports({
+      throughDate: '2026-08-31',
+      spendingInterval: 'month',
+      spendingIntervalCount: 6,
+      accounts,
+      categories,
+      groups,
+      transactions: [
+        transaction('oldest', 'cash', 10_000, '2025-12-15'),
+        transaction('latest', 'cash', -1_000, '2026-08-10', {
+          categoryId: 'food',
+        }),
+      ],
+    });
+
+    expect(result.months).toHaveLength(9);
+    expect(result.months[0]?.month).toBe('2025-12');
+    expect(result.months.at(-1)?.month).toBe('2026-08');
+  });
+
+  it('derives spending, income and net worth without counting transfers as income', () => {
     const result = calculateReports({
       throughDate: '2026-08-31',
       spendingInterval: 'month',
@@ -120,7 +141,10 @@ describe('calculateReports', () => {
       ],
     });
 
-    expect(result.months).toHaveLength(6);
+    expect(result.months.map(({ month }) => month)).toEqual([
+      '2026-07',
+      '2026-08',
+    ]);
     expect(result.months.at(-1)).toMatchObject({
       income: Money.fromCents(50_000),
       spending: Money.fromCents(8_000),
@@ -137,7 +161,7 @@ describe('calculateReports', () => {
           groupName: 'Needs',
           percentageOfTotal: 1,
           total: Money.fromCents(8_000),
-          average: Money.fromCents(1_333),
+          average: Money.fromCents(4_000),
         }),
       ],
     });
