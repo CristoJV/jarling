@@ -45,7 +45,7 @@ export function SpendingReportOverview({
     onClearCategory: () => void;
     onSelectInterval: (intervalKey: string) => void;
   }>) {
-  const { language, t } = useTranslation();
+  const { language } = useTranslation();
   const styles = useThemedStyles(createStyles);
   const selectedCategoryIndex = report.categories.findIndex(
     ({ categoryId }) => categoryId === selectedCategoryId,
@@ -60,28 +60,13 @@ export function SpendingReportOverview({
         language={language}
         report={report}
       />
-      {selectedCategory ? (
-        <View style={styles.activeFilters}>
-          <FilterChip
-            label={categoryDisplayName(
-              {
-                id: selectedCategory.categoryId,
-                name: selectedCategory.categoryName,
-              },
-              t,
-            )}
-            onPress={onClearCategory}
-            onRemove={onClearCategory}
-          />
-        </View>
-      ) : null}
-
       {multipleIntervals ? (
         <TemporalBreakdown
           categoryColors={categoryColors}
           language={language}
+          onClearCategory={onClearCategory}
           onSelectInterval={onSelectInterval}
-          selectedCategoryId={selectedCategory?.categoryId}
+          selectedCategory={selectedCategory}
           selectedIntervalKey={selectedIntervalKey}
           report={report}
         />
@@ -172,9 +157,14 @@ export function SpendingCategoryBreakdown({
             />
           </>
         ) : (
-          <Text style={styles.guidance}>{t('reports.showingWholePeriod')}</Text>
+          <Text style={styles.guidance}>
+            {t('reports.showingAllCategories')}
+          </Text>
         )}
       </View>
+      <Text style={styles.guidance}>
+        {t(`reports.selectCategoryEvolution.${report.interval}`)}
+      </Text>
       {report.categories.length === 0 ? (
         <Text style={styles.empty}>{t('reports.emptySpending')}</Text>
       ) : (
@@ -297,15 +287,17 @@ export function SpendingCategoryBreakdown({
 function TemporalBreakdown({
   categoryColors,
   language,
+  onClearCategory,
   onSelectInterval,
-  selectedCategoryId,
+  selectedCategory,
   selectedIntervalKey,
   report,
 }: Readonly<{
   categoryColors: ReportCategoryColors;
   language: SupportedLanguage;
+  onClearCategory: () => void;
   onSelectInterval: (intervalKey: string) => void;
-  selectedCategoryId?: string;
+  selectedCategory?: SpendingReport['categories'][number];
   selectedIntervalKey?: string;
   report: SpendingReport;
 }>) {
@@ -323,6 +315,28 @@ function TemporalBreakdown({
           {t(`reports.breakdownBy.${report.interval}`)}
         </Text>
       </View>
+      <View style={styles.breakdownContext}>
+        {selectedCategory ? (
+          <>
+            <Text style={styles.guidance}>{t('reports.showingFor')}</Text>
+            <FilterChip
+              label={categoryDisplayName(
+                {
+                  id: selectedCategory.categoryId,
+                  name: selectedCategory.categoryName,
+                },
+                t,
+              )}
+              onPress={onClearCategory}
+              onRemove={onClearCategory}
+            />
+          </>
+        ) : (
+          <Text style={styles.guidance}>
+            {t('reports.showingAllCategories')}
+          </Text>
+        )}
+      </View>
       <Text style={styles.guidance}>
         {t(`reports.selectInterval.${report.interval}`)}
       </Text>
@@ -331,7 +345,7 @@ function TemporalBreakdown({
         language={language}
         maximum={maximum}
         onSelectInterval={onSelectInterval}
-        selectedCategoryId={selectedCategoryId}
+        selectedCategoryId={selectedCategory?.categoryId}
         selectedIntervalKey={selectedIntervalKey}
         report={report}
       />
@@ -463,13 +477,6 @@ function compactIntervalLabel(
 const createStyles = (theme: AppTheme) =>
   StyleSheet.create({
     overview: { gap: 16 },
-    activeFilters: {
-      minHeight: 32,
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      alignItems: 'center',
-      gap: 7,
-    },
     periodBanner: {
       minHeight: 174,
       padding: 18,

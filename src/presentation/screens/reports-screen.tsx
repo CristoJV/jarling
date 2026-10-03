@@ -353,24 +353,37 @@ function MonthlyReport({
           const net = incomeReport ? month.netIncome : month.netWorth;
           return (
             <View key={month.month} style={styles.monthRow}>
-              <Text style={styles.monthLabel}>
-                {monthLabel(month.month, language)}
-              </Text>
-              <View style={styles.monthBars}>
+              <View style={styles.monthHeader}>
+                <Text style={styles.monthLabel}>
+                  {monthLabel(month.month, language)}
+                </Text>
+                <View style={styles.monthNetGroup}>
+                  <Text style={styles.monthNetLabel}>
+                    {incomeReport
+                      ? t('reports.netIncome')
+                      : t('reports.netWorthUpper')}
+                  </Text>
+                  <Text
+                    style={[styles.monthNet, net.cents < 0 && styles.negative]}
+                  >
+                    {formatMoney(net)}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.monthMetrics}>
                 <MetricBar
                   color={theme.colors.positive}
+                  label={firstLabel}
                   maximum={maximum}
                   value={first}
                 />
                 <MetricBar
                   color={theme.colors.negative}
+                  label={secondLabel}
                   maximum={maximum}
                   value={second}
                 />
               </View>
-              <Text style={[styles.monthNet, net.cents < 0 && styles.negative]}>
-                {formatMoney(net)}
-              </Text>
             </View>
           );
         })}
@@ -381,21 +394,38 @@ function MonthlyReport({
 
 function MetricBar({
   color,
+  label,
   maximum,
   value,
-}: Readonly<{ color: string; maximum: number; value: number }>) {
+}: Readonly<{
+  color: string;
+  label: string;
+  maximum: number;
+  value: number;
+}>) {
   const styles = useThemedStyles(createStyles);
   return (
-    <View style={styles.metricTrack}>
-      <View
-        style={[
-          styles.metricFill,
-          {
-            backgroundColor: color,
-            width: `${Math.max(0, Math.min(100, (value / maximum) * 100))}%`,
-          },
-        ]}
-      />
+    <View style={styles.metric}>
+      <View style={styles.metricHeader}>
+        <View style={styles.metricLabelGroup}>
+          <View style={[styles.legendDot, { backgroundColor: color }]} />
+          <Text style={styles.metricLabel}>{label}</Text>
+        </View>
+        <Text style={styles.metricAmount}>
+          {formatMoney(Money.fromCents(value))}
+        </Text>
+      </View>
+      <View style={styles.metricTrack}>
+        <View
+          style={[
+            styles.metricFill,
+            {
+              backgroundColor: color,
+              width: `${Math.max(0, Math.min(100, (value / maximum) * 100))}%`,
+            },
+          ]}
+        />
+      </View>
     </View>
   );
 }
@@ -523,29 +553,64 @@ const createStyles = (theme: AppTheme) =>
       fontWeight: '700',
     },
     monthRow: {
-      minHeight: 48,
+      paddingHorizontal: 8,
+      paddingVertical: 12,
+      borderTopColor: theme.colors.border,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      gap: 12,
+    },
+    monthHeader: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 10,
+      justifyContent: 'space-between',
+      gap: 12,
     },
     monthLabel: {
-      width: 30,
+      color: theme.colors.text,
+      fontSize: 15,
+      fontWeight: '800',
+    },
+    monthMetrics: { gap: 10 },
+    metric: { gap: 5 },
+    metricHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 12,
+    },
+    metricLabelGroup: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    metricLabel: {
       color: theme.colors.textSecondary,
       fontSize: 12,
       fontWeight: '700',
     },
-    monthBars: { flex: 1, gap: 4 },
+    metricAmount: {
+      color: theme.colors.text,
+      fontSize: 13,
+      fontVariant: ['tabular-nums'],
+      fontWeight: '800',
+    },
     metricTrack: {
-      height: 7,
+      height: 8,
       backgroundColor: theme.colors.track,
       borderRadius: 4,
       overflow: 'hidden',
     },
     metricFill: { height: '100%', borderRadius: 4 },
+    monthNetGroup: { alignItems: 'flex-end' },
+    monthNetLabel: {
+      color: theme.colors.textMuted,
+      fontSize: 9,
+      fontWeight: '800',
+      letterSpacing: 0.7,
+    },
     monthNet: {
-      width: 92,
       color: theme.colors.positive,
-      fontSize: 12,
+      fontSize: 14,
       fontVariant: ['tabular-nums'],
       fontWeight: '800',
       textAlign: 'right',

@@ -262,17 +262,29 @@ export const english = {
   'reports.breakdownBy.week': 'Breakdown by week',
   'reports.breakdownBy.month': 'Breakdown by month',
   'reports.breakdownBy.year': 'Breakdown by year',
-  'reports.selectInterval.day': 'Select a day to see its detailed breakdown.',
-  'reports.selectInterval.week': 'Select a week to see its detailed breakdown.',
+  'reports.selectInterval.day':
+    'Select a day to see its detailed category breakdown.',
+  'reports.selectInterval.week':
+    'Select a week to see its detailed category breakdown.',
   'reports.selectInterval.month':
-    'Select a month to see its detailed breakdown.',
-  'reports.selectInterval.year': 'Select a year to see its detailed breakdown.',
+    'Select a month to see its detailed category breakdown.',
+  'reports.selectInterval.year':
+    'Select a year to see its detailed category breakdown.',
   'reports.spendingComposition': 'Spending composition by category',
   'reports.minimum': 'Min. {{amount}} · {{interval}}',
   'reports.maximum': 'Max. {{amount}} · {{interval}}',
   'reports.spendingBreakdown': 'Breakdown by category',
   'reports.showingFor': 'Showing breakdown for',
+  'reports.showingAllCategories': 'Showing breakdown for all categories.',
   'reports.showingWholePeriod': 'Showing breakdown for the whole period.',
+  'reports.selectCategoryEvolution.day':
+    'Select a category to see its detailed evolution over days.',
+  'reports.selectCategoryEvolution.week':
+    'Select a category to see its detailed evolution over weeks.',
+  'reports.selectCategoryEvolution.month':
+    'Select a category to see its detailed evolution over months.',
+  'reports.selectCategoryEvolution.year':
+    'Select a category to see its detailed evolution over years.',
   'reports.emptySpending': 'Categorised spending will appear here.',
   'reports.netIncome': 'NET INCOME',
   'reports.incomeMinusSpending': 'Income minus spending',
@@ -829,19 +841,29 @@ export const spanish: TranslationDictionary = {
   'reports.breakdownBy.month': 'Desglose por mes',
   'reports.breakdownBy.year': 'Desglose por año',
   'reports.selectInterval.day':
-    'Selecciona un día para ver el detalle desglosado.',
+    'Selecciona un día para ver su desglose detallado por categorías.',
   'reports.selectInterval.week':
-    'Selecciona una semana para ver el detalle desglosado.',
+    'Selecciona una semana para ver su desglose detallado por categorías.',
   'reports.selectInterval.month':
-    'Selecciona un mes para ver el detalle desglosado.',
+    'Selecciona un mes para ver su desglose detallado por categorías.',
   'reports.selectInterval.year':
-    'Selecciona un año para ver el detalle desglosado.',
+    'Selecciona un año para ver su desglose detallado por categorías.',
   'reports.spendingComposition': 'Composición del gasto por categoría',
   'reports.minimum': 'Mín. {{amount}} · {{interval}}',
   'reports.maximum': 'Máx. {{amount}} · {{interval}}',
   'reports.spendingBreakdown': 'Desglose por categorías',
   'reports.showingFor': 'Mostrando el desglose para',
+  'reports.showingAllCategories':
+    'Mostrando el desglose de todas las categorías.',
   'reports.showingWholePeriod': 'Mostrando el desglose para todo el periodo.',
+  'reports.selectCategoryEvolution.day':
+    'Selecciona una categoría para ver su evolución detallada por días.',
+  'reports.selectCategoryEvolution.week':
+    'Selecciona una categoría para ver su evolución detallada por semanas.',
+  'reports.selectCategoryEvolution.month':
+    'Selecciona una categoría para ver su evolución detallada por meses.',
+  'reports.selectCategoryEvolution.year':
+    'Selecciona una categoría para ver su evolución detallada por años.',
   'reports.emptySpending': 'Los gastos categorizados aparecerán aquí.',
   'reports.netIncome': 'INGRESOS NETOS',
   'reports.incomeMinusSpending': 'Ingresos menos gastos',
