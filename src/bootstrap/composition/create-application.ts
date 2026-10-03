@@ -16,6 +16,7 @@ import { EnsureDefaultCategories } from '@/application/use-cases/categories/ensu
 import { GetCategoryDeletionImpact } from '@/application/use-cases/categories/get-category-deletion-impact';
 import { GetCategoryGroups } from '@/application/use-cases/categories/get-category-groups';
 import { GetCategoryDetails } from '@/application/use-cases/categories/get-category-details';
+import { MoveCategory } from '@/application/use-cases/categories/move-category';
 import { RenameCategoryGroup } from '@/application/use-cases/categories/rename-category-group';
 import { RenameCategory } from '@/application/use-cases/categories/rename-category';
 import { ReorderCategories } from '@/application/use-cases/categories/reorder-categories';
@@ -165,6 +166,7 @@ export function createApplication(
         targetSnoozes,
         clock,
       ),
+      move: new MoveCategory(categoryGroups, categories, unitOfWork, clock),
       renameGroup: new RenameCategoryGroup(categoryGroups, unitOfWork, clock),
       rename: new RenameCategory(categories, unitOfWork, clock),
       updateNotes: new UpdateCategoryNotes(categories, unitOfWork, clock),

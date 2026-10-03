@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   Alert,
   Pressable,
@@ -7,7 +7,10 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 
 import type { SetCategoryTargetInput } from '@/application/use-cases/targets/set-category-target';
 import {
@@ -18,7 +21,13 @@ import {
   type TargetKind,
 } from '@/domain/entities/category-target';
 import { Money } from '@/domain/value-objects/money';
-import { MoneyKeypad } from '@/presentation/components/common/money-keypad';
+import { BlinkingCursor } from '@/presentation/components/common/blinking-cursor';
+import { BottomActionLayout } from '@/presentation/components/common/bottom-action-layout';
+import {
+  MoneyKeypad,
+  type MoneyCalculatorExpression,
+  type MoneyKeypadHandle,
+} from '@/presentation/components/common/money-keypad';
 import { NativeDatePicker } from '@/presentation/components/common/native-date-picker';
 import { SelectionModal } from '@/presentation/components/common/selection-modal';
 import { formatDate, formatMoney } from '@/presentation/utils/money';
@@ -61,6 +70,7 @@ export function TargetEditorView({
   onSave,
   onDelete,
 }: TargetEditorViewProps) {
+  const insets = useSafeAreaInsets();
   const { language, t } = useTranslation();
   const styles = useThemedStyles(createStyles);
   const localizedTargetTypes = targetTypes.map((kind) => ({
@@ -94,6 +104,9 @@ export function TargetEditorView({
   }));
   const [kind, setKind] = useState<TargetKind>(target?.kind ?? 'weekly');
   const [amountCents, setAmountCents] = useState(target?.amount.cents ?? 0);
+  const [amountExpression, setAmountExpression] =
+    useState<MoneyCalculatorExpression | null>(null);
+  const [keypadVisible, setKeypadVisible] = useState(false);
   const [dayOfWeek, setDayOfWeek] = useState<IsoDayOfWeek>(
     target?.dayOfWeek ?? 6,
   );
@@ -115,14 +128,16 @@ export function TargetEditorView({
   const [selectingDate, setSelectingDate] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const keypadRef = useRef<MoneyKeypadHandle>(null);
   const amount = formatMoney(Money.fromCents(amountCents));
 
   async function submit() {
-    if (amountCents <= 0) {
+    const finalAmountCents = keypadRef.current?.resolve() ?? amountCents;
+    if (finalAmountCents <= 0) {
       setError(t('targets.amountRequired'));
       return;
     }
-    const common = { categoryId, amountCents } as const;
+    const common = { categoryId, amountCents: finalAmountCents } as const;
     const input: SetCategoryTargetInput =
       kind === 'weekly'
         ? {
@@ -179,7 +194,7 @@ export function TargetEditorView({
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
       <View style={styles.header}>
         <Pressable
           accessibilityLabel={t('common.back')}
@@ -194,204 +209,248 @@ export function TargetEditorView({
         </Text>
         <View style={styles.headerSpacer} />
       </View>
-      <ScrollView
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
+      <BottomActionLayout
+        bottom={
+          keypadVisible ? (
+            <View
+              style={[
+                styles.calculatorPanel,
+                { paddingBottom: Math.max(insets.bottom, 6) },
+              ]}
+            >
+              <MoneyKeypad
+                calculator
+                onChange={setAmountCents}
+                onDone={() => setKeypadVisible(false)}
+                onExpressionChange={setAmountExpression}
+                ref={keypadRef}
+                valueCents={amountCents}
+              />
+            </View>
+          ) : undefined
+        }
       >
-        <View style={styles.card}>
-          <View style={styles.segmented}>
-            {localizedTargetTypes.map((option) => (
-              <Pressable
-                accessibilityRole="radio"
-                accessibilityState={{ selected: kind === option.kind }}
-                key={option.kind}
-                onPress={() => setKind(option.kind)}
-                style={[
-                  styles.segment,
-                  kind === option.kind && styles.segmentSelected,
-                ]}
-              >
-                <Text
+        <ScrollView
+          contentContainerStyle={[
+            styles.content,
+            { paddingBottom: Math.max(insets.bottom + 24, 42) },
+          ]}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.card}>
+            <View style={styles.segmented}>
+              {localizedTargetTypes.map((option) => (
+                <Pressable
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: kind === option.kind }}
+                  key={option.kind}
+                  onPress={() => setKind(option.kind)}
                   style={[
-                    styles.segmentText,
-                    kind === option.kind && styles.segmentTextSelected,
+                    styles.segment,
+                    kind === option.kind && styles.segmentSelected,
                   ]}
                 >
-                  {option.label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-          <Text style={styles.fieldLabel}>
-            {kind === 'custom' ? t('targets.amount') : t('targets.iNeed')}
-          </Text>
-          <Text style={styles.amount}>{amount}</Text>
-
-          {kind === 'weekly' ? (
-            <>
-              <View style={styles.fieldSection}>
-                <Text style={styles.fieldLabel}>{t('targets.every')}</Text>
-                <View style={styles.dayGrid}>
-                  {localizedDays.map((day) => (
-                    <ChoiceChip
-                      key={day.value}
-                      label={day.label}
-                      selected={dayOfWeek === day.value}
-                      onPress={() => setDayOfWeek(day.value)}
-                    />
-                  ))}
-                </View>
-                <Text style={styles.explanation}>
-                  {t('targets.weeklyMonthlyModel')}
-                </Text>
-                <CheckboxRow
-                  checked={includePreviousWeeks}
-                  description={t('targets.includePreviousWeeksDescription')}
-                  onPress={() => setIncludePreviousWeeks((current) => !current)}
-                  title={t('targets.includePreviousWeeks')}
-                />
-              </View>
-              <View style={styles.fieldSection}>
-                <Text style={styles.fieldLabel}>{t('targets.nextMonth')}</Text>
-                <ModeRow
-                  selected={fundingMode === 'set_aside'}
-                  title={t('targets.setAsideAmount', {
-                    amount,
-                    period: t('targets.week'),
-                  })}
-                  description={t('targets.setAsideDescription', {
-                    period: t('targets.week'),
-                  })}
-                  onPress={() => setFundingMode('set_aside')}
-                />
-                <ModeRow
-                  selected={fundingMode === 'refill_up_to'}
-                  title={t('targets.refillAmount', {
-                    amount,
-                    period: t('targets.week'),
-                  })}
-                  description={t('targets.refillDescription')}
-                  onPress={() => setFundingMode('refill_up_to')}
-                />
-              </View>
-            </>
-          ) : null}
-
-          {kind === 'monthly' ? (
-            <>
-              <View style={styles.fieldSection}>
-                <Text style={styles.fieldLabel}>{t('targets.by')}</Text>
-                <Pressable
-                  onPress={() => setSelectingMonthlyDay(true)}
-                  style={styles.selector}
-                >
-                  <Text style={styles.selectorText}>
-                    {dayOfMonth === 0
-                      ? t('targets.lastDay')
-                      : String(dayOfMonth)}
+                  <Text
+                    style={[
+                      styles.segmentText,
+                      kind === option.kind && styles.segmentTextSelected,
+                    ]}
+                  >
+                    {option.label}
                   </Text>
-                  <Text style={styles.selectorArrow}>›</Text>
                 </Pressable>
-              </View>
-              <RecurringModeSection
-                amount={amount}
-                fundingMode={fundingMode}
-                onChange={setFundingMode}
-                period="month"
-              />
-            </>
-          ) : null}
-
-          {kind === 'yearly' ? (
-            <>
-              <View style={styles.fieldSection}>
-                <Text style={styles.fieldLabel}>{t('targets.by')}</Text>
-                <Pressable
-                  onPress={() => setSelectingDate(true)}
-                  style={styles.selector}
-                >
-                  <Text style={styles.selectorText}>
-                    {formatDate(targetDate, language)}
-                  </Text>
-                  <Text style={styles.selectorArrow}>›</Text>
-                </Pressable>
-              </View>
-              <RecurringModeSection
-                amount={amount}
-                fundingMode={fundingMode}
-                onChange={setFundingMode}
-                period="year"
-              />
-            </>
-          ) : null}
-
-          {kind === 'custom' ? (
-            <View style={styles.fieldSection}>
-              <Text style={styles.fieldLabel}>{t('targets.iWantTo')}</Text>
-              {localizedCustomModes.map((mode) => (
-                <ModeRow
-                  key={mode.value}
-                  selected={customFundingMode === mode.value}
-                  title={mode.title}
-                  description={mode.description}
-                  onPress={() => setCustomFundingMode(mode.value)}
-                />
               ))}
-              <Pressable
-                accessibilityRole="checkbox"
-                accessibilityState={{ checked: customHasDate }}
-                onPress={() => setCustomHasDate((current) => !current)}
-                style={styles.selector}
+            </View>
+            <Text style={styles.fieldLabel}>
+              {kind === 'custom' ? t('targets.amount') : t('targets.iNeed')}
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setKeypadVisible(true)}
+              style={styles.amountField}
+            >
+              <Text
+                accessibilityLabel={t('targets.amount')}
+                adjustsFontSizeToFit
+                minimumFontScale={0.58}
+                numberOfLines={1}
+                style={styles.amount}
               >
-                <Text style={styles.selectorText}>
-                  {customHasDate
-                    ? t('targets.removeDate')
-                    : t('targets.addDate')}
-                </Text>
-                <Text style={styles.selectorArrow}>
-                  {customHasDate ? '−' : '+'}
-                </Text>
-              </Pressable>
-              {customHasDate ? (
+                {amountExpression
+                  ? `${formatMoney(Money.fromCents(amountExpression.leftCents))} ${amountExpression.operator} ${formatMoney(Money.fromCents(amountExpression.rightCents))}`
+                  : amount}
+              </Text>
+              {keypadVisible ? <BlinkingCursor height={34} /> : null}
+            </Pressable>
+
+            {kind === 'weekly' ? (
+              <>
+                <View style={styles.fieldSection}>
+                  <Text style={styles.fieldLabel}>{t('targets.every')}</Text>
+                  <View style={styles.dayGrid}>
+                    {localizedDays.map((day) => (
+                      <ChoiceChip
+                        key={day.value}
+                        label={day.label}
+                        selected={dayOfWeek === day.value}
+                        onPress={() => setDayOfWeek(day.value)}
+                      />
+                    ))}
+                  </View>
+                  <Text style={styles.explanation}>
+                    {t('targets.weeklyMonthlyModel')}
+                  </Text>
+                  <CheckboxRow
+                    checked={includePreviousWeeks}
+                    description={t('targets.includePreviousWeeksDescription')}
+                    onPress={() =>
+                      setIncludePreviousWeeks((current) => !current)
+                    }
+                    title={t('targets.includePreviousWeeks')}
+                  />
+                </View>
+                <View style={styles.fieldSection}>
+                  <Text style={styles.fieldLabel}>
+                    {t('targets.nextMonth')}
+                  </Text>
+                  <ModeRow
+                    selected={fundingMode === 'set_aside'}
+                    title={t('targets.setAsideAmount', {
+                      amount,
+                      period: t('targets.week'),
+                    })}
+                    description={t('targets.setAsideDescription', {
+                      period: t('targets.week'),
+                    })}
+                    onPress={() => setFundingMode('set_aside')}
+                  />
+                  <ModeRow
+                    selected={fundingMode === 'refill_up_to'}
+                    title={t('targets.refillAmount', {
+                      amount,
+                      period: t('targets.week'),
+                    })}
+                    description={t('targets.refillDescription')}
+                    onPress={() => setFundingMode('refill_up_to')}
+                  />
+                </View>
+              </>
+            ) : null}
+
+            {kind === 'monthly' ? (
+              <>
+                <View style={styles.fieldSection}>
+                  <Text style={styles.fieldLabel}>{t('targets.by')}</Text>
+                  <Pressable
+                    onPress={() => setSelectingMonthlyDay(true)}
+                    style={styles.selector}
+                  >
+                    <Text style={styles.selectorText}>
+                      {dayOfMonth === 0
+                        ? t('targets.lastDay')
+                        : String(dayOfMonth)}
+                    </Text>
+                    <Text style={styles.selectorArrow}>›</Text>
+                  </Pressable>
+                </View>
+                <RecurringModeSection
+                  amount={amount}
+                  fundingMode={fundingMode}
+                  onChange={setFundingMode}
+                  period="month"
+                />
+              </>
+            ) : null}
+
+            {kind === 'yearly' ? (
+              <>
+                <View style={styles.fieldSection}>
+                  <Text style={styles.fieldLabel}>{t('targets.by')}</Text>
+                  <Pressable
+                    onPress={() => setSelectingDate(true)}
+                    style={styles.selector}
+                  >
+                    <Text style={styles.selectorText}>
+                      {formatDate(targetDate, language)}
+                    </Text>
+                    <Text style={styles.selectorArrow}>›</Text>
+                  </Pressable>
+                </View>
+                <RecurringModeSection
+                  amount={amount}
+                  fundingMode={fundingMode}
+                  onChange={setFundingMode}
+                  period="year"
+                />
+              </>
+            ) : null}
+
+            {kind === 'custom' ? (
+              <View style={styles.fieldSection}>
+                <Text style={styles.fieldLabel}>{t('targets.iWantTo')}</Text>
+                {localizedCustomModes.map((mode) => (
+                  <ModeRow
+                    key={mode.value}
+                    selected={customFundingMode === mode.value}
+                    title={mode.title}
+                    description={mode.description}
+                    onPress={() => setCustomFundingMode(mode.value)}
+                  />
+                ))}
                 <Pressable
-                  onPress={() => setSelectingDate(true)}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: customHasDate }}
+                  onPress={() => setCustomHasDate((current) => !current)}
                   style={styles.selector}
                 >
                   <Text style={styles.selectorText}>
-                    {formatDate(targetDate, language)}
+                    {customHasDate
+                      ? t('targets.removeDate')
+                      : t('targets.addDate')}
                   </Text>
-                  <Text style={styles.selectorArrow}>›</Text>
+                  <Text style={styles.selectorArrow}>
+                    {customHasDate ? '−' : '+'}
+                  </Text>
                 </Pressable>
-              ) : null}
-            </View>
+                {customHasDate ? (
+                  <Pressable
+                    onPress={() => setSelectingDate(true)}
+                    style={styles.selector}
+                  >
+                    <Text style={styles.selectorText}>
+                      {formatDate(targetDate, language)}
+                    </Text>
+                    <Text style={styles.selectorArrow}>›</Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            ) : null}
+          </View>
+          {error ? (
+            <Text accessibilityLiveRegion="polite" style={styles.error}>
+              {error}
+            </Text>
           ) : null}
-
-          <MoneyKeypad onChange={setAmountCents} valueCents={amountCents} />
-        </View>
-        {error ? (
-          <Text accessibilityLiveRegion="polite" style={styles.error}>
-            {error}
-          </Text>
-        ) : null}
-        <Pressable
-          disabled={submitting}
-          onPress={() => void submit()}
-          style={[styles.save, submitting && styles.disabled]}
-        >
-          <Text style={styles.saveText}>
-            {submitting
-              ? t('transactions.saving')
-              : target
-                ? t('targets.save')
-                : t('targets.set')}
-          </Text>
-        </Pressable>
-        {target ? (
-          <Pressable onPress={requestDelete} style={styles.deleteButton}>
-            <Text style={styles.deleteText}>{t('targets.delete')}</Text>
+          <Pressable
+            disabled={submitting}
+            onPress={() => void submit()}
+            style={[styles.save, submitting && styles.disabled]}
+          >
+            <Text style={styles.saveText}>
+              {submitting
+                ? t('transactions.saving')
+                : target
+                  ? t('targets.save')
+                  : t('targets.set')}
+            </Text>
           </Pressable>
-        ) : null}
-      </ScrollView>
+          {target ? (
+            <Pressable onPress={requestDelete} style={styles.deleteButton}>
+              <Text style={styles.deleteText}>{t('targets.delete')}</Text>
+            </Pressable>
+          ) : null}
+        </ScrollView>
+      </BottomActionLayout>
 
       {selectingMonthlyDay ? (
         <SelectionModal
@@ -601,11 +660,16 @@ const createStyles = (theme: AppTheme) =>
       fontWeight: '700',
     },
     amount: {
-      paddingVertical: 8,
       color: theme.colors.text,
       fontSize: 38,
       fontVariant: ['tabular-nums'],
       fontWeight: '800',
+    },
+    amountField: {
+      minHeight: 58,
+      paddingVertical: 5,
+      flexDirection: 'row',
+      alignItems: 'center',
     },
     fieldSection: {
       paddingVertical: 16,
@@ -739,4 +803,5 @@ const createStyles = (theme: AppTheme) =>
       fontWeight: '800',
     },
     disabled: { opacity: 0.55 },
+    calculatorPanel: { backgroundColor: theme.colors.surfaceElevated },
   });

@@ -13,6 +13,7 @@ import type { EnsureDefaultCategories } from '@/application/use-cases/categories
 import type { GetCategoryDeletionImpact } from '@/application/use-cases/categories/get-category-deletion-impact';
 import type { GetCategoryGroups } from '@/application/use-cases/categories/get-category-groups';
 import type { GetCategoryDetails } from '@/application/use-cases/categories/get-category-details';
+import type { MoveCategory } from '@/application/use-cases/categories/move-category';
 import type { RenameCategoryGroup } from '@/application/use-cases/categories/rename-category-group';
 import type { RenameCategory } from '@/application/use-cases/categories/rename-category';
 import type { ReorderCategories } from '@/application/use-cases/categories/reorder-categories';
@@ -62,6 +63,7 @@ export type ApplicationServices = Readonly<{
     getDeletionImpact: Pick<GetCategoryDeletionImpact, 'execute'>;
     getGroups: Pick<GetCategoryGroups, 'execute'>;
     getDetails: Pick<GetCategoryDetails, 'execute'>;
+    move: Pick<MoveCategory, 'execute'>;
     renameGroup: Pick<RenameCategoryGroup, 'execute'>;
     rename: Pick<RenameCategory, 'execute'>;
     updateNotes: Pick<UpdateCategoryNotes, 'execute'>;

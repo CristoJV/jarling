@@ -170,7 +170,6 @@ export function ReportsScreen() {
                 <SpendingReportOverview
                   categoryColors={categoryColors}
                   onClearCategory={() => setSelectedCategoryId(undefined)}
-                  onClearInterval={() => setSelectedIntervalKey(undefined)}
                   onSelectInterval={(intervalKey) =>
                     setSelectedIntervalKey((current) =>
                       current === intervalKey ? undefined : intervalKey,
@@ -196,6 +195,7 @@ export function ReportsScreen() {
           {selectedSpendingReports && kind === 'spending' ? (
             <SpendingCategoryBreakdown
               categoryColors={categoryColors}
+              onClearInterval={() => setSelectedIntervalKey(undefined)}
               onSelectCategory={(categoryId) =>
                 setSelectedCategoryId((current) =>
                   current === categoryId ? undefined : categoryId,
