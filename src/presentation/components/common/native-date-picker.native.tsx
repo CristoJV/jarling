@@ -15,6 +15,7 @@ import {
   useAppTheme,
   useThemedStyles,
 } from '@/presentation/theme/theme-provider';
+import { localIsoDate } from '@/presentation/utils/calendar';
 
 type NativeDatePickerProps = Readonly<{
   title: string;
@@ -30,10 +31,6 @@ function parseDate(value: string): Date {
   return Number.isNaN(date.getTime()) ? new Date() : date;
 }
 
-function isoDate(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-}
-
 export function NativeDatePicker({
   title,
   value,
@@ -46,7 +43,7 @@ export function NativeDatePicker({
   const theme = useAppTheme();
   const styles = useThemedStyles(createStyles);
   function select(_: DateTimePickerChangeEvent, date: Date) {
-    onChange(isoDate(date));
+    onChange(localIsoDate(date));
     if (Platform.OS === 'android') onDismiss();
   }
 

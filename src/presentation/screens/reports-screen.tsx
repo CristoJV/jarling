@@ -37,6 +37,7 @@ import {
   useThemedStyles,
 } from '@/presentation/theme/theme-provider';
 import { formatMoney } from '@/presentation/utils/money';
+import { formatBudgetMonth, localIsoDate } from '@/presentation/utils/calendar';
 
 type ReportKind = 'spending' | 'income' | 'netWorth';
 type ReportSelector = 'report' | 'interval' | 'period' | null;
@@ -59,21 +60,15 @@ const DEFAULT_INTERVAL_COUNT: Readonly<Record<SpendingIntervalUnit, number>> = {
 
 const INCOME_MONTH_PAGE_SIZE = 5;
 
-function currentDate(): string {
-  const date = new Date();
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-}
-
 function monthLabel(month: string, language: SupportedLanguage): string {
-  const [year, number] = month.split('-').map(Number);
-  return new Intl.DateTimeFormat(language, {
+  return formatBudgetMonth(month, language, {
     month: 'short',
     year: '2-digit',
-  }).format(new Date(year ?? 0, (number ?? 1) - 1, 1));
+  });
 }
 
 export function ReportsScreen() {
-  const [throughDate] = useState(currentDate);
+  const [throughDate] = useState(localIsoDate);
   const [kind, setKind] = useState<ReportKind>('spending');
   const [spendingInterval, setSpendingInterval] =
     useState<SpendingIntervalUnit>('month');

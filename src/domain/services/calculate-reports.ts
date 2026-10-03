@@ -1,5 +1,8 @@
 import type { Account } from '@/domain/entities/account';
-import { assertValidBudgetMonth } from '@/domain/entities/budget-allocation';
+import {
+  assertValidBudgetMonth,
+  shiftBudgetMonth,
+} from '@/domain/entities/budget-allocation';
 import type { Category } from '@/domain/entities/category';
 import type { CategoryGroup } from '@/domain/entities/category-group';
 import type { Transaction } from '@/domain/entities/transaction';
@@ -39,17 +42,9 @@ type CalculateReportsInput = Readonly<{
   transactions: readonly Transaction[];
 }>;
 
-function shiftMonth(month: string, offset: number): string {
-  const [year, monthNumber] = month.split('-').map(Number);
-  const date = new Date(
-    Date.UTC(year ?? 0, (monthNumber ?? 1) - 1 + offset, 1),
-  );
-  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
-}
-
 function reportMonths(throughMonth: string, count: number): readonly string[] {
   return Array.from({ length: count }, (_, index) =>
-    shiftMonth(throughMonth, index - count + 1),
+    shiftBudgetMonth(throughMonth, index - count + 1),
   );
 }
 
@@ -89,7 +84,7 @@ export function calculateReports({
     undefined,
   );
   const requestedFirstMonth = numberOfMonths
-    ? shiftMonth(throughMonth, -numberOfMonths + 1)
+    ? shiftBudgetMonth(throughMonth, -numberOfMonths + 1)
     : (oldestTransactionMonth ?? throughMonth);
   const firstReportMonth =
     oldestTransactionMonth && oldestTransactionMonth > requestedFirstMonth

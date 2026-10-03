@@ -1,4 +1,3 @@
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
@@ -23,30 +22,28 @@ import { supportsCategoryInflows } from '@/domain/entities/account';
 import type { Category } from '@/domain/entities/category';
 import type { BudgetMonthValues } from '@/domain/services/calculate-budget-month';
 import { requiresReconciliationWarning } from '@/domain/services/transaction-edit-policy';
-import { Money } from '@/domain/value-objects/money';
 import { SelectCategoryScreen } from '@/presentation/components/categories/select-category-screen';
-import { BlinkingCursor } from '@/presentation/components/common/blinking-cursor';
 import {
   MoneyKeypad,
   type MoneyCalculatorExpression,
   type MoneyKeypadHandle,
 } from '@/presentation/components/common/money-keypad';
 import { FullScreenSelectionScreen } from '@/presentation/components/common/full-screen-selection-screen';
-import { FormRow } from '@/presentation/components/common/form-row';
 import { KeyboardResponsiveScreen } from '@/presentation/components/common/keyboard-responsive-screen';
 import { NameInputModal } from '@/presentation/components/common/name-input-modal';
 import { NativeDatePicker } from '@/presentation/components/common/native-date-picker';
 import { PayeeSelectionScreen } from '@/presentation/components/transactions/payee-selection-screen';
+import {
+  TransactionEditorFields,
+  type TransactionEditorKind,
+} from '@/presentation/components/transactions/transaction-editor-fields';
 import { useTranslation } from '@/presentation/localization/localization-provider';
 import type { AppTheme } from '@/presentation/theme/theme';
-import {
-  useAppTheme,
-  useThemedStyles,
-} from '@/presentation/theme/theme-provider';
-import { formatDate, formatMoney } from '@/presentation/utils/money';
+import { useThemedStyles } from '@/presentation/theme/theme-provider';
 import { categoryDisplayName } from '@/presentation/utils/category-name';
 import { indexBudgetValuesByCategoryId } from '@/presentation/utils/category-budget-values';
 import { domainErrorMessage } from '@/presentation/utils/domain-error-message';
+import { localIsoDate } from '@/presentation/utils/calendar';
 
 type TransactionEditorScreenProps = Readonly<{
   accounts: AccountsOverview;
@@ -64,7 +61,6 @@ type TransactionEditorScreenProps = Readonly<{
   onSave: (input: TransactionInput | TransferInput) => Promise<void>;
 }>;
 
-type TransactionKind = 'expense' | 'income' | 'transfer';
 type Editor =
   | 'kind'
   | 'account'
@@ -74,13 +70,6 @@ type Editor =
   | 'date'
   | 'memo'
   | null;
-
-function today(): string {
-  const date = new Date();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${date.getFullYear()}-${month}-${day}`;
-}
 
 export function TransactionEditorScreen({
   accounts,
@@ -96,7 +85,6 @@ export function TransactionEditorScreen({
 }: TransactionEditorScreenProps) {
   const insets = useSafeAreaInsets();
   const { language, t } = useTranslation();
-  const theme = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const existing = summary?.transaction;
   const linked = linkedSummary?.transaction;
@@ -127,7 +115,7 @@ export function TransactionEditorScreen({
       ),
     [categoryGroups],
   );
-  const initialKind: TransactionKind = existingTransfer
+  const initialKind: TransactionEditorKind = existingTransfer
     ? 'transfer'
     : existing && existing.amount.cents >= 0
       ? 'income'
@@ -145,10 +133,10 @@ export function TransactionEditorScreen({
     '';
   const initialCategoryId = existing?.categoryId ?? '';
   const initialPayee = existing?.payee ?? '';
-  const initialDate = existing?.date ?? today();
+  const initialDate = existing?.date ?? localIsoDate();
   const initialMemo = existing?.notes ?? '';
   const initialCleared = existing?.status !== 'uncleared';
-  const [kind, setKind] = useState<TransactionKind>(initialKind);
+  const [kind, setKind] = useState<TransactionEditorKind>(initialKind);
   const [amountCents, setAmountCents] = useState(initialAmountCents);
   const [amountExpression, setAmountExpression] =
     useState<MoneyCalculatorExpression | null>(null);
@@ -243,7 +231,7 @@ export function TransactionEditorScreen({
     cleared !== initialValues.cleared;
 
   const requestDismiss = useCallback(() => {
-    if (existing || !hasUnsavedChanges) {
+    if (!hasUnsavedChanges) {
       onDismiss();
       return;
     }
@@ -276,7 +264,7 @@ export function TransactionEditorScreen({
         },
       },
     );
-  }, [existing, hasUnsavedChanges, onDismiss, t]);
+  }, [hasUnsavedChanges, onDismiss, t]);
 
   useEffect(() => {
     const subscription = BackHandler.addEventListener(
@@ -422,7 +410,7 @@ export function TransactionEditorScreen({
     );
   }
 
-  function selectKind(value: TransactionKind) {
+  function selectKind(value: TransactionEditorKind) {
     if (
       value !== kind &&
       (value === 'expense' || value === 'income') &&
@@ -617,149 +605,38 @@ export function TransactionEditorScreen({
             keyboardDismissMode="interactive"
             keyboardShouldPersistTaps="handled"
           >
-            <Pressable
-              onPress={() => setKeypadVisible(true)}
-              style={styles.amountField}
-            >
-              <Text
-                accessibilityLabel={t('transactions.amount')}
-                adjustsFontSizeToFit
-                minimumFontScale={0.58}
-                numberOfLines={1}
-                style={styles.amount}
-              >
-                {amountExpression
-                  ? `${formatMoney(Money.fromCents(amountExpression.leftCents))} ${amountExpression.operator} ${formatMoney(Money.fromCents(amountExpression.rightCents))}`
-                  : formatMoney(Money.fromCents(amountCents))}
-              </Text>
-              {keypadVisible ? <BlinkingCursor height={38} /> : null}
-            </Pressable>
-
-            <Pressable
-              onPress={() => openEditor('kind')}
-              style={styles.kindPill}
-            >
-              <MaterialCommunityIcons
-                color={theme.colors.primary}
-                name={
-                  kind === 'transfer'
-                    ? 'bank-transfer'
-                    : kind === 'expense'
-                      ? 'minus-box-outline'
-                      : 'plus-box-outline'
-                }
-                size={22}
-              />
-              <Text style={styles.kindText}>
-                {kind === 'transfer'
-                  ? t('transactions.transfer')
-                  : kind === 'expense'
-                    ? t('transactions.spending')
-                    : t('transactions.inflow')}
-              </Text>
-              <Text style={styles.chevron}>⌄</Text>
-            </Pressable>
-
-            <View style={styles.formCard}>
-              {kind !== 'transfer' ? (
-                <FormRow
-                  icon="currency-eur"
-                  label={payee || t('transactions.choosePayee')}
-                  muted={!payee}
-                  onPress={() => openEditor('payee')}
-                />
-              ) : null}
-              {showsCategoryDestination ? (
-                <FormRow
-                  icon={categoryName ? 'shape-outline' : undefined}
-                  label={
-                    categoryName ??
-                    (kind === 'income'
-                      ? t('transactions.readyToAssign')
-                      : t('transactions.uncategorized'))
-                  }
-                  muted={!categoryName}
-                  onPress={() => openEditor('category')}
-                />
-              ) : null}
-              <FormRow
-                icon="cash"
-                label={accountName}
-                muted={!accountId}
-                onPress={() => openAccountEditor('account')}
-                overline={
-                  kind === 'transfer'
-                    ? t('transactions.fromAccount')
-                    : t('transactions.account')
-                }
-              />
-              {kind === 'transfer' ? (
-                <FormRow
-                  icon="bank-transfer-in"
-                  label={destinationAccountName}
-                  muted={!destinationAccountId}
-                  onPress={() => openAccountEditor('destination-account')}
-                  overline={t('transactions.toAccount')}
-                />
-              ) : null}
-              <FormRow
-                icon="calendar-outline"
-                label={formatDate(date, language)}
-                onPress={() => openEditor('date')}
-                overline={t('transactions.date')}
-              />
-              {showMore ? (
-                <>
-                  <FormRow
-                    icon="note-text-outline"
-                    label={memo || t('transactions.addMemo')}
-                    muted={!memo}
-                    onPress={() => openEditor('memo')}
-                    overline={memo ? t('transactions.memo') : undefined}
-                  />
-                  {existing?.status !== 'reconciled' &&
-                  !existingTechnicalTransaction ? (
-                    <FormRow
-                      icon={cleared ? 'check-circle' : 'circle-outline'}
-                      label={
-                        cleared
-                          ? t('transactions.cleared')
-                          : t('transactions.uncleared')
-                      }
-                      onPress={() => setCleared((current) => !current)}
-                      overline={t('transactions.status')}
-                    />
-                  ) : null}
-                </>
-              ) : null}
-            </View>
-
-            <Pressable
-              accessibilityState={{ expanded: showMore }}
-              onPress={() => {
+            <TransactionEditorFields
+              accountId={accountId}
+              accountName={accountName}
+              amountCents={amountCents}
+              amountExpression={amountExpression}
+              canEditStatus={
+                existing?.status !== 'reconciled' &&
+                !existingTechnicalTransaction
+              }
+              categoryName={categoryName}
+              cleared={cleared}
+              date={date}
+              destinationAccountId={destinationAccountId}
+              destinationAccountName={destinationAccountName}
+              error={error}
+              keypadVisible={keypadVisible}
+              kind={kind}
+              language={language}
+              memo={memo}
+              onEdit={openEditor}
+              onOpenAccount={openAccountEditor}
+              onShowKeypad={() => setKeypadVisible(true)}
+              onToggleMore={() => {
                 keypadRef.current?.resolve();
                 setKeypadVisible(false);
                 setShowMore((current) => !current);
               }}
-              style={styles.showMore}
-            >
-              <Text style={styles.showMoreText}>
-                {showMore
-                  ? t('transactions.showLess')
-                  : t('transactions.showMore')}
-              </Text>
-              <MaterialCommunityIcons
-                color={theme.colors.primary}
-                name={showMore ? 'chevron-up' : 'chevron-down'}
-                size={20}
-              />
-            </Pressable>
-
-            {error ? (
-              <Text accessibilityLiveRegion="polite" style={styles.error}>
-                {error}
-              </Text>
-            ) : null}
+              onToggleStatus={() => setCleared((current) => !current)}
+              payee={payee}
+              showMore={showMore}
+              showsCategoryDestination={showsCategoryDestination}
+            />
           </ScrollView>
 
           <View style={[styles.bottomPanel, { paddingBottom: insets.bottom }]}>
@@ -852,68 +729,6 @@ const createStyles = (theme: AppTheme) =>
       paddingBottom: 12,
       alignSelf: 'center',
       alignItems: 'center',
-    },
-    amount: {
-      color: theme.colors.text,
-      fontSize: 42,
-      fontVariant: ['tabular-nums'],
-      fontWeight: '700',
-      letterSpacing: -1.5,
-    },
-    amountField: {
-      minHeight: 58,
-      marginTop: 4,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    kindPill: {
-      minHeight: 46,
-      paddingHorizontal: 20,
-      marginTop: 10,
-      marginBottom: 12,
-      backgroundColor: theme.colors.primaryMuted,
-      borderRadius: 27,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 9,
-    },
-    kindText: { color: theme.colors.primary, fontSize: 17, fontWeight: '700' },
-    chevron: { color: theme.colors.primary, fontSize: 17 },
-    formCard: {
-      width: '100%',
-      backgroundColor: theme.colors.surface,
-      borderColor: theme.colors.border,
-      borderRadius: 24,
-      borderWidth: 1,
-      overflow: 'hidden',
-      shadowColor: '#102216',
-      shadowOffset: { width: 0, height: 5 },
-      shadowOpacity: 0.06,
-      shadowRadius: 18,
-      elevation: theme.elevation.card,
-    },
-    error: {
-      width: '100%',
-      padding: 12,
-      marginTop: 14,
-      color: theme.colors.negative,
-      backgroundColor: theme.colors.negativeMuted,
-      borderRadius: 12,
-      fontSize: 13,
-    },
-    showMore: {
-      minHeight: 42,
-      paddingHorizontal: 12,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 4,
-    },
-    showMoreText: {
-      color: theme.colors.primary,
-      fontSize: 13,
-      fontWeight: '800',
     },
     save: {
       minHeight: 54,

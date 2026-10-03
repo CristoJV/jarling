@@ -1,7 +1,10 @@
 import type { Clock } from '@/application/ports/clock';
 import type { UnitOfWork } from '@/application/ports/unit-of-work';
 import { createAccount } from '@/domain/entities/account';
-import { createBudgetAllocation } from '@/domain/entities/budget-allocation';
+import {
+  createBudgetAllocation,
+  shiftBudgetMonth,
+} from '@/domain/entities/budget-allocation';
 import { createCategoryTarget } from '@/domain/entities/category-target';
 import { createTransaction } from '@/domain/entities/transaction';
 import type { AccountRepository } from '@/domain/repositories/account-repository';
@@ -250,7 +253,7 @@ function createHistoricalSampleTransactions(
   instant: string,
 ) {
   return HISTORICAL_EXPENSES.flatMap((expenses, monthIndex) => {
-    const month = shiftMonth(currentMonth, monthIndex - 5);
+    const month = shiftBudgetMonth(currentMonth, monthIndex - 5);
     const expenseTransactions = expenses.map(
       ([categoryId, payee, day, amountCents], expenseIndex) =>
         createTransaction({
@@ -290,7 +293,7 @@ function createHistoricalSampleAllocations(
   instant: string,
 ) {
   return HISTORICAL_EXPENSES.flatMap((expenses, monthIndex) => {
-    const month = shiftMonth(currentMonth, monthIndex - 5);
+    const month = shiftBudgetMonth(currentMonth, monthIndex - 5);
     const totalsByCategory = new Map<string, number>();
     for (const [categoryId, , , amountCents] of expenses) {
       totalsByCategory.set(
@@ -309,10 +312,4 @@ function createHistoricalSampleAllocations(
       }),
     );
   });
-}
-
-function shiftMonth(month: string, offset: number) {
-  const [year, monthNumber] = month.split('-').map(Number);
-  const date = new Date(Date.UTC(year!, monthNumber! - 1 + offset, 1));
-  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
 }

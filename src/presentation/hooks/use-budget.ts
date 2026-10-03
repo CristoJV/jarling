@@ -1,58 +1,28 @@
-import { useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 
 import type { BudgetMonthValues } from '@/domain/services/calculate-budget-month';
 import type { BudgetLocation } from '@/application/use-cases/budget/move-budget';
 import { useApplication } from '@/presentation/contexts/application-context';
-import { useTranslation } from '@/presentation/localization/localization-provider';
-import { domainErrorMessage } from '@/presentation/utils/domain-error-message';
+import { useFocusedResource } from '@/presentation/hooks/use-focused-resource';
 
 export function useBudget(month: string) {
   const application = useApplication();
-  const { t } = useTranslation();
-  const [budget, setBudget] = useState<BudgetMonthValues | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  const refresh = useCallback(async () => {
-    setError(null);
-    setLoading(true);
-    try {
-      setBudget(await application.budget.getMonth.execute(month));
-    } catch (cause) {
-      setError(domainErrorMessage(cause, t));
-    } finally {
-      setLoading(false);
-    }
-  }, [application, month, t]);
-
-  useFocusEffect(
-    useCallback(() => {
-      let active = true;
-      application.budget.getMonth.execute(month).then(
-        (result) => {
-          if (active) {
-            setBudget(result);
-            setLoading(false);
-          }
-        },
-        (cause: unknown) => {
-          if (active) {
-            setError(domainErrorMessage(cause, t));
-            setLoading(false);
-          }
-        },
-      );
-
-      return () => {
-        active = false;
-      };
-    }, [application, month, t]),
+  const load = useCallback(
+    () => application.budget.getMonth.execute(month),
+    [application, month],
   );
+  const {
+    data: budget,
+    error,
+    loading,
+    refresh,
+    reportError,
+    clearError,
+  } = useFocusedResource<BudgetMonthValues>(load);
 
   const assign = useCallback(
     async (categoryId: string, amountCents: number) => {
-      setError(null);
+      clearError();
       try {
         await application.budget.assign.execute({
           categoryId,
@@ -61,12 +31,11 @@ export function useBudget(month: string) {
         });
         await refresh();
       } catch (cause) {
-        const message = domainErrorMessage(cause, t);
-        setError(message);
+        const message = reportError(cause);
         throw new Error(message, { cause });
       }
     },
-    [application, month, refresh, t],
+    [application, clearError, month, refresh, reportError],
   );
 
   const move = useCallback(
@@ -75,7 +44,7 @@ export function useBudget(month: string) {
       target: BudgetLocation,
       amountCents: number,
     ) => {
-      setError(null);
+      clearError();
       try {
         await application.budget.move.execute({
           source,
@@ -85,12 +54,11 @@ export function useBudget(month: string) {
         });
         await refresh();
       } catch (cause) {
-        const message = domainErrorMessage(cause, t);
-        setError(message);
+        const message = reportError(cause);
         throw new Error(message, { cause });
       }
     },
-    [application, month, refresh, t],
+    [application, clearError, month, refresh, reportError],
   );
 
   return { budget, error, loading, refresh, assign, move };

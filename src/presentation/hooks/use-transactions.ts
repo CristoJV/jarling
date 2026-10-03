@@ -1,4 +1,3 @@
-import { useFocusEffect } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
 
 import type { AccountsOverview } from '@/application/use-cases/accounts/get-accounts';
@@ -8,8 +7,7 @@ import type {
   TransactionSummary,
 } from '@/application/use-cases/transactions/get-transactions';
 import { useApplication } from '@/presentation/contexts/application-context';
-import { useTranslation } from '@/presentation/localization/localization-provider';
-import { domainErrorMessage } from '@/presentation/utils/domain-error-message';
+import { useFocusedResource } from '@/presentation/hooks/use-focused-resource';
 
 export type TransactionScreenData = Readonly<{
   transactions: readonly TransactionSummary[];
@@ -22,10 +20,6 @@ const PAGE_SIZE = 100;
 
 export function useTransactions(filters: GetTransactionsInput) {
   const application = useApplication();
-  const { t } = useTranslation();
-  const [data, setData] = useState<TransactionScreenData | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const loadingMoreRef = useRef(false);
 
@@ -46,54 +40,20 @@ export function useTransactions(filters: GetTransactionsInput) {
     };
   }, [application, filters]);
 
-  const refresh = useCallback(async () => {
-    setError(null);
-    setLoading(true);
-    try {
-      setData(await load());
-    } catch (cause) {
-      setError(domainErrorMessage(cause, t));
-    } finally {
-      setLoading(false);
-    }
-  }, [load, t]);
-
-  useFocusEffect(
-    useCallback(() => {
-      let active = true;
-
-      load().then(
-        (result) => {
-          if (active) {
-            setData(result);
-            setLoading(false);
-          }
-        },
-        (cause: unknown) => {
-          if (active) {
-            setError(domainErrorMessage(cause, t));
-            setLoading(false);
-          }
-        },
-      );
-
-      return () => {
-        active = false;
-      };
-    }, [load, t]),
-  );
+  const { data, error, loading, refresh, reportError, clearError, updateData } =
+    useFocusedResource<TransactionScreenData>(load);
 
   const deleteTransaction = useCallback(
     async (transactionId: string) => {
-      setError(null);
+      clearError();
       try {
         await application.transactions.delete.execute(transactionId);
         await refresh();
       } catch (cause) {
-        setError(domainErrorMessage(cause, t));
+        reportError(cause);
       }
     },
-    [application, refresh, t],
+    [application, clearError, refresh, reportError],
   );
 
   const loadMore = useCallback(async () => {
@@ -115,7 +75,7 @@ export function useTransactions(filters: GetTransactionsInput) {
             }
           : {}),
       });
-      setData((current) =>
+      updateData((current) =>
         current
           ? {
               ...current,
@@ -125,12 +85,12 @@ export function useTransactions(filters: GetTransactionsInput) {
           : current,
       );
     } catch (cause) {
-      setError(domainErrorMessage(cause, t));
+      reportError(cause);
     } finally {
       loadingMoreRef.current = false;
       setLoadingMore(false);
     }
-  }, [application, data, filters, t]);
+  }, [application, data, filters, reportError, updateData]);
 
   return {
     data,

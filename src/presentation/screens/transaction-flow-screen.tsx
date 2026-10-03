@@ -29,6 +29,11 @@ import {
   getTransactionReferenceData,
   invalidateTransactionReferenceData,
 } from '@/presentation/cache/transaction-reference-data';
+import { localBudgetMonth } from '@/presentation/utils/calendar';
+import {
+  routeString,
+  type RouteParameter,
+} from '@/presentation/navigation/route-params';
 
 import { TransactionEditorScreen } from './transaction-editor-screen';
 
@@ -42,7 +47,8 @@ type EditorData = Readonly<{
 }>;
 
 export function TransactionFlowScreen() {
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  const parameters = useLocalSearchParams<{ id?: RouteParameter }>();
+  const id = routeString(parameters.id);
   const router = useRouter();
   const application = useApplication();
   const { t } = useTranslation();
@@ -64,7 +70,7 @@ export function TransactionFlowScreen() {
         ]);
         if (id && !transaction) throw new Error('Transaction not found.');
         const budgetMonth =
-          transaction?.transaction.date.slice(0, 7) ?? currentMonth();
+          transaction?.transaction.date.slice(0, 7) ?? localBudgetMonth();
         const [linkedTransaction, budget] = await Promise.all([
           transaction?.transaction.kind === 'transfer' &&
           transaction.transaction.transactionGroupId
@@ -139,7 +145,7 @@ export function TransactionFlowScreen() {
       const [referenceData, budget] = await Promise.all([
         getTransactionReferenceData(application),
         application.budget.getMonth.execute(
-          data?.budget.month ?? currentMonth(),
+          data?.budget.month ?? localBudgetMonth(),
         ),
       ]);
       setData((current) =>
@@ -203,11 +209,6 @@ export function TransactionFlowScreen() {
       }
     </AnimatedFlowScreen>
   );
-}
-
-function currentMonth(): string {
-  const date = new Date();
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
 
 const createStyles = (theme: AppTheme) =>

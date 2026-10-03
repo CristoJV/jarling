@@ -9,7 +9,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,7 +16,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { CategoryDetails } from '@/application/use-cases/categories/get-category-details';
 import type { CategoryGroupSummary } from '@/application/use-cases/categories/get-category-groups';
 import type { Category } from '@/domain/entities/category';
-import { CATEGORY_NOTES_MAX_LENGTH } from '@/domain/entities/category';
 import type { BudgetMonthValues } from '@/domain/services/calculate-budget-month';
 import { planCategoryAssignment } from '@/domain/services/plan-category-assignment';
 import { InsufficientReadyToAssignError } from '@/domain/errors/insufficient-ready-to-assign-error';
@@ -26,10 +24,17 @@ import { NameInputModal } from '@/presentation/components/common/name-input-moda
 import { FullScreenSelectionScreen } from '@/presentation/components/common/full-screen-selection-screen';
 import { KeyboardResponsiveScreen } from '@/presentation/components/common/keyboard-responsive-screen';
 import { SelectCategoryScreen } from '@/presentation/components/categories/select-category-screen';
+import { CategoryBalanceBreakdown } from '@/presentation/components/categories/category-balance-breakdown';
+import { CategoryNotesSection } from '@/presentation/components/categories/category-notes-section';
 import { invalidateTransactionReferenceData } from '@/presentation/cache/transaction-reference-data';
 import { useApplication } from '@/presentation/contexts/application-context';
 import { useTranslation } from '@/presentation/localization/localization-provider';
 import { routes } from '@/presentation/navigation/routes';
+import {
+  routeBudgetMonth,
+  routeId,
+  type RouteParameter,
+} from '@/presentation/navigation/route-params';
 import type { AppTheme } from '@/presentation/theme/theme';
 import {
   useAppTheme,
@@ -47,29 +52,18 @@ import { targetSnoozeAction } from '@/presentation/utils/target-snooze-action';
 
 const PROGRESS_SEGMENTS = 40;
 
-function currentMonth(): string {
-  const date = new Date();
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-}
-
-function monthName(month: string, language: string): string {
-  const [year, monthNumber] = month.split('-').map(Number);
-  return new Intl.DateTimeFormat(language, { month: 'long' }).format(
-    new Date(year ?? 0, (monthNumber ?? 1) - 1, 1),
-  );
-}
-
 export function CategoryDetailsScreen() {
-  const parameters = useLocalSearchParams<{ id?: string; month?: string }>();
+  const parameters = useLocalSearchParams<{
+    id?: RouteParameter;
+    month?: RouteParameter;
+  }>();
   const router = useRouter();
   const application = useApplication();
   const { language, t } = useTranslation();
   const theme = useAppTheme();
   const styles = useThemedStyles(createStyles);
-  const categoryId = parameters.id ?? '';
-  const month = /^\d{4}-\d{2}$/.test(parameters.month ?? '')
-    ? parameters.month!
-    : currentMonth();
+  const categoryId = routeId(parameters.id);
+  const month = routeBudgetMonth(parameters.month);
   const [details, setDetails] = useState<CategoryDetails | null>(null);
   const [notes, setNotes] = useState('');
   const [groups, setGroups] = useState<readonly CategoryGroupSummary[]>([]);
@@ -466,40 +460,7 @@ export function CategoryDetailsScreen() {
             </Pressable>
           </View>
 
-          <View style={styles.balanceCard}>
-            <Text style={styles.eyebrow}>{t('categoryDetails.balance')}</Text>
-            <Text
-              style={[
-                styles.balance,
-                values.available.cents < 0 && styles.balanceNegative,
-              ]}
-            >
-              {formatMoney(values.available)}
-            </Text>
-            <View style={styles.balanceBreakdown}>
-              <BalanceRow
-                label={t('categoryDetails.availableFromPrevious')}
-                value={formatMoney(values.availableFromPreviousMonth)}
-              />
-              <BalanceRow
-                label={t('categoryDetails.assignedForMonth', {
-                  month: monthName(month, language),
-                })}
-                value={formatMoney(values.assigned)}
-              />
-              <BalanceRow
-                label={t('categoryDetails.activityInMonth', {
-                  month: monthName(month, language),
-                })}
-                value={formatMoney(values.activity)}
-              />
-              <BalanceRow
-                label={t('budget.available')}
-                value={formatMoney(values.available)}
-                strong
-              />
-            </View>
-          </View>
+          <CategoryBalanceBreakdown month={month} values={values} />
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>
@@ -643,56 +604,25 @@ export function CategoryDetailsScreen() {
             )}
           </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              {t('categoryDetails.notes')}
-            </Text>
-            <View style={styles.card}>
-              <TextInput
-                maxLength={CATEGORY_NOTES_MAX_LENGTH}
-                multiline
-                onChangeText={(value) => {
-                  setNotes(value);
-                  setNotesSaved(false);
-                }}
-                onBlur={() => {
-                  notesFocused.current = false;
-                }}
-                onFocus={() => {
-                  notesFocused.current = true;
-                  requestAnimationFrame(() =>
-                    scrollRef.current?.scrollToEnd({ animated: true }),
-                  );
-                }}
-                placeholder={t('categoryDetails.notesPlaceholder')}
-                placeholderTextColor={theme.colors.textMuted}
-                style={styles.notesInput}
-                textAlignVertical="top"
-                value={notes}
-              />
-              <View style={styles.notesFooter}>
-                <Text style={styles.characterCount}>
-                  {notes.length}/{CATEGORY_NOTES_MAX_LENGTH}
-                </Text>
-                <Pressable
-                  disabled={savingNotes}
-                  onPress={() => void saveNotes()}
-                  style={styles.notesButton}
-                >
-                  <Text style={styles.notesButtonText}>
-                    {savingNotes
-                      ? t('form.saving')
-                      : t('categoryDetails.saveNotes')}
-                  </Text>
-                </Pressable>
-              </View>
-              {notesSaved ? (
-                <Text accessibilityLiveRegion="polite" style={styles.success}>
-                  {t('categoryDetails.notesSaved')}
-                </Text>
-              ) : null}
-            </View>
-          </View>
+          <CategoryNotesSection
+            notes={notes}
+            onBlur={() => {
+              notesFocused.current = false;
+            }}
+            onChange={(value) => {
+              setNotes(value);
+              setNotesSaved(false);
+            }}
+            onFocus={() => {
+              notesFocused.current = true;
+              requestAnimationFrame(() =>
+                scrollRef.current?.scrollToEnd({ animated: true }),
+              );
+            }}
+            onSave={() => void saveNotes()}
+            saved={notesSaved}
+            saving={savingNotes}
+          />
 
           {error ? (
             <View style={styles.errorCard}>
@@ -895,22 +825,6 @@ function TargetStat({
   );
 }
 
-function BalanceRow({
-  label,
-  value,
-  strong = false,
-}: Readonly<{ label: string; value: string; strong?: boolean }>) {
-  const styles = useThemedStyles(createStyles);
-  return (
-    <View style={styles.balanceRow}>
-      <Text style={styles.balanceLabel}>{label}</Text>
-      <Text style={[styles.balanceRowValue, strong && styles.balanceRowStrong]}>
-        {value}
-      </Text>
-    </View>
-  );
-}
-
 const createStyles = (theme: AppTheme) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: theme.colors.background },
@@ -984,46 +898,6 @@ const createStyles = (theme: AppTheme) =>
       fontSize: 17,
       fontWeight: '800',
     },
-    balanceCard: {
-      padding: 20,
-      backgroundColor: theme.colors.primaryMuted,
-      borderRadius: 22,
-      alignItems: 'center',
-      gap: 8,
-    },
-    balance: {
-      color: theme.colors.positive,
-      fontSize: 38,
-      fontVariant: ['tabular-nums'],
-      fontWeight: '800',
-    },
-    balanceNegative: { color: theme.colors.negative },
-    balanceBreakdown: {
-      width: '100%',
-      paddingTop: 12,
-      marginTop: 4,
-      borderTopColor: theme.colors.border,
-      borderTopWidth: StyleSheet.hairlineWidth,
-      gap: 10,
-    },
-    balanceRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: 14,
-    },
-    balanceLabel: {
-      flex: 1,
-      color: theme.colors.textSecondary,
-      fontSize: 13,
-    },
-    balanceRowValue: {
-      color: theme.colors.text,
-      fontSize: 14,
-      fontVariant: ['tabular-nums'],
-      fontWeight: '700',
-    },
-    balanceRowStrong: { color: theme.colors.primary, fontSize: 16 },
     section: { gap: 10 },
     sectionTitle: {
       paddingHorizontal: 4,
@@ -1176,42 +1050,6 @@ const createStyles = (theme: AppTheme) =>
       color: theme.colors.primary,
       fontSize: 14,
       fontWeight: '800',
-    },
-    notesInput: {
-      minHeight: 150,
-      padding: 14,
-      color: theme.colors.text,
-      backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: 14,
-      fontSize: 15,
-      lineHeight: 21,
-    },
-    notesFooter: {
-      marginTop: 12,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: 12,
-    },
-    characterCount: { color: theme.colors.textMuted, fontSize: 11 },
-    notesButton: {
-      minHeight: 44,
-      paddingHorizontal: 16,
-      backgroundColor: theme.colors.primaryMuted,
-      borderRadius: 13,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    notesButtonText: {
-      color: theme.colors.primary,
-      fontSize: 13,
-      fontWeight: '800',
-    },
-    success: {
-      marginTop: 10,
-      color: theme.colors.positive,
-      fontSize: 12,
-      fontWeight: '700',
     },
     errorText: {
       padding: 14,

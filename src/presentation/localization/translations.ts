@@ -221,6 +221,8 @@ export const english = {
   'categoryDetails.ongoing': 'Ongoing',
   'categoryDetails.availableFromPrevious': 'Available from previous month',
   'categoryDetails.assignedForMonth': 'Assigned for {{month}}',
+  'categoryDetails.startingAvailableForMonth':
+    'Starting available for {{month}}',
   'categoryDetails.activityInMonth': 'Activity in {{month}}',
   'categoryDetails.insufficientFunds':
     'Requested {{requested}} · Available {{available}} · Missing {{missing}}',
@@ -801,6 +803,8 @@ export const spanish: TranslationDictionary = {
   'categoryDetails.ongoing': 'Continuo',
   'categoryDetails.availableFromPrevious': 'Disponible del mes anterior',
   'categoryDetails.assignedForMonth': 'Asignado en {{month}}',
+  'categoryDetails.startingAvailableForMonth':
+    'Disponible inicial en {{month}}',
   'categoryDetails.activityInMonth': 'Actividad en {{month}}',
   'categoryDetails.insufficientFunds':
     'Solicitado {{requested}} · Disponible {{available}} · Faltan {{missing}}',

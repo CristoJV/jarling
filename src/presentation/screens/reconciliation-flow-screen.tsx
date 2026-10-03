@@ -14,9 +14,14 @@ import {
   useThemedStyles,
 } from '@/presentation/theme/theme-provider';
 import { domainErrorMessage } from '@/presentation/utils/domain-error-message';
+import {
+  routeId,
+  type RouteParameter,
+} from '@/presentation/navigation/route-params';
 
 export function ReconciliationFlowScreen() {
-  const { id = '' } = useLocalSearchParams<{ id?: string }>();
+  const parameters = useLocalSearchParams<{ id?: RouteParameter }>();
+  const id = routeId(parameters.id);
   const router = useRouter();
   const application = useApplication();
   const { t } = useTranslation();
