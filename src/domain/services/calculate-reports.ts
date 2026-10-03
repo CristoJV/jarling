@@ -51,11 +51,17 @@ function reportMonths(throughMonth: string, count: number): readonly string[] {
   );
 }
 
+function monthsBetween(firstMonth: string, lastMonth: string): number {
+  const [firstYear, firstNumber] = firstMonth.split('-').map(Number);
+  const [lastYear, lastNumber] = lastMonth.split('-').map(Number);
+  return (lastYear! - firstYear!) * 12 + (lastNumber! - firstNumber!) + 1;
+}
+
 export function calculateReports({
   throughDate,
   spendingInterval,
   spendingIntervalCount,
-  numberOfMonths = 6,
+  numberOfMonths,
   accounts,
   categories,
   groups,
@@ -63,11 +69,34 @@ export function calculateReports({
 }: CalculateReportsInput): ReportsSnapshot {
   const throughMonth = throughDate.slice(0, 7);
   assertValidBudgetMonth(throughMonth);
-  if (!Number.isSafeInteger(numberOfMonths) || numberOfMonths < 1) {
+  if (
+    numberOfMonths !== undefined &&
+    (!Number.isSafeInteger(numberOfMonths) || numberOfMonths < 1)
+  ) {
     throw new RangeError('numberOfMonths must be a positive integer');
   }
 
-  const months = reportMonths(throughMonth, numberOfMonths);
+  const oldestTransactionMonth = transactions.reduce<string | undefined>(
+    (oldest, transaction) => {
+      const transactionMonth = transaction.date.slice(0, 7);
+      return transaction.date <= throughDate &&
+        (oldest === undefined || transactionMonth < oldest)
+        ? transactionMonth
+        : oldest;
+    },
+    undefined,
+  );
+  const requestedFirstMonth = numberOfMonths
+    ? shiftMonth(throughMonth, -numberOfMonths + 1)
+    : (oldestTransactionMonth ?? throughMonth);
+  const firstReportMonth =
+    oldestTransactionMonth && oldestTransactionMonth > requestedFirstMonth
+      ? oldestTransactionMonth
+      : requestedFirstMonth;
+  const months = reportMonths(
+    throughMonth,
+    monthsBetween(firstReportMonth, throughMonth),
+  );
   const firstMonth = months[0] ?? throughMonth;
   const accountById = new Map(accounts.map((account) => [account.id, account]));
   const reportMonthSet = new Set(months);

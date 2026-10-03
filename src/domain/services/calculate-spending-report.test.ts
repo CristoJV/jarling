@@ -164,7 +164,7 @@ describe('buildSpendingIntervals', () => {
 });
 
 describe('calculateSpendingReport', () => {
-  it('returns zero-filled intervals when there is no spending', () => {
+  it('returns only the current interval when there are no transactions', () => {
     const report = calculateSpendingReport({
       throughDate: '2026-08-26',
       interval: 'day',
@@ -180,9 +180,26 @@ describe('calculateSpendingReport', () => {
     expect(report.categories).toEqual([]);
     expect(report.intervals.map(({ spending }) => spending)).toEqual([
       Money.zero(),
-      Money.zero(),
-      Money.zero(),
     ]);
+  });
+
+  it('starts with the interval containing the oldest transaction', () => {
+    const report = calculateSpendingReport({
+      throughDate: '2026-08-31',
+      interval: 'month',
+      intervalCount: 6,
+      accounts,
+      categories,
+      groups,
+      transactions: [expense('first', 12_000, '2026-07-18', 'food')],
+    });
+
+    expect(report.intervals.map(({ key }) => key)).toEqual([
+      '2026-07-01',
+      '2026-08-01',
+    ]);
+    expect(report.average).toEqual(Money.fromCents(6_000));
+    expect(report.categories[0]?.average).toEqual(Money.fromCents(6_000));
   });
 
   it('uses the same weekly intervals for totals, averages and category extremes', () => {

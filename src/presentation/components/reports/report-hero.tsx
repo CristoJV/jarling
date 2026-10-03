@@ -8,6 +8,7 @@ type Props = Readonly<{
   caption: string;
   eyebrow: string;
   negative?: boolean;
+  muted?: boolean;
 }>;
 
 export function ReportHero({
@@ -15,13 +16,22 @@ export function ReportHero({
   caption,
   eyebrow,
   negative = false,
+  muted = false,
 }: Props) {
   const styles = useThemedStyles(createStyles);
   return (
-    <View style={styles.card}>
-      <Text style={styles.eyebrow}>{eyebrow}</Text>
-      <Text style={[styles.amount, negative && styles.negative]}>{amount}</Text>
-      <Text style={styles.caption}>{caption}</Text>
+    <View style={[styles.card, muted && styles.cardMuted]}>
+      <Text style={[styles.eyebrow, muted && styles.copyMuted]}>{eyebrow}</Text>
+      <Text
+        style={[
+          styles.amount,
+          muted && styles.amountMuted,
+          negative && (muted ? styles.negativeOnMuted : styles.negative),
+        ]}
+      >
+        {amount}
+      </Text>
+      <Text style={[styles.caption, muted && styles.copyMuted]}>{caption}</Text>
     </View>
   );
 }
@@ -35,6 +45,11 @@ const createStyles = (theme: AppTheme) =>
       borderRadius: 26,
       alignItems: 'center',
       justifyContent: 'center',
+    },
+    cardMuted: {
+      backgroundColor: theme.colors.primaryMuted,
+      borderColor: theme.colors.primary,
+      borderWidth: StyleSheet.hairlineWidth,
     },
     eyebrow: {
       color: theme.colors.onPrimary,
@@ -50,7 +65,10 @@ const createStyles = (theme: AppTheme) =>
       fontVariant: ['tabular-nums'],
       fontWeight: '800',
     },
+    amountMuted: { color: theme.colors.text },
+    copyMuted: { color: theme.colors.textSecondary, opacity: 1 },
     negative: { color: theme.colors.negativeMuted },
+    negativeOnMuted: { color: theme.colors.negative },
     caption: {
       marginTop: 4,
       color: theme.colors.onPrimary,

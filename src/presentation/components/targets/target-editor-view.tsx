@@ -218,6 +218,15 @@ export function TargetEditorView({
             ]}
           >
             <View style={styles.actionBar}>
+              {target ? (
+                <Pressable
+                  disabled={submitting}
+                  onPress={requestDelete}
+                  style={styles.deleteButton}
+                >
+                  <Text style={styles.deleteText}>{t('targets.delete')}</Text>
+                </Pressable>
+              ) : null}
               <Pressable
                 disabled={submitting}
                 onPress={() => void submit()}
@@ -231,15 +240,6 @@ export function TargetEditorView({
                       : t('targets.set')}
                 </Text>
               </Pressable>
-              {target ? (
-                <Pressable
-                  disabled={submitting}
-                  onPress={requestDelete}
-                  style={styles.deleteButton}
-                >
-                  <Text style={styles.deleteText}>{t('targets.delete')}</Text>
-                </Pressable>
-              ) : null}
             </View>
             {keypadVisible ? (
               <MoneyKeypad

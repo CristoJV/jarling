@@ -102,12 +102,6 @@ export function MoveBudgetScreen() {
           ) {
             setAmountCents(Math.abs(selected.available.cents));
           }
-          if (
-            initialAmountCents > value.funding.assignableNow.cents &&
-            initialAmountCents > 0
-          ) {
-            setSelecting('source');
-          }
         }
       },
       (cause: unknown) => active && setError(domainErrorMessage(cause, t)),

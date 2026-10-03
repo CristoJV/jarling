@@ -174,6 +174,8 @@ export const english = {
   'budget.details': 'Details',
   'budget.assignToReachTarget': 'Assign {{amount}} to reach target',
   'budget.assignToCoverOverspending': 'Assign {{amount}} to cover overspending',
+  'budget.moveToReachTarget': 'Move {{amount}} to reach target',
+  'budget.moveToCoverOverspending': 'Move {{amount}} to cover overspending',
   'budget.target': 'Target',
   'budget.tapToRename': 'Tap to rename',
   'budget.hide': 'Hide',
@@ -751,6 +753,9 @@ export const spanish: TranslationDictionary = {
   'budget.assignToReachTarget': 'Asignar {{amount}} para cumplir el objetivo',
   'budget.assignToCoverOverspending':
     'Asignar {{amount}} para cubrir el gasto excesivo',
+  'budget.moveToReachTarget': 'Mover {{amount}} para cumplir el objetivo',
+  'budget.moveToCoverOverspending':
+    'Mover {{amount}} para cubrir el gasto excesivo',
   'budget.target': 'Objetivo',
   'budget.tapToRename': 'Pulsa para renombrar',
   'budget.hide': 'Ocultar',
