@@ -19,6 +19,7 @@ expect. They deliberately avoid storage and code-level details.
 
 ### Develop Jarling
 
+- [Local development](technical/developing.md)
 - [Architecture](technical/architecture.md)
 - [Financial model](technical/financial-model.md)
 - [Persistence and portability](technical/persistence-and-portability.md)

@@ -68,6 +68,20 @@ export function renameCategory(
   };
 }
 
+export function moveCategoryToGroup(
+  category: Category,
+  groupId: string,
+  sortOrder: number,
+  updatedAt: string,
+): Category {
+  return {
+    ...category,
+    groupId,
+    sortOrder,
+    updatedAt,
+  };
+}
+
 export function setCategoryHidden(
   category: Category,
   hidden: boolean,

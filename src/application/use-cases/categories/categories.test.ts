@@ -10,6 +10,7 @@ import { InMemoryCategoryRepository } from '@/infrastructure/persistence/in-memo
 import { CreateCategoryGroup } from './create-category-group';
 import { CreateCategory } from './create-category';
 import { GetCategoryGroups } from './get-category-groups';
+import { MoveCategory } from './move-category';
 import { RenameCategoryGroup } from './rename-category-group';
 import { RenameCategory } from './rename-category';
 import { ReorderCategories } from './reorder-categories';
@@ -191,6 +192,41 @@ describe('category use cases', () => {
 
     expect(renamedGroup).toEqual({ ...group, name: 'Essentials' });
     expect(renamedCategory).toEqual({ ...category, name: 'Housing' });
+  });
+
+  it('moves a category to the end of another group', async () => {
+    const {
+      groups,
+      categories,
+      unitOfWork,
+      clock,
+      createGroup,
+      createCategory,
+    } = setup();
+    const needs = await createGroup.execute('Needs');
+    const wants = await createGroup.execute('Wants');
+    const rent = await createCategory.execute({
+      groupId: needs.id,
+      name: 'Rent',
+    });
+    await createCategory.execute({ groupId: wants.id, name: 'Travel' });
+
+    const moved = await new MoveCategory(
+      groups,
+      categories,
+      unitOfWork,
+      clock,
+    ).execute(rent.id, wants.id);
+
+    expect(moved).toEqual({
+      ...rent,
+      groupId: wants.id,
+      sortOrder: 1,
+      updatedAt: clock.now().instant,
+    });
+    expect(
+      (await categories.findByGroup(wants.id)).map(({ name }) => name),
+    ).toEqual(['Travel', 'Rent']);
   });
 
   it('hides and restores a category without deleting it', async () => {

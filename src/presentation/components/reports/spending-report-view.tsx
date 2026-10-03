@@ -39,12 +39,10 @@ export function SpendingReportOverview({
   selectedCategoryId,
   selectedIntervalKey,
   onClearCategory,
-  onClearInterval,
   onSelectInterval,
 }: SelectionProps &
   Readonly<{
     onClearCategory: () => void;
-    onClearInterval: () => void;
     onSelectInterval: (intervalKey: string) => void;
   }>) {
   const { language, t } = useTranslation();
@@ -53,9 +51,6 @@ export function SpendingReportOverview({
     ({ categoryId }) => categoryId === selectedCategoryId,
   );
   const selectedCategory = report.categories[selectedCategoryIndex];
-  const selectedInterval = report.intervals.find(
-    ({ key }) => key === selectedIntervalKey,
-  );
   const multipleIntervals = report.intervalCount > 1;
 
   return (
@@ -65,32 +60,19 @@ export function SpendingReportOverview({
         language={language}
         report={report}
       />
-      {selectedInterval || selectedCategory ? (
+      {selectedCategory ? (
         <View style={styles.activeFilters}>
-          {selectedInterval ? (
-            <FilterChip
-              label={compactIntervalLabel(
-                selectedInterval,
-                report.interval,
-                language,
-              )}
-              onPress={onClearInterval}
-              onRemove={onClearInterval}
-            />
-          ) : null}
-          {selectedCategory ? (
-            <FilterChip
-              label={categoryDisplayName(
-                {
-                  id: selectedCategory.categoryId,
-                  name: selectedCategory.categoryName,
-                },
-                t,
-              )}
-              onPress={onClearCategory}
-              onRemove={onClearCategory}
-            />
-          ) : null}
+          <FilterChip
+            label={categoryDisplayName(
+              {
+                id: selectedCategory.categoryId,
+                name: selectedCategory.categoryName,
+              },
+              t,
+            )}
+            onPress={onClearCategory}
+            onRemove={onClearCategory}
+          />
         </View>
       ) : null}
 
@@ -154,14 +136,19 @@ export function SpendingCategoryBreakdown({
   report,
   selectedCategoryId,
   selectedIntervalKey,
+  onClearInterval,
   onSelectCategory,
 }: SelectionProps &
   Readonly<{
+    onClearInterval: () => void;
     onSelectCategory: (categoryId: string) => void;
   }>) {
   const { language, t } = useTranslation();
   const styles = useThemedStyles(createStyles);
   const multipleIntervals = report.intervalCount > 1;
+  const selectedInterval = report.intervals.find(
+    ({ key }) => key === selectedIntervalKey,
+  );
 
   return (
     <View style={styles.breakdown}>
@@ -169,6 +156,24 @@ export function SpendingCategoryBreakdown({
         <Text numberOfLines={1} style={styles.breakdownTitle}>
           {t('reports.spendingBreakdown')}
         </Text>
+      </View>
+      <View style={styles.breakdownContext}>
+        {selectedInterval ? (
+          <>
+            <Text style={styles.guidance}>{t('reports.showingFor')}</Text>
+            <FilterChip
+              label={compactIntervalLabel(
+                selectedInterval,
+                report.interval,
+                language,
+              )}
+              onPress={onClearInterval}
+              onRemove={onClearInterval}
+            />
+          </>
+        ) : (
+          <Text style={styles.guidance}>{t('reports.showingWholePeriod')}</Text>
+        )}
       </View>
       {report.categories.length === 0 ? (
         <Text style={styles.empty}>{t('reports.emptySpending')}</Text>
@@ -318,6 +323,9 @@ function TemporalBreakdown({
           {t(`reports.breakdownBy.${report.interval}`)}
         </Text>
       </View>
+      <Text style={styles.guidance}>
+        {t(`reports.selectInterval.${report.interval}`)}
+      </Text>
       <IntervalRows
         categoryColors={categoryColors}
         language={language}
@@ -525,6 +533,11 @@ const createStyles = (theme: AppTheme) =>
       fontWeight: '800',
       flex: 1,
     },
+    guidance: {
+      color: theme.colors.textMuted,
+      fontSize: 12,
+      lineHeight: 17,
+    },
     intervalRow: {
       height: 36,
       paddingHorizontal: 8,
@@ -598,6 +611,13 @@ const createStyles = (theme: AppTheme) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
+    },
+    breakdownContext: {
+      minHeight: 32,
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'center',
+      gap: 7,
     },
     categoryRow: {
       paddingHorizontal: 8,

@@ -23,6 +23,7 @@ import { planCategoryAssignment } from '@/domain/services/plan-category-assignme
 import { InsufficientReadyToAssignError } from '@/domain/errors/insufficient-ready-to-assign-error';
 import { Money } from '@/domain/value-objects/money';
 import { NameInputModal } from '@/presentation/components/common/name-input-modal';
+import { FullScreenSelectionScreen } from '@/presentation/components/common/full-screen-selection-screen';
 import { KeyboardResponsiveScreen } from '@/presentation/components/common/keyboard-responsive-screen';
 import { SelectCategoryScreen } from '@/presentation/components/categories/select-category-screen';
 import { invalidateTransactionReferenceData } from '@/presentation/cache/transaction-reference-data';
@@ -34,7 +35,10 @@ import {
   useAppTheme,
   useThemedStyles,
 } from '@/presentation/theme/theme-provider';
-import { categoryDisplayName } from '@/presentation/utils/category-name';
+import {
+  categoryDisplayName,
+  groupDisplayName,
+} from '@/presentation/utils/category-name';
 import { indexBudgetValuesByCategoryId } from '@/presentation/utils/category-budget-values';
 import { domainErrorMessage } from '@/presentation/utils/domain-error-message';
 import { formatMoney } from '@/presentation/utils/money';
@@ -68,7 +72,10 @@ export function CategoryDetailsScreen() {
     : currentMonth();
   const [details, setDetails] = useState<CategoryDetails | null>(null);
   const [notes, setNotes] = useState('');
+  const [groups, setGroups] = useState<readonly CategoryGroupSummary[]>([]);
   const [renaming, setRenaming] = useState(false);
+  const [selectingGroup, setSelectingGroup] = useState(false);
+  const [movingGroup, setMovingGroup] = useState(false);
   const [loading, setLoading] = useState(true);
   const [assigning, setAssigning] = useState(false);
   const [togglingSnooze, setTogglingSnooze] = useState(false);
@@ -109,11 +116,12 @@ export function CategoryDetailsScreen() {
       }
       setError(null);
       try {
-        const result = await application.categories.getDetails.execute(
-          categoryId,
-          month,
-        );
+        const [result, categoryGroups] = await Promise.all([
+          application.categories.getDetails.execute(categoryId, month),
+          application.categories.getGroups.execute(),
+        ]);
         setDetails(result);
+        setGroups(categoryGroups);
         if (synchronizeNotes) setNotes(result.values.category.notes ?? '');
       } catch (cause) {
         setError(domainErrorMessage(cause, t));
@@ -134,6 +142,10 @@ export function CategoryDetailsScreen() {
   const displayName = details
     ? categoryDisplayName(details.values.category, t)
     : '';
+  const currentGroup = details
+    ? groups.find(({ group }) => group.id === details.values.category.groupId)
+        ?.group
+    : undefined;
   const targetCopy = details?.target
     ? targetDetailCopy(details.target, language)
     : undefined;
@@ -145,6 +157,21 @@ export function CategoryDetailsScreen() {
       await load();
     } catch (cause) {
       throw new Error(domainErrorMessage(cause, t), { cause });
+    }
+  }
+
+  async function moveToGroup(groupId: string) {
+    if (!details || groupId === details.values.category.groupId) return;
+    setMovingGroup(true);
+    setError(null);
+    try {
+      await application.categories.move.execute(categoryId, groupId);
+      invalidateTransactionReferenceData();
+      await load();
+    } catch (cause) {
+      setError(domainErrorMessage(cause, t));
+    } finally {
+      setMovingGroup(false);
     }
   }
 
@@ -171,27 +198,8 @@ export function CategoryDetailsScreen() {
       details.assignableNow,
     );
     if (assignmentPlan.kind === 'move-money') {
-      Alert.alert(
-        t('categoryDetails.insufficientFundsTitle'),
-        t('categoryDetails.insufficientFundsBody', {
-          missing: formatMoney(
-            Money.fromCents(required.cents - details.assignableNow.cents),
-          ),
-        }),
-        [
-          { text: t('common.cancel'), style: 'cancel' },
-          {
-            text: t('budget.moveMoney'),
-            onPress: () =>
-              router.push(
-                routes.moveBudget(
-                  month,
-                  categoryId,
-                  assignmentPlan.amountCents,
-                ),
-              ),
-          },
-        ],
+      router.push(
+        routes.moveBudget(month, categoryId, assignmentPlan.amountCents),
       );
       return;
     }
@@ -207,26 +215,7 @@ export function CategoryDetailsScreen() {
       await load();
     } catch (cause) {
       if (cause instanceof InsufficientReadyToAssignError) {
-        Alert.alert(
-          t('categoryDetails.insufficientFundsTitle'),
-          `${t('categoryDetails.insufficientFundsBody', {
-            missing: formatMoney(cause.missing),
-          })}\n\n${t('categoryDetails.insufficientFunds', {
-            requested: formatMoney(cause.requested),
-            available: formatMoney(cause.available),
-            missing: formatMoney(cause.missing),
-          })}`,
-          [
-            { text: t('common.cancel'), style: 'cancel' },
-            {
-              text: t('budget.moveMoney'),
-              onPress: () =>
-                router.push(
-                  routes.moveBudget(month, categoryId, required.cents),
-                ),
-            },
-          ],
-        );
+        router.push(routes.moveBudget(month, categoryId, required.cents));
         return;
       }
       setError(domainErrorMessage(cause, t));
@@ -430,23 +419,52 @@ export function CategoryDetailsScreen() {
           keyboardShouldPersistTaps="handled"
           ref={scrollRef}
         >
-          <Pressable
-            disabled={protectedCategory}
-            onPress={() => setRenaming(true)}
-            style={styles.nameCard}
-          >
-            <View style={styles.nameCopy}>
-              <Text style={styles.eyebrow}>{t('budget.categoryName')}</Text>
-              <Text style={styles.categoryName}>{displayName}</Text>
-            </View>
-            {!protectedCategory ? (
-              <MaterialCommunityIcons
-                color={theme.colors.primary}
-                name="pencil-outline"
-                size={23}
-              />
-            ) : null}
-          </Pressable>
+          <View style={styles.identityCard}>
+            <Pressable
+              disabled={protectedCategory}
+              onPress={() => setRenaming(true)}
+              style={styles.identityRow}
+            >
+              <View style={styles.identityCopy}>
+                <Text style={styles.eyebrow}>{t('budget.categoryName')}</Text>
+                <Text numberOfLines={1} style={styles.identityValue}>
+                  {displayName}
+                </Text>
+              </View>
+              {!protectedCategory ? (
+                <MaterialCommunityIcons
+                  color={theme.colors.primary}
+                  name="pencil-outline"
+                  size={21}
+                />
+              ) : null}
+            </Pressable>
+            <Pressable
+              disabled={protectedCategory || movingGroup}
+              onPress={() => setSelectingGroup(true)}
+              style={[styles.identityRow, styles.identityRowBorder]}
+            >
+              <View style={styles.identityCopy}>
+                <Text style={styles.eyebrow}>{t('budget.categoryGroup')}</Text>
+                <Text numberOfLines={1} style={styles.identityValue}>
+                  {currentGroup
+                    ? groupDisplayName(currentGroup, t)
+                    : t('common.choose')}
+                </Text>
+              </View>
+              {!protectedCategory ? (
+                movingGroup ? (
+                  <ActivityIndicator color={theme.colors.primary} />
+                ) : (
+                  <MaterialCommunityIcons
+                    color={theme.colors.primary}
+                    name="chevron-right"
+                    size={23}
+                  />
+                )
+              ) : null}
+            </Pressable>
+          </View>
 
           <View style={styles.balanceCard}>
             <Text style={styles.eyebrow}>{t('categoryDetails.balance')}</Text>
@@ -727,6 +745,20 @@ export function CategoryDetailsScreen() {
         />
       ) : null}
 
+      {selectingGroup ? (
+        <FullScreenSelectionScreen
+          onBack={() => setSelectingGroup(false)}
+          onSelect={moveToGroup}
+          options={groups.map(({ group }) => ({
+            value: group.id,
+            label: groupDisplayName(group, t),
+          }))}
+          overlay
+          selectedValue={values.category.groupId}
+          title={t('categories.chooseGroup')}
+        />
+      ) : null}
+
       {deletionFlow === 'select-destination' ? (
         <SelectCategoryScreen
           allowCreateCategory
@@ -919,18 +951,26 @@ const createStyles = (theme: AppTheme) =>
       alignSelf: 'center',
       gap: 20,
     },
-    nameCard: {
-      minHeight: 86,
-      padding: 18,
+    identityCard: {
       backgroundColor: theme.colors.surface,
       borderColor: theme.colors.border,
       borderRadius: 20,
       borderWidth: 1,
+      overflow: 'hidden',
+    },
+    identityRow: {
+      minHeight: 66,
+      paddingHorizontal: 18,
+      paddingVertical: 11,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 16,
+      gap: 12,
     },
-    nameCopy: { flex: 1 },
+    identityRowBorder: {
+      borderTopColor: theme.colors.border,
+      borderTopWidth: StyleSheet.hairlineWidth,
+    },
+    identityCopy: { flex: 1 },
     eyebrow: {
       color: theme.colors.textMuted,
       fontSize: 11,
@@ -938,10 +978,10 @@ const createStyles = (theme: AppTheme) =>
       letterSpacing: 0.7,
       textTransform: 'uppercase',
     },
-    categoryName: {
-      marginTop: 5,
+    identityValue: {
+      marginTop: 3,
       color: theme.colors.text,
-      fontSize: 22,
+      fontSize: 17,
       fontWeight: '800',
     },
     balanceCard: {
