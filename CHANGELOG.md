@@ -3,6 +3,15 @@
 All notable user-facing changes to Jarling are documented here. The project
 follows [Semantic Versioning](https://semver.org/).
 
+## [1.3.0](https://github.com/CristoJV/jarling/compare/v1.2.0...v1.3.0) (2026-10-03)
+
+
+### Features
+
+* improve target funding flows and report history ([7070065](https://github.com/CristoJV/jarling/commit/707006553ac829d24b52465d8c338f5ec29a7a6d))
+* **ui:** Allow moving categories from cetgories groups ([fc618b3](https://github.com/CristoJV/jarling/commit/fc618b3ff4675a1fe970fb5d22a5210fa8ddd1ab))
+* **ui:** Assign to reach target flow to move money ([9e39df9](https://github.com/CristoJV/jarling/commit/9e39df94c2a0984f1bcde2bae4377c8f6a2a6162))
+
 ## [1.2.0](https://github.com/CristoJV/jarling/compare/v1.1.0...v1.2.0) (2026-08-31)
 
 ### Features
