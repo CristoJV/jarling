@@ -106,7 +106,7 @@ export function TargetEditorView({
   const [amountCents, setAmountCents] = useState(target?.amount.cents ?? 0);
   const [amountExpression, setAmountExpression] =
     useState<MoneyCalculatorExpression | null>(null);
-  const [keypadVisible, setKeypadVisible] = useState(false);
+  const [keypadVisible, setKeypadVisible] = useState(true);
   const [dayOfWeek, setDayOfWeek] = useState<IsoDayOfWeek>(
     target?.dayOfWeek ?? 6,
   );
@@ -211,13 +211,37 @@ export function TargetEditorView({
       </View>
       <BottomActionLayout
         bottom={
-          keypadVisible ? (
-            <View
-              style={[
-                styles.calculatorPanel,
-                { paddingBottom: Math.max(insets.bottom, 6) },
-              ]}
-            >
+          <View
+            style={[
+              styles.bottomPanel,
+              { paddingBottom: Math.max(insets.bottom, 6) },
+            ]}
+          >
+            <View style={styles.actionBar}>
+              <Pressable
+                disabled={submitting}
+                onPress={() => void submit()}
+                style={[styles.save, submitting && styles.disabled]}
+              >
+                <Text style={styles.saveText}>
+                  {submitting
+                    ? t('transactions.saving')
+                    : target
+                      ? t('targets.save')
+                      : t('targets.set')}
+                </Text>
+              </Pressable>
+              {target ? (
+                <Pressable
+                  disabled={submitting}
+                  onPress={requestDelete}
+                  style={styles.deleteButton}
+                >
+                  <Text style={styles.deleteText}>{t('targets.delete')}</Text>
+                </Pressable>
+              ) : null}
+            </View>
+            {keypadVisible ? (
               <MoneyKeypad
                 calculator
                 onChange={setAmountCents}
@@ -226,8 +250,8 @@ export function TargetEditorView({
                 ref={keypadRef}
                 valueCents={amountCents}
               />
-            </View>
-          ) : undefined
+            ) : null}
+          </View>
         }
       >
         <ScrollView
@@ -430,24 +454,6 @@ export function TargetEditorView({
             <Text accessibilityLiveRegion="polite" style={styles.error}>
               {error}
             </Text>
-          ) : null}
-          <Pressable
-            disabled={submitting}
-            onPress={() => void submit()}
-            style={[styles.save, submitting && styles.disabled]}
-          >
-            <Text style={styles.saveText}>
-              {submitting
-                ? t('transactions.saving')
-                : target
-                  ? t('targets.save')
-                  : t('targets.set')}
-            </Text>
-          </Pressable>
-          {target ? (
-            <Pressable onPress={requestDelete} style={styles.deleteButton}>
-              <Text style={styles.deleteText}>{t('targets.delete')}</Text>
-            </Pressable>
           ) : null}
         </ScrollView>
       </BottomActionLayout>
@@ -777,8 +783,8 @@ const createStyles = (theme: AppTheme) =>
       fontSize: 13,
     },
     save: {
+      flex: 1,
       minHeight: 54,
-      marginTop: 16,
       backgroundColor: theme.colors.primary,
       borderRadius: 17,
       alignItems: 'center',
@@ -790,8 +796,8 @@ const createStyles = (theme: AppTheme) =>
       fontWeight: '800',
     },
     deleteButton: {
+      flex: 1,
       minHeight: 54,
-      marginTop: 12,
       backgroundColor: theme.colors.negative,
       borderRadius: 17,
       alignItems: 'center',
@@ -803,5 +809,13 @@ const createStyles = (theme: AppTheme) =>
       fontWeight: '800',
     },
     disabled: { opacity: 0.55 },
-    calculatorPanel: { backgroundColor: theme.colors.surfaceElevated },
+    bottomPanel: { backgroundColor: theme.colors.surfaceElevated },
+    actionBar: {
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderTopColor: theme.colors.border,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      flexDirection: 'row',
+      gap: 10,
+    },
   });

@@ -17,6 +17,7 @@ import {
   calculateCategoryFundingState,
   calculateCategoryFundingStateForAssignedDraft,
 } from '@/domain/services/calculate-category-funding-state';
+import { Money } from '@/domain/value-objects/money';
 import { CategoryBudgetModal } from '@/presentation/components/budget/category-budget-modal';
 import { BudgetStatusBanner } from '@/presentation/components/budget/budget-status-banner';
 import { CategoryGroupCard } from '@/presentation/components/categories/category-group-card';
@@ -401,13 +402,16 @@ export function BudgetScreen() {
           }}
           key={`${categoryEditor.category.id}-${categoryEditor.assigned.cents}`}
           values={categoryEditor}
+          readyToAssign={budget?.funding.readyToAssign ?? Money.zero()}
           monthLabel={monthLabel}
           onDetails={() =>
             openCategoryDetails(categoryEditor, () => setCategoryEditorId(null))
           }
           onDismiss={() => setCategoryEditorId(null)}
-          onMoveMoney={() => {
-            router.push(routes.moveBudget(month, categoryEditor.category.id));
+          onMoveMoney={(amountCents) => {
+            router.push(
+              routes.moveBudget(month, categoryEditor.category.id, amountCents),
+            );
             setCategoryEditorId(null);
           }}
           onSave={(amountCents) =>

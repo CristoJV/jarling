@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { BudgetCategoryValues } from '@/domain/services/calculate-budget-month';
 import type { CategoryFundingState } from '@/domain/services/calculate-category-funding-state';
+import { planCategoryAssignment } from '@/domain/services/plan-category-assignment';
 import { Money } from '@/domain/value-objects/money';
 import { BlinkingCursor } from '@/presentation/components/common/blinking-cursor';
 import {
@@ -34,17 +35,19 @@ import { applySmartAssignToDraft } from '@/presentation/utils/smart-assign-draft
 
 type CategoryBudgetModalProps = Readonly<{
   values: BudgetCategoryValues;
+  readyToAssign: Money;
   fundingForAssigned: (amountCents: number) => CategoryFundingState;
   monthLabel: string;
   onDismiss: () => void;
   onDetails: () => void;
-  onMoveMoney: () => void;
+  onMoveMoney: (amountCents?: number) => void;
   onSave: (amountCents: number) => Promise<void>;
   onToggleSnooze: () => Promise<void>;
 }>;
 
 export function CategoryBudgetModal({
   values,
+  readyToAssign,
   fundingForAssigned,
   monthLabel,
   onDismiss,
@@ -88,6 +91,15 @@ export function CategoryBudgetModal({
   function applySmartAssign() {
     const currentDraft = keypadRef.current?.resolve() ?? amountCents;
     const currentFunding = fundingForAssigned(currentDraft);
+    const assignmentPlan = planCategoryAssignment(
+      currentFunding.requiredAssignment,
+      readyToAssign,
+    );
+    if (assignmentPlan.kind === 'move-money') {
+      onMoveMoney(assignmentPlan.amountCents);
+      return;
+    }
+    if (assignmentPlan.kind === 'none') return;
     setAmountCents(applySmartAssignToDraft(currentDraft, currentFunding));
     setAmountExpression(null);
   }
