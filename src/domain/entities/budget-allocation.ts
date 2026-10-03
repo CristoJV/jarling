@@ -21,6 +21,19 @@ export function assertValidBudgetMonth(month: string): void {
   }
 }
 
+export function shiftBudgetMonth(month: string, offset: number): string {
+  assertValidBudgetMonth(month);
+  if (!Number.isSafeInteger(offset)) throw new InvalidBudgetMonthError();
+  const [year, monthNumber] = month.split('-').map(Number);
+  const date = new Date(0);
+  date.setUTCFullYear(year!, monthNumber! - 1 + offset, 1);
+  const shiftedYear = date.getUTCFullYear();
+  if (shiftedYear < 0 || shiftedYear > 9999) {
+    throw new InvalidBudgetMonthError();
+  }
+  return `${String(shiftedYear).padStart(4, '0')}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
 export function createBudgetAllocation(
   allocation: BudgetAllocation,
 ): BudgetAllocation {

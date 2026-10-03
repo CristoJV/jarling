@@ -39,17 +39,21 @@ import { categoryDisplayName } from '@/presentation/utils/category-name';
 import { indexBudgetValuesByCategoryId } from '@/presentation/utils/category-budget-values';
 import { domainErrorMessage } from '@/presentation/utils/domain-error-message';
 import { formatMoney } from '@/presentation/utils/money';
+import {
+  routeBudgetMonth,
+  routeId,
+  routePositiveInteger,
+  type RouteParameter,
+} from '@/presentation/navigation/route-params';
 
 export function MoveBudgetScreen() {
-  const {
-    month = currentMonth(),
-    targetCategoryId,
-    amountCents: amountParam,
-  } = useLocalSearchParams<{
-    month?: string;
-    targetCategoryId?: string;
-    amountCents?: string;
+  const parameters = useLocalSearchParams<{
+    month?: RouteParameter;
+    targetCategoryId?: RouteParameter;
+    amountCents?: RouteParameter;
   }>();
+  const month = routeBudgetMonth(parameters.month);
+  const targetCategoryId = routeId(parameters.targetCategoryId);
   const router = useRouter();
   const application = useApplication();
   const insets = useSafeAreaInsets();
@@ -66,7 +70,7 @@ export function MoveBudgetScreen() {
       ? { kind: 'category', categoryId: targetCategoryId }
       : { kind: 'ready-to-assign' },
   );
-  const initialAmountCents = parsePositiveCents(amountParam);
+  const initialAmountCents = routePositiveInteger(parameters.amountCents);
   const [amountCents, setAmountCents] = useState(initialAmountCents);
   const [amountExpression, setAmountExpression] =
     useState<MoneyCalculatorExpression | null>(null);
@@ -346,17 +350,6 @@ export function MoveBudgetScreen() {
       ) : null}
     </View>
   );
-}
-
-function currentMonth(): string {
-  const date = new Date();
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-}
-
-function parsePositiveCents(value?: string): number {
-  if (!value || !/^\d+$/.test(value)) return 0;
-  const cents = Number(value);
-  return Number.isSafeInteger(cents) && cents > 0 ? cents : 0;
 }
 
 function Header({

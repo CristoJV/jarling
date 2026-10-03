@@ -11,11 +11,16 @@ import { useTargets } from '@/presentation/hooks/use-targets';
 import { useTranslation } from '@/presentation/localization/localization-provider';
 import type { TranslationKey } from '@/presentation/localization/translations';
 import { routes } from '@/presentation/navigation/routes';
+import {
+  routeBudgetMonth,
+  type RouteParameter,
+} from '@/presentation/navigation/route-params';
 import type { AppTheme } from '@/presentation/theme/theme';
 import {
   useAppTheme,
   useThemedStyles,
 } from '@/presentation/theme/theme-provider';
+import { formatBudgetMonth, localIsoDate } from '@/presentation/utils/calendar';
 
 type NameEditor =
   | Readonly<{ kind: 'create-group' }>
@@ -23,7 +28,8 @@ type NameEditor =
   | Readonly<{ kind: 'rename-group'; id: string; name: string }>;
 
 export function EditBudgetScreen() {
-  const { month = currentMonth() } = useLocalSearchParams<{ month?: string }>();
+  const parameters = useLocalSearchParams<{ month?: RouteParameter }>();
+  const month = routeBudgetMonth(parameters.month);
   const router = useRouter();
   const { language, t } = useTranslation();
   const theme = useAppTheme();
@@ -58,7 +64,7 @@ export function EditBudgetScreen() {
                     target,
                     values: item,
                     month,
-                    today: todayKey(),
+                    today: localIsoDate(),
                   }),
                 ] as const,
               ]
@@ -89,7 +95,7 @@ export function EditBudgetScreen() {
     <View style={styles.screen}>
       <EditBudgetView
         groups={groups}
-        monthLabel={formatMonth(month, language)}
+        monthLabel={formatBudgetMonth(month, language)}
         onAddCategory={(groupId) =>
           setEditor({ kind: 'create-category', groupId })
         }
@@ -130,24 +136,6 @@ export function EditBudgetScreen() {
       ) : null}
     </View>
   );
-}
-
-function currentMonth(): string {
-  const date = new Date();
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-}
-
-function todayKey(): string {
-  const date = new Date();
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-}
-
-function formatMonth(month: string, language: string): string {
-  const [year, number] = month.split('-').map(Number);
-  return new Intl.DateTimeFormat(language, {
-    month: 'long',
-    year: 'numeric',
-  }).format(new Date(year ?? 0, (number ?? 1) - 1, 1));
 }
 
 function editorTitleKey(editor: NameEditor): TranslationKey {

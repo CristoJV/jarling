@@ -26,6 +26,10 @@ import { usePrefetchTransactionReferenceData } from '@/presentation/hooks/use-pr
 import { useTransactions } from '@/presentation/hooks/use-transactions';
 import { useTranslation } from '@/presentation/localization/localization-provider';
 import { routes } from '@/presentation/navigation/routes';
+import {
+  routeString,
+  type RouteParameter,
+} from '@/presentation/navigation/route-params';
 import type { AppTheme } from '@/presentation/theme/theme';
 import {
   useAppTheme,
@@ -52,7 +56,7 @@ const UNCATEGORIZED_SUGGESTION_ID = '__uncategorized__';
 
 export function TransactionsScreen() {
   usePrefetchTransactionReferenceData();
-  const parameters = useLocalSearchParams<{ category?: string }>();
+  const parameters = useLocalSearchParams<{ category?: RouteParameter }>();
   const router = useRouter();
   const { language, t } = useTranslation();
   const theme = useAppTheme();
@@ -70,7 +74,7 @@ export function TransactionsScreen() {
     null,
   );
   const [dateBoundary, setDateBoundary] = useState<'from' | 'to' | null>(null);
-  const uncategorized = parameters.category === 'uncategorized';
+  const uncategorized = routeString(parameters.category) === 'uncategorized';
   const filters = useMemo(
     () =>
       buildTransactionQuery({

@@ -8,7 +8,6 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
   View,
@@ -19,6 +18,13 @@ import { SelectionModal } from '@/presentation/components/common/selection-modal
 import { KeyboardResponsiveScreen } from '@/presentation/components/common/keyboard-responsive-screen';
 import { PasswordInputModal } from '@/presentation/components/common/password-input-modal';
 import { LongRunningOperationModal } from '@/presentation/components/common/long-running-operation-modal';
+import {
+  AboutSection,
+  DataPortabilitySection,
+  DevelopmentSection,
+  DisplayOptionsSection,
+  SettingsRow,
+} from '@/presentation/components/settings/settings-sections';
 import type {
   PlanRestoreSource,
   RestoreResult,
@@ -423,102 +429,32 @@ export function SettingsScreen() {
             </View>
           </View>
 
-          <Text style={styles.sectionLabel}>{t('settings.appSection')}</Text>
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>{t('settings.displayOptions')}</Text>
-            <Text style={styles.fieldLabel}>{t('settings.theme')}</Text>
-            <View style={styles.themeOptions}>
-              {(
-                [
-                  ['light', t('settings.themeLight')],
-                  ['dark', t('settings.themeDark')],
-                  ['system', t('settings.themeSystem')],
-                ] as const
-              ).map(([value, label]) => (
-                <ThemeOption
-                  key={value}
-                  label={label}
-                  selected={preferences.theme === value}
-                  onPress={() => void setTheme(value)}
-                />
-              ))}
-            </View>
-            <View style={styles.switchRow}>
-              <View style={styles.switchCopy}>
-                <Text style={styles.cardTitle}>{t('settings.lock')}</Text>
-                <Text style={styles.help}>{t('settings.lockDescription')}</Text>
-              </View>
-              <Switch
-                onValueChange={(enabled) => void setLockEnabled(enabled)}
-                value={preferences.lockEnabled}
-              />
-            </View>
-          </View>
+          <DisplayOptionsSection
+            lockEnabled={preferences.lockEnabled}
+            onChangeLock={(enabled) => void setLockEnabled(enabled)}
+            onChangeTheme={(value) => void setTheme(value)}
+            theme={preferences.theme}
+          />
 
-          <Text style={styles.sectionLabel}>{t('settings.dataSection')}</Text>
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>
-              {t('settings.dataPortability')}
-            </Text>
-            <Text style={styles.help}>
-              {t('settings.portabilityDescription')}
-            </Text>
-            <SettingsRow
-              label={exporting ? t('settings.exporting') : t('settings.export')}
-              onPress={requestExport}
-              value={t('settings.exportFormat')}
-            />
-            <SettingsRow
-              label={t('settings.backup')}
-              onPress={() => setDataAction('backup')}
-              value={t('settings.encrypted')}
-            />
-            <SettingsRow
-              label={t('settings.restore')}
-              onPress={requestRestore}
-              value=".jarling / .json"
-            />
-          </View>
+          <DataPortabilitySection
+            exporting={exporting}
+            onBackup={() => setDataAction('backup')}
+            onExport={requestExport}
+            onRestore={requestRestore}
+          />
 
           {__DEV__ ? (
-            <>
-              <Text style={styles.sectionLabel}>
-                {t('settings.development')}
-              </Text>
-              <View style={styles.card}>
-                <Text style={styles.cardTitle}>{t('settings.sampleData')}</Text>
-                <Text style={styles.help}>
-                  {t('settings.sampleDescription')}
-                </Text>
-                <Pressable
-                  accessibilityRole="button"
-                  disabled={populating}
-                  onPress={() => void populateSampleData()}
-                  style={[styles.populateButton, populating && styles.disabled]}
-                >
-                  <Text style={styles.populateButtonText}>
-                    {populating
-                      ? t('settings.populating')
-                      : t('settings.populate')}
-                  </Text>
-                </Pressable>
-              </View>
-            </>
+            <DevelopmentSection
+              onPopulate={() => void populateSampleData()}
+              populating={populating}
+            />
           ) : null}
 
-          <Text style={styles.sectionLabel}>{t('settings.aboutSection')}</Text>
-          <View style={[styles.card, styles.aboutCard]}>
-            <SettingsRow
-              divided={false}
-              label={t('settings.about')}
-              onPress={() => void openAbout()}
-              value={t('settings.projectRepository')}
-            />
-          </View>
-          <View style={styles.appIdentity}>
-            <Text style={styles.appName}>{appName}</Text>
-            <Text style={styles.appVersion}>v{appVersion}</Text>
-          </View>
+          <AboutSection
+            appName={appName}
+            appVersion={appVersion}
+            onOpen={() => void openAbout()}
+          />
         </ScrollView>
       </KeyboardResponsiveScreen>
 
@@ -666,50 +602,6 @@ function logPortabilityFailure(operation: string | null, cause: unknown) {
   console.error(`[Jarling portability:${operation ?? 'unknown'}]`, cause);
 }
 
-function SettingsRow({
-  divided = true,
-  label,
-  value,
-  onPress,
-}: Readonly<{
-  divided?: boolean;
-  label: string;
-  value: string;
-  onPress: () => void;
-}>) {
-  const styles = useThemedStyles(createStyles);
-  return (
-    <Pressable
-      onPress={onPress}
-      style={[styles.settingsRow, !divided && styles.settingsRowUndivided]}
-    >
-      <Text style={styles.rowLabel}>{label}</Text>
-      <View style={styles.rowValueWrap}>
-        <Text numberOfLines={1} style={styles.rowValue}>
-          {value}
-        </Text>
-        <Text style={styles.chevron}>›</Text>
-      </View>
-    </Pressable>
-  );
-}
-
-function ThemeOption({
-  label,
-  selected,
-  onPress,
-}: Readonly<{ label: string; selected: boolean; onPress: () => void }>) {
-  const styles = useThemedStyles(createStyles);
-  return (
-    <Pressable onPress={onPress} style={styles.themeOption}>
-      <View style={[styles.radio, selected && styles.radioSelected]}>
-        {selected ? <View style={styles.radioDot} /> : null}
-      </View>
-      <Text style={styles.themeLabel}>{label}</Text>
-    </Pressable>
-  );
-}
-
 const createStyles = (theme: AppTheme) =>
   StyleSheet.create({
     safeArea: { flex: 1, backgroundColor: theme.colors.background },
@@ -759,20 +651,6 @@ const createStyles = (theme: AppTheme) =>
       borderWidth: 1,
       gap: 14,
     },
-    aboutCard: { paddingVertical: 10 },
-    appIdentity: {
-      paddingTop: 10,
-      paddingBottom: 18,
-      alignItems: 'center',
-      gap: 3,
-    },
-    appName: {
-      color: theme.colors.textSecondary,
-      fontSize: 14,
-      fontWeight: '700',
-    },
-    appVersion: { color: theme.colors.textMuted, fontSize: 12 },
-    cardTitle: { color: theme.colors.text, fontSize: 17, fontWeight: '800' },
     field: { gap: 7 },
     fieldLabel: {
       color: theme.colors.textSecondary,
@@ -789,30 +667,6 @@ const createStyles = (theme: AppTheme) =>
       borderWidth: 1,
       fontSize: 16,
     },
-    settingsRow: {
-      minHeight: 54,
-      borderTopColor: theme.colors.border,
-      borderTopWidth: StyleSheet.hairlineWidth,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: 12,
-    },
-    settingsRowUndivided: { borderTopWidth: 0 },
-    rowLabel: {
-      flex: 1,
-      color: theme.colors.text,
-      fontSize: 15,
-      fontWeight: '600',
-    },
-    rowValueWrap: {
-      maxWidth: '55%',
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-    },
-    rowValue: { color: theme.colors.textMuted, fontSize: 14 },
-    chevron: { color: theme.colors.primary, fontSize: 25 },
     preview: {
       padding: 13,
       backgroundColor: theme.colors.surfaceMuted,
@@ -849,59 +703,6 @@ const createStyles = (theme: AppTheme) =>
       justifyContent: 'center',
     },
     saveText: {
-      color: theme.colors.onPrimary,
-      fontSize: 15,
-      fontWeight: '800',
-    },
-    themeOptions: { gap: 3 },
-    themeOption: {
-      minHeight: 44,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-    },
-    themeLabel: { color: theme.colors.text, fontSize: 15, fontWeight: '600' },
-    radio: {
-      width: 21,
-      height: 21,
-      borderColor: theme.colors.textMuted,
-      borderRadius: 11,
-      borderWidth: 2,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    radioSelected: { borderColor: theme.colors.primary },
-    radioDot: {
-      width: 11,
-      height: 11,
-      backgroundColor: theme.colors.primary,
-      borderRadius: 6,
-    },
-    switchRow: {
-      minHeight: 70,
-      paddingTop: 12,
-      borderTopColor: theme.colors.border,
-      borderTopWidth: StyleSheet.hairlineWidth,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 14,
-    },
-    switchCopy: { flex: 1 },
-    help: {
-      marginTop: 4,
-      color: theme.colors.textMuted,
-      fontSize: 13,
-      lineHeight: 19,
-    },
-    populateButton: {
-      minHeight: 50,
-      marginTop: 4,
-      backgroundColor: theme.colors.primary,
-      borderRadius: 14,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    populateButtonText: {
       color: theme.colors.onPrimary,
       fontSize: 15,
       fontWeight: '800',

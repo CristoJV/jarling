@@ -14,12 +14,19 @@ import {
 } from '@/presentation/theme/theme-provider';
 import { categoryDisplayName } from '@/presentation/utils/category-name';
 import { domainErrorMessage } from '@/presentation/utils/domain-error-message';
+import {
+  routeBudgetMonth,
+  routeId,
+  type RouteParameter,
+} from '@/presentation/navigation/route-params';
 
 export function TargetEditorFlowScreen() {
-  const { id = '', month = currentMonth() } = useLocalSearchParams<{
-    id?: string;
-    month?: string;
+  const parameters = useLocalSearchParams<{
+    id?: RouteParameter;
+    month?: RouteParameter;
   }>();
+  const id = routeId(parameters.id);
+  const month = routeBudgetMonth(parameters.month);
   const router = useRouter();
   const application = useApplication();
   const { t } = useTranslation();
@@ -67,11 +74,6 @@ export function TargetEditorFlowScreen() {
       </View>
     </SafeAreaView>
   );
-}
-
-function currentMonth(): string {
-  const date = new Date();
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
 
 const createStyles = (theme: AppTheme) =>

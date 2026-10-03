@@ -40,28 +40,16 @@ import {
   useThemedStyles,
 } from '@/presentation/theme/theme-provider';
 import { formatMoney } from '@/presentation/utils/money';
+import {
+  formatBudgetMonth,
+  localBudgetMonth,
+  localIsoDate,
+} from '@/presentation/utils/calendar';
 
 type NameEditor =
   | Readonly<{ kind: 'create-group' }>
   | Readonly<{ kind: 'create-category'; groupId: string }>
   | Readonly<{ kind: 'rename-group'; id: string; name: string }>;
-
-function monthKey(date = new Date()): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-}
-
-function formatMonth(month: string, language: string): string {
-  const [year, monthNumber] = month.split('-').map(Number);
-  return new Intl.DateTimeFormat(language, {
-    month: 'short',
-    year: 'numeric',
-  }).format(new Date(year ?? 0, (monthNumber ?? 1) - 1, 1));
-}
-
-function todayKey(): string {
-  const date = new Date();
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-}
 
 export function BudgetScreen() {
   usePrefetchTransactionReferenceData();
@@ -70,7 +58,7 @@ export function BudgetScreen() {
   const { preferences } = usePreferences();
   const theme = useAppTheme();
   const styles = useThemedStyles(createStyles);
-  const [month, setMonth] = useState(monthKey);
+  const [month, setMonth] = useState(localBudgetMonth);
   const {
     budget,
     targets,
@@ -91,7 +79,11 @@ export function BudgetScreen() {
     () => new Set<string>(),
   );
   const monthLabel = useMemo(
-    () => formatMonth(month, language),
+    () =>
+      formatBudgetMonth(month, language, {
+        month: 'short',
+        year: 'numeric',
+      }),
     [language, month],
   );
   const groups = useMemo(
@@ -135,7 +127,7 @@ export function BudgetScreen() {
               ...(target ? { target } : {}),
               targetSnoozed: snoozedCategoryIds.has(values.category.id),
               month,
-              today: todayKey(),
+              today: localIsoDate(),
             }),
           ] as const;
         }),
@@ -397,7 +389,7 @@ export function BudgetScreen() {
               ...(target ? { target } : {}),
               targetSnoozed: snoozedCategoryIds.has(categoryEditor.category.id),
               month,
-              today: todayKey(),
+              today: localIsoDate(),
             });
           }}
           key={`${categoryEditor.category.id}-${categoryEditor.assigned.cents}`}

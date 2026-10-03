@@ -31,6 +31,7 @@ import {
 import { NativeDatePicker } from '@/presentation/components/common/native-date-picker';
 import { SelectionModal } from '@/presentation/components/common/selection-modal';
 import { formatDate, formatMoney } from '@/presentation/utils/money';
+import { localIsoDate } from '@/presentation/utils/calendar';
 import { useTranslation } from '@/presentation/localization/localization-provider';
 import type { AppTheme } from '@/presentation/theme/theme';
 import { useThemedStyles } from '@/presentation/theme/theme-provider';
@@ -56,11 +57,6 @@ type TargetEditorViewProps = Readonly<{
   onSave: (input: SetCategoryTargetInput) => Promise<void>;
   onDelete: (categoryId: string) => Promise<void>;
 }>;
-
-function today(): string {
-  const date = new Date();
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-}
 
 export function TargetEditorView({
   categoryId,
@@ -117,7 +113,9 @@ export function TargetEditorView({
     target?.fundingMode ?? 'set_aside',
   );
   const [dayOfMonth, setDayOfMonth] = useState(target?.dayOfMonth ?? 0);
-  const [targetDate, setTargetDate] = useState(target?.targetDate ?? today());
+  const [targetDate, setTargetDate] = useState(
+    target?.targetDate ?? localIsoDate(),
+  );
   const [customFundingMode, setCustomFundingMode] = useState<CustomFundingMode>(
     target?.customFundingMode ?? 'set_aside',
   );
@@ -132,6 +130,7 @@ export function TargetEditorView({
   const amount = formatMoney(Money.fromCents(amountCents));
 
   async function submit() {
+    if (submitting) return;
     const finalAmountCents = keypadRef.current?.resolve() ?? amountCents;
     if (finalAmountCents <= 0) {
       setError(t('targets.amountRequired'));
@@ -170,6 +169,7 @@ export function TargetEditorView({
   }
 
   function requestDelete() {
+    if (submitting) return;
     Alert.alert(
       t('targets.deleteTitle'),
       t('targets.deleteDescription', { name: categoryName }),
@@ -178,19 +178,26 @@ export function TargetEditorView({
         {
           text: t('common.delete'),
           style: 'destructive',
-          onPress: () =>
-            void onDelete(categoryId)
-              .then(onDismiss)
-              .catch((cause: unknown) =>
-                setError(
-                  cause instanceof Error
-                    ? cause.message
-                    : t('targets.deleteError'),
-                ),
-              ),
+          onPress: () => void deleteTarget(),
         },
       ],
     );
+  }
+
+  async function deleteTarget() {
+    if (submitting) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      await onDelete(categoryId);
+      onDismiss();
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : t('targets.deleteError'),
+      );
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -222,7 +229,7 @@ export function TargetEditorView({
                 <Pressable
                   disabled={submitting}
                   onPress={requestDelete}
-                  style={styles.deleteButton}
+                  style={[styles.deleteButton, submitting && styles.disabled]}
                 >
                   <Text style={styles.deleteText}>{t('targets.delete')}</Text>
                 </Pressable>
@@ -813,8 +820,6 @@ const createStyles = (theme: AppTheme) =>
     actionBar: {
       paddingHorizontal: 14,
       paddingVertical: 10,
-      borderTopColor: theme.colors.border,
-      borderTopWidth: StyleSheet.hairlineWidth,
       backgroundColor: theme.colors.background,
       flexDirection: 'row',
       gap: 10,
