@@ -23,6 +23,8 @@ export type ReportMonth = Readonly<{
 
 export type ReportsSnapshot = Readonly<{
   months: readonly ReportMonth[];
+  numberOfMonths?: number;
+  hasEarlierMonths: boolean;
   spending: SpendingReport;
 }>;
 
@@ -183,6 +185,10 @@ export function calculateReports({
 
   return {
     months: monthReports,
+    ...(numberOfMonths === undefined ? {} : { numberOfMonths }),
+    hasEarlierMonths: Boolean(
+      oldestTransactionMonth && oldestTransactionMonth < firstReportMonth,
+    ),
     spending: calculateSpendingReport({
       throughDate,
       interval: spendingInterval,

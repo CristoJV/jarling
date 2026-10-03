@@ -12,6 +12,7 @@ export type GetReportsInput = Readonly<{
   throughDate: string;
   spendingInterval: SpendingIntervalUnit;
   spendingIntervalCount: number;
+  numberOfMonths?: number;
 }>;
 
 export class GetReports {
@@ -33,6 +34,9 @@ export class GetReports {
       throughDate: input.throughDate,
       spendingInterval: input.spendingInterval,
       spendingIntervalCount: input.spendingIntervalCount,
+      ...(input.numberOfMonths === undefined
+        ? {}
+        : { numberOfMonths: input.numberOfMonths }),
       accounts,
       groups,
       categories,
