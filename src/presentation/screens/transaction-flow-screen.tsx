@@ -57,6 +57,7 @@ export function TransactionFlowScreen() {
   const [data, setData] = useState<EditorData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
+  const transactionId = data?.transaction?.transaction.id;
 
   useEffect(() => {
     let active = true;
@@ -161,6 +162,16 @@ export function TransactionFlowScreen() {
     [application],
   );
 
+  const deleteTransaction = useCallback(async () => {
+    if (!transactionId) return;
+    try {
+      await application.transactions.delete.execute(transactionId);
+      invalidateTransactionReferenceData();
+    } catch (cause) {
+      throw new Error(domainErrorMessage(cause, t), { cause });
+    }
+  }, [application, t, transactionId]);
+
   return (
     <AnimatedFlowScreen onBack={() => router.back()} overlay>
       {(goBack) =>
@@ -171,6 +182,12 @@ export function TransactionFlowScreen() {
             categoryGroups={data.categoryGroups}
             linkedTransaction={data.linkedTransaction}
             onCreateCategory={createCategory}
+            onDelete={
+              data.transaction &&
+              data.transaction.transaction.kind !== 'opening_balance'
+                ? deleteTransaction
+                : undefined
+            }
             onDismiss={goBack}
             onLoadBudgetMonth={loadBudgetMonth}
             onSave={save}

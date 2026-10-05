@@ -26,16 +26,19 @@ other months.
 
 Weekly progress uses one segment per included weekly occurrence; a monthly
 target uses one segment. Regions inside a segment show funded spending, funded
-available money, and unfunded spending without creating extra segments. A
-single proportional overflow segment may represent amounts beyond the target.
-Color is accompanied by text so state is not communicated by color alone.
+available money, and spending beyond all available funds without creating extra
+segments. Weekly targets alone may use a proportional overflow segment beyond
+their occurrences. Color is accompanied by text so state is not communicated
+by color alone.
 
 ## Reports
 
 - **Spending Breakdown** groups dated net category spending.
 - **Income vs Spending** compares periods and treats inflows to Ready to Assign
   as income.
-- **Net Worth** combines included assets and debt, including tracking accounts.
+- **Net Worth** combines included assets and debt, including tracking accounts,
+  and charts monthly closing values from oldest to newest. The chart opens on
+  the latest five values and scrolls horizontally to older history.
 
 An inflow sent directly to a category reduces that category's net spending. It
 is not income. Opening balances and internal transfers are excluded from

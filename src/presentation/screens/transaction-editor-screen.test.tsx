@@ -98,4 +98,50 @@ describe('TransactionEditorScreen', () => {
     await act(async () => renderer.unmount());
     alert.mockRestore();
   });
+
+  test('offers deletion beside save for an existing transaction', async () => {
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    const onDelete = jest.fn(async () => undefined);
+    const onDismiss = jest.fn();
+    let renderer!: TestRenderer.ReactTestRenderer;
+
+    await act(async () => {
+      renderer = TestRenderer.create(
+        <TransactionEditorScreen
+          accounts={accounts}
+          budget={budget}
+          categoryGroups={[]}
+          onCreateCategory={async () => {
+            throw new Error('unused');
+          }}
+          onDelete={onDelete}
+          onDismiss={onDismiss}
+          onLoadBudgetMonth={async () => budget}
+          onSave={async () => undefined}
+          payees={[]}
+          transaction={transaction}
+        />,
+      );
+    });
+
+    const deleteButton = renderer.root
+      .findAllByProps({ accessibilityLabel: 'common.delete' })
+      .find(({ props }) => typeof props.onPress === 'function');
+    expect(deleteButton).toBeDefined();
+    await act(async () => deleteButton?.props.onPress());
+
+    expect(alert).toHaveBeenCalledWith(
+      'transactions.deleteConfirmTitle',
+      'transactions.deleteConfirmBody',
+      expect.any(Array),
+    );
+
+    const buttons = alert.mock.calls.at(-1)?.[2];
+    await act(async () => buttons?.[1]?.onPress?.());
+    expect(onDelete).toHaveBeenCalledTimes(1);
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+
+    await act(async () => renderer.unmount());
+    alert.mockRestore();
+  });
 });

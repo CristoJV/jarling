@@ -57,6 +57,7 @@ type TransactionEditorScreenProps = Readonly<{
     name: string;
   }) => Promise<Category>;
   onDismiss: () => void;
+  onDelete?: () => Promise<void>;
   onLoadBudgetMonth: (month: string) => Promise<BudgetMonthValues>;
   onSave: (input: TransactionInput | TransferInput) => Promise<void>;
 }>;
@@ -80,6 +81,7 @@ export function TransactionEditorScreen({
   linkedTransaction: linkedSummary,
   onCreateCategory,
   onDismiss,
+  onDelete,
   onLoadBudgetMonth,
   onSave,
 }: TransactionEditorScreenProps) {
@@ -391,6 +393,42 @@ export function TransactionEditorScreen({
     }
   }
 
+  function requestDelete() {
+    if (!existing || !onDelete || submitting) return;
+    Alert.alert(
+      existingTransfer
+        ? t('transactions.deleteTransfer')
+        : t('transactions.deleteConfirmTitle'),
+      reconciledTransactions.length > 0
+        ? t('transactions.deleteReconciledBody')
+        : existingTransfer
+          ? t('transactions.deleteTransferBody')
+          : t('transactions.deleteConfirmBody'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('common.delete'),
+          style: 'destructive',
+          onPress: () => void deleteTransaction(),
+        },
+      ],
+    );
+  }
+
+  async function deleteTransaction() {
+    if (!onDelete || submitting) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      await onDelete();
+      onDismiss();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : t('form.couldNotSave'));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   function openAccountEditor(value: 'account' | 'destination-account') {
     const reason =
       reconciledTransactions.length > 0
@@ -641,6 +679,18 @@ export function TransactionEditorScreen({
 
           <View style={[styles.bottomPanel, { paddingBottom: insets.bottom }]}>
             <View style={styles.actionBar}>
+              {existing && onDelete ? (
+                <Pressable
+                  accessibilityLabel={t('common.delete')}
+                  disabled={submitting}
+                  onPress={requestDelete}
+                  style={[styles.deleteButton, submitting && styles.disabled]}
+                >
+                  <Text style={styles.deleteButtonText}>
+                    × {t('common.delete')}
+                  </Text>
+                </Pressable>
+              ) : null}
               <Pressable
                 disabled={submitting || selectableSourceAccounts.length === 0}
                 onPress={() => void submit()}
@@ -753,8 +803,23 @@ const createStyles = (theme: AppTheme) =>
       paddingVertical: 7,
       paddingHorizontal: 22,
       backgroundColor: theme.colors.background,
-      alignItems: 'flex-end',
+      alignItems: 'center',
+      flexDirection: 'row',
       justifyContent: 'center',
+      gap: 12,
+    },
+    deleteButton: {
+      minHeight: 54,
+      paddingHorizontal: 23,
+      backgroundColor: theme.colors.negativeMuted,
+      borderRadius: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    deleteButtonText: {
+      color: theme.colors.negative,
+      fontSize: 17,
+      fontWeight: '800',
     },
     bottomPanel: { backgroundColor: theme.colors.background },
     disabled: { opacity: 0.55 },
