@@ -3,6 +3,15 @@
 All notable user-facing changes to Jarling are documented here. The project
 follows [Semantic Versioning](https://semver.org/).
 
+## [1.4.0](https://github.com/CristoJV/jarling/compare/v1.3.0...v1.4.0) (2026-10-05)
+
+
+### Features
+
+* improve transaction editing, budget progress and net worth reports ([030b23b](https://github.com/CristoJV/jarling/commit/030b23b895953f05efd16ccb1d26209b82646a0f))
+* refine navigation, report charts and offline permissions ([a46e920](https://github.com/CristoJV/jarling/commit/a46e920a642132c2bb4098d57dfd35cc9bc8e46b))
+* **reports:** visualize net income and monthly net worth changes ([d3d77fd](https://github.com/CristoJV/jarling/commit/d3d77fdc1499e31c54838692f47319c72d5dfd2f))
+
 ## [1.3.0](https://github.com/CristoJV/jarling/compare/v1.2.0...v1.3.0) (2026-10-03)
 
 ### Features
