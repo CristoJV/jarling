@@ -5,6 +5,7 @@ import {
   configureFormatting,
   formatDate,
   formatMoney,
+  formatMoneyAmount,
   parseMoneyInput,
   removeMoneyDigit,
   toggleMoneySign,
@@ -47,6 +48,8 @@ describe('presentation money utilities', () => {
     });
 
     expect(formatMoney(Money.fromCents(123_456))).toBe('$1,234.56');
+    expect(formatMoneyAmount(Money.fromCents(123_456))).toBe('1,234.56');
+    expect(formatMoneyAmount(Money.fromCents(70_000))).toBe('700');
     expect(formatDate('2026-08-18', 'en')).toBe('18/08/2026');
   });
 });

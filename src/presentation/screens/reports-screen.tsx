@@ -18,6 +18,7 @@ import type { SpendingIntervalUnit } from '@/domain/services/calculate-spending-
 import { Money } from '@/domain/value-objects/money';
 import { OverflowMenu } from '@/presentation/components/common/overflow-menu';
 import { SelectionModal } from '@/presentation/components/common/selection-modal';
+import { IncomeChart } from '@/presentation/components/reports/income-chart';
 import { ReportHero } from '@/presentation/components/reports/report-hero';
 import { NetWorthChart } from '@/presentation/components/reports/net-worth-chart';
 import { createReportCategoryColors } from '@/presentation/components/reports/report-category-colors';
@@ -38,6 +39,10 @@ import {
   useThemedStyles,
 } from '@/presentation/theme/theme-provider';
 import { formatMoney } from '@/presentation/utils/money';
+import {
+  formatSignedReportChange,
+  netWorthChangeCents,
+} from '@/presentation/utils/report-values';
 import { formatBudgetMonth, localIsoDate } from '@/presentation/utils/calendar';
 
 type ReportKind = 'spending' | 'income' | 'netWorth';
@@ -80,7 +85,7 @@ export function ReportsScreen() {
   const [incomeMonthCount, setIncomeMonthCount] = useState(
     INCOME_MONTH_PAGE_SIZE,
   );
-  const reportMonthCount = kind === 'netWorth' ? undefined : incomeMonthCount;
+  const reportMonthCount = kind === 'spending' ? incomeMonthCount : undefined;
   const { reports, error, loading, refresh } = useReports(
     throughDate,
     spendingInterval,
@@ -96,10 +101,7 @@ export function ReportsScreen() {
       ? reports
       : null;
   const incomeReports =
-    reports?.numberOfMonths !== undefined &&
-    reports.numberOfMonths <= incomeMonthCount
-      ? reports
-      : null;
+    reports && reports.numberOfMonths === undefined ? reports : null;
   const netWorthReports =
     reports && reports.numberOfMonths === undefined ? reports : null;
 
@@ -218,10 +220,10 @@ export function ReportsScreen() {
           ) : null}
           {incomeReports && kind === 'income' ? (
             <MonthlyReport
-              hasMore={incomeReports.hasEarlierMonths}
+              chartMonths={incomeReports.months}
+              hasMore={incomeReports.months.length > incomeMonthCount}
               kind="income"
-              loadingMore={loading}
-              months={incomeReports.months}
+              months={incomeReports.months.slice(-incomeMonthCount)}
               onLoadMore={() =>
                 setIncomeMonthCount(
                   (current) => current + INCOME_MONTH_PAGE_SIZE,
@@ -324,12 +326,14 @@ function ReportSelectorButton({
 }
 
 function MonthlyReport({
+  chartMonths,
   hasMore = false,
   kind,
   loadingMore = false,
   months,
   onLoadMore,
 }: Readonly<{
+  chartMonths?: readonly ReportMonth[];
   hasMore?: boolean;
   kind: 'income' | 'netWorth';
   loadingMore?: boolean;
@@ -361,44 +365,69 @@ function MonthlyReport({
       contentSize.height - layoutMeasurement.height - contentOffset.y;
     if (distanceFromEnd <= 80 && hasMore && !loadingMore) onLoadMore?.();
   }
-  const monthRows = [...months].reverse().map((month) => {
-    const first = incomeReport ? month.income.cents : month.assets.cents;
-    const second = incomeReport ? month.spending.cents : month.debt.cents;
-    const net = incomeReport ? month.netIncome : month.netWorth;
-    return (
-      <View key={month.month} style={styles.monthRow}>
-        <View style={styles.monthHeader}>
-          <Text style={styles.monthLabel}>
-            {monthLabel(month.month, language)}
-          </Text>
-          <View style={styles.monthNetGroup}>
-            <Text style={styles.monthNetLabel}>
-              {incomeReport
-                ? t('reports.netIncome')
-                : t('reports.netWorthUpper')}
+  const monthRows = months
+    .map((month, index) => ({
+      month,
+      netWorthChange: incomeReport ? 0 : netWorthChangeCents(months, index),
+    }))
+    .reverse()
+    .map(({ month, netWorthChange }) => {
+      const first = incomeReport ? month.income.cents : month.assets.cents;
+      const second = incomeReport ? month.spending.cents : month.debt.cents;
+      const net = incomeReport ? month.netIncome : month.netWorth;
+      return (
+        <View key={month.month} style={styles.monthRow}>
+          <View style={styles.monthHeader}>
+            <Text style={styles.monthLabel}>
+              {monthLabel(month.month, language)}
             </Text>
-            <Text style={[styles.monthNet, net.cents < 0 && styles.negative]}>
-              {formatMoney(net)}
-            </Text>
+            <View style={styles.monthNetGroup}>
+              <Text style={styles.monthNetLabel}>
+                {incomeReport
+                  ? t('reports.netIncome')
+                  : t('reports.netWorthUpper')}
+              </Text>
+              <View style={styles.monthNetValueRow}>
+                {!incomeReport ? (
+                  <Text
+                    style={[
+                      styles.monthChange,
+                      netWorthChange > 0 && styles.positive,
+                      netWorthChange < 0 && styles.negative,
+                    ]}
+                  >
+                    {formatSignedReportChange(netWorthChange)}
+                  </Text>
+                ) : null}
+                <Text
+                  style={[
+                    styles.monthNet,
+                    net.cents > 0 && styles.positive,
+                    net.cents < 0 && styles.negative,
+                  ]}
+                >
+                  {formatMoney(net)}
+                </Text>
+              </View>
+            </View>
+          </View>
+          <View style={styles.monthMetrics}>
+            <MetricBar
+              color={theme.colors.positive}
+              label={firstLabel}
+              maximum={maximum}
+              value={first}
+            />
+            <MetricBar
+              color={theme.colors.negative}
+              label={secondLabel}
+              maximum={maximum}
+              value={second}
+            />
           </View>
         </View>
-        <View style={styles.monthMetrics}>
-          <MetricBar
-            color={theme.colors.positive}
-            label={firstLabel}
-            maximum={maximum}
-            value={first}
-          />
-          <MetricBar
-            color={theme.colors.negative}
-            label={secondLabel}
-            maximum={maximum}
-            value={second}
-          />
-        </View>
-      </View>
-    );
-  });
+      );
+    });
 
   return (
     <>
@@ -415,7 +444,11 @@ function MonthlyReport({
         negative={netCents < 0}
         muted
       />
-      {!incomeReport ? <NetWorthChart months={months} /> : null}
+      {incomeReport ? (
+        <IncomeChart months={chartMonths ?? months} />
+      ) : (
+        <NetWorthChart months={months} />
+      )}
       <View style={[styles.card, incomeReport && styles.incomeCard]}>
         <Text style={styles.cardTitle}>
           {incomeReport
@@ -642,6 +675,12 @@ const createStyles = (theme: AppTheme) =>
     },
     metricFill: { height: '100%', borderRadius: 4 },
     monthNetGroup: { alignItems: 'flex-end' },
+    monthNetValueRow: {
+      flexDirection: 'row',
+      alignItems: 'baseline',
+      justifyContent: 'flex-end',
+      gap: 6,
+    },
     monthNetLabel: {
       color: theme.colors.textMuted,
       fontSize: 9,
@@ -649,12 +688,19 @@ const createStyles = (theme: AppTheme) =>
       letterSpacing: 0.7,
     },
     monthNet: {
-      color: theme.colors.positive,
+      color: theme.colors.text,
       fontSize: 14,
       fontVariant: ['tabular-nums'],
       fontWeight: '800',
       textAlign: 'right',
     },
+    monthChange: {
+      color: theme.colors.textMuted,
+      fontSize: 12,
+      fontVariant: ['tabular-nums'],
+      fontWeight: '800',
+    },
+    positive: { color: theme.colors.positive },
     negative: { color: theme.colors.negative },
     error: {
       padding: 14,

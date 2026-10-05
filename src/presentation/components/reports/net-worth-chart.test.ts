@@ -1,18 +1,18 @@
 import {
-  calculateNetWorthChartLayout,
+  calculateReportChartLayout,
   calculateNetWorthChartPoints,
   compactNetWorth,
-  compactNetWorthMonth,
+  compactReportMonth,
 } from './net-worth-chart';
 
 describe('Net Worth chart', () => {
   it('shows five recent points plus one empty step on entry', () => {
-    expect(calculateNetWorthChartLayout(300, 5)).toEqual({
+    expect(calculateReportChartLayout(300, 5)).toEqual({
       stepWidth: 50,
       canvasWidth: 300,
       initialScrollOffset: 0,
     });
-    expect(calculateNetWorthChartLayout(300, 6)).toEqual({
+    expect(calculateReportChartLayout(300, 6)).toEqual({
       stepWidth: 50,
       canvasWidth: 350,
       initialScrollOffset: 50,
@@ -36,6 +36,6 @@ describe('Net Worth chart', () => {
   it('uses compact one-decimal values and month labels', () => {
     expect(compactNetWorth(1_734_000)).toBe('17.3k');
     expect(compactNetWorth(-125_000)).toBe('-1.3k');
-    expect(compactNetWorthMonth('2026-10', 'en')).toBe('Oct.26');
+    expect(compactReportMonth('2026-10', 'en')).toBe('Oct.26');
   });
 });

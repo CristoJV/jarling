@@ -28,7 +28,7 @@ export type NetWorthChartPoint = Readonly<{
   y: number;
 }>;
 
-export function calculateNetWorthChartLayout(
+export function calculateReportChartLayout(
   viewportWidth: number,
   monthCount: number,
 ) {
@@ -67,7 +67,7 @@ export function compactNetWorth(cents: number): string {
   return `${(cents / 100_000).toFixed(1)}k`;
 }
 
-export function compactNetWorthMonth(
+export function compactReportMonth(
   month: string,
   language: SupportedLanguage,
 ): string {
@@ -87,7 +87,7 @@ export function NetWorthChart({
   const [viewportWidth, setViewportWidth] = useState(0);
   const [positionedMonthCount, setPositionedMonthCount] = useState(0);
   const { stepWidth, canvasWidth, initialScrollOffset } =
-    calculateNetWorthChartLayout(viewportWidth, months.length);
+    calculateReportChartLayout(viewportWidth, months.length);
   const points = calculateNetWorthChartPoints(
     months.map(({ netWorth }) => netWorth.cents),
     stepWidth,
@@ -191,7 +191,7 @@ export function NetWorthChart({
                         },
                       ]}
                     >
-                      {compactNetWorthMonth(month.month, language)}
+                      {compactReportMonth(month.month, language)}
                     </Text>
                   </View>
                 );
