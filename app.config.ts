@@ -3,6 +3,7 @@ import type { ConfigContext, ExpoConfig } from 'expo/config';
 const DEVELOPMENT_VARIANT = 'development';
 const PRODUCTION_IDENTIFIER = 'com.cristojv.jarling';
 const DEVELOPMENT_IDENTIFIER = `${PRODUCTION_IDENTIFIER}.debug`;
+const INTERNET_PERMISSION = 'android.permission.INTERNET';
 
 export default ({ config }: ConfigContext): ExpoConfig => {
   const isDevelopment = process.env.APP_VARIANT === DEVELOPMENT_VARIANT;
@@ -15,6 +16,14 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     android: {
       ...config.android,
       package: isDevelopment ? DEVELOPMENT_IDENTIFIER : PRODUCTION_IDENTIFIER,
+      blockedPermissions: isDevelopment
+        ? config.android?.blockedPermissions
+        : [
+            ...new Set([
+              ...(config.android?.blockedPermissions ?? []),
+              INTERNET_PERMISSION,
+            ]),
+          ],
     },
     ios: {
       ...config.ios,

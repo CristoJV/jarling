@@ -22,6 +22,7 @@ import { CategoryBudgetModal } from '@/presentation/components/budget/category-b
 import { BudgetStatusBanner } from '@/presentation/components/budget/budget-status-banner';
 import { CategoryGroupCard } from '@/presentation/components/categories/category-group-card';
 import { MonthYearPickerModal } from '@/presentation/components/common/month-year-picker-modal';
+import { FloatingActionButton } from '@/presentation/components/common/floating-action-button';
 import { NameInputModal } from '@/presentation/components/common/name-input-modal';
 import { OverflowMenu } from '@/presentation/components/common/overflow-menu';
 import { useBudgetOverview } from '@/presentation/hooks/use-budget-overview';
@@ -348,13 +349,11 @@ export function BudgetScreen() {
         )}
       />
 
-      <Pressable
+      <FloatingActionButton
         accessibilityLabel={t('transactions.add')}
+        label={t('budget.addTransaction')}
         onPress={() => router.push(routes.newTransaction())}
-        style={styles.fab}
-      >
-        <Text style={styles.fabText}>+ {t('budget.addTransaction')}</Text>
-      </Pressable>
+      />
 
       {nameEditor ? (
         <NameInputModal
@@ -533,21 +532,4 @@ const createStyles = (theme: AppTheme) =>
       fontSize: 14,
       fontWeight: '700',
     },
-    fab: {
-      position: 'absolute',
-      right: 22,
-      bottom: 22,
-      minHeight: 52,
-      paddingHorizontal: 20,
-      backgroundColor: theme.colors.primary,
-      borderRadius: 26,
-      shadowColor: '#000000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.2,
-      shadowRadius: 8,
-      elevation: theme.elevation.floating,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    fabText: { color: theme.colors.onPrimary, fontSize: 14, fontWeight: '700' },
   });
