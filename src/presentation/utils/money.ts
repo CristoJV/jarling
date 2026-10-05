@@ -63,6 +63,16 @@ export function formatMoney(
     : `${number} ${symbol}`;
 }
 
+export function formatMoneyAmount(
+  money: Money,
+  preferences: AppPreferences = formatting,
+): string {
+  return new Intl.NumberFormat(formattingLocale(preferences), {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(money.cents / 100);
+}
+
 export function formatDate(
   value: string,
   language: string,

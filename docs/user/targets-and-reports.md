@@ -35,10 +35,12 @@ by color alone.
 
 - **Spending Breakdown** groups dated net category spending.
 - **Income vs Spending** compares periods and treats inflows to Ready to Assign
-  as income.
+  as income. Its centered monthly chart grows upward in green for positive Net
+  Income and downward in red for negative Net Income.
 - **Net Worth** combines included assets and debt, including tracking accounts,
   and charts monthly closing values from oldest to newest. The chart opens on
-  the latest five values and scrolls horizontally to older history.
+  the latest five values and scrolls horizontally to older history. Each month
+  also shows its signed change from the previous monthly closing value.
 
 An inflow sent directly to a category reduces that category's net spending. It
 is not income. Opening balances and internal transfers are excluded from
