@@ -30,7 +30,7 @@
     "expo-linking": "~57.0.11",
     "expo-local-authentication": "~57.0.3",
     "expo-localization": "~57.0.2",
-    "expo-router": "~57.0.24",
+    "expo-router": "~58.0.13",
     "expo-sharing": "~57.0.22",
     "expo-splash-screen": "~57.0.9",
     "expo-sqlite": "~57.0.3",
