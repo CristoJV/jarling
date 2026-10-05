@@ -6,6 +6,7 @@ import {
   MAIN_SCREEN_HEADER_HEIGHT,
   MAIN_SCREEN_HORIZONTAL_PADDING,
 } from '@/presentation/layout/main-screen-layout';
+import { OverflowMenu } from '@/presentation/components/common/overflow-menu';
 import { useTranslation } from '@/presentation/localization/localization-provider';
 import type { AppTheme } from '@/presentation/theme/theme';
 import {
@@ -94,18 +95,21 @@ export function TransactionSearchHeader({
       ) : (
         <>
           <Text style={styles.title}>{t('transactions.title')}</Text>
-          <Pressable
-            accessibilityLabel={t('transactions.search')}
-            hitSlop={8}
-            onPress={onActivate}
-            style={styles.headerButton}
-          >
-            <MaterialCommunityIcons
-              color={theme.colors.text}
-              name="magnify"
-              size={25}
-            />
-          </Pressable>
+          <View style={styles.headerActions}>
+            <Pressable
+              accessibilityLabel={t('transactions.search')}
+              hitSlop={8}
+              onPress={onActivate}
+              style={styles.headerButton}
+            >
+              <MaterialCommunityIcons
+                color={theme.colors.text}
+                name="magnify"
+                size={25}
+              />
+            </Pressable>
+            <OverflowMenu />
+          </View>
         </>
       )}
     </View>
@@ -129,6 +133,7 @@ const createStyles = (theme: AppTheme) =>
       fontWeight: '700',
       letterSpacing: -0.6,
     },
+    headerActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
     headerButton: {
       width: 42,
       height: 42,

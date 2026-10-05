@@ -5,7 +5,6 @@ import {
   Alert,
   FlatList,
   Keyboard,
-  Pressable,
   RefreshControl,
   StyleSheet,
   Text,
@@ -17,6 +16,7 @@ import type { TransactionSummary } from '@/application/use-cases/transactions/ge
 import type { TransactionStatus } from '@/domain/entities/transaction';
 import { SelectCategoryScreen } from '@/presentation/components/categories/select-category-screen';
 import { FullScreenSelectionScreen } from '@/presentation/components/common/full-screen-selection-screen';
+import { FloatingActionButton } from '@/presentation/components/common/floating-action-button';
 import { NativeDatePicker } from '@/presentation/components/common/native-date-picker';
 import { TransactionFilters } from '@/presentation/components/transactions/transaction-filters';
 import { TransactionRow } from '@/presentation/components/transactions/transaction-row';
@@ -322,14 +322,11 @@ export function TransactionsScreen() {
             )}
           />
 
-          <Pressable
+          <FloatingActionButton
             accessibilityLabel={t('transactions.add')}
-            accessibilityRole="button"
+            label={t('budget.addTransaction')}
             onPress={() => router.push(routes.newTransaction())}
-            style={styles.fab}
-          >
-            <Text style={styles.fabText}>+ {t('budget.addTransaction')}</Text>
-          </Pressable>
+          />
         </>
       )}
 
@@ -535,21 +532,4 @@ const createStyles = (theme: AppTheme) =>
       fontSize: 15,
       textAlign: 'center',
     },
-    fab: {
-      position: 'absolute',
-      right: 22,
-      bottom: 22,
-      minHeight: 52,
-      paddingHorizontal: 20,
-      backgroundColor: theme.colors.primary,
-      borderRadius: 26,
-      shadowColor: '#000000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.2,
-      shadowRadius: 8,
-      elevation: theme.elevation.floating,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    fabText: { color: theme.colors.onPrimary, fontSize: 14, fontWeight: '700' },
   });

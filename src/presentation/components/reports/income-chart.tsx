@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 
 import type { ReportMonth } from '@/domain/services/calculate-reports';
+import { Money } from '@/domain/value-objects/money';
 import {
   calculateReportChartLayout,
   compactReportMonth,
@@ -18,6 +19,7 @@ import {
   useAppTheme,
   useThemedStyles,
 } from '@/presentation/theme/theme-provider';
+import { formatMoneyAmount } from '@/presentation/utils/money';
 
 const MAX_INITIAL_BARS = 5;
 const PLOT_HEIGHT = 190;
@@ -29,6 +31,10 @@ export function calculateNetIncomeBarHeights(
 ): readonly number[] {
   const maximum = Math.max(1, ...values.map((value) => Math.abs(value)));
   return values.map((value) => (Math.abs(value) / maximum) * MAX_BAR_HEIGHT);
+}
+
+export function netIncomeAmountPosition(value: number): 'above' | 'below' {
+  return value < 0 ? 'above' : 'below';
 }
 
 export function IncomeChart({
@@ -90,6 +96,7 @@ export function IncomeChart({
                 const value = values[index]!;
                 const height = heights[index]!;
                 const positive = value >= 0;
+                const amountPosition = netIncomeAmountPosition(value);
                 const barWidth = Math.min(32, stepWidth * 0.52);
                 return (
                   <View key={month.month}>
@@ -107,6 +114,28 @@ export function IncomeChart({
                         },
                       ]}
                     />
+                    <Text
+                      numberOfLines={1}
+                      style={[
+                        styles.amount,
+                        {
+                          color:
+                            value > 0
+                              ? theme.colors.positive
+                              : value < 0
+                                ? theme.colors.negative
+                                : theme.colors.textMuted,
+                          left: index * stepWidth,
+                          top:
+                            amountPosition === 'above'
+                              ? BASELINE - 19
+                              : BASELINE + 4,
+                          width: stepWidth,
+                        },
+                      ]}
+                    >
+                      {formatMoneyAmount(Money.fromCents(value))}
+                    </Text>
                     <Text
                       numberOfLines={1}
                       style={[
@@ -158,6 +187,13 @@ const createStyles = (theme: AppTheme) =>
       height: StyleSheet.hairlineWidth,
     },
     bar: { position: 'absolute', borderRadius: 5 },
+    amount: {
+      position: 'absolute',
+      fontSize: 9,
+      fontVariant: ['tabular-nums'],
+      fontWeight: '700',
+      textAlign: 'center',
+    },
     month: {
       position: 'absolute',
       top: PLOT_HEIGHT + 6,

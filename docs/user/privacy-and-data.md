@@ -2,6 +2,8 @@
 
 Jarling is local-first. It does not require an account, and the application
 does not send financial data, diagnostics, or analytics to a Jarling server.
+Production Android builds explicitly remove the system Internet permission.
+Development builds retain it only for Expo and Metro development tooling.
 
 On Android and iOS, SQLite data lives in the application's private internal
 directory. The operating system provides that storage boundary. Jarling does

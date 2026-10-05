@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AccountRow } from '@/presentation/components/accounts/account-row';
+import { FloatingActionButton } from '@/presentation/components/common/floating-action-button';
 import { OverflowMenu } from '@/presentation/components/common/overflow-menu';
 import { useAccounts } from '@/presentation/hooks/use-accounts';
 import { routes } from '@/presentation/navigation/routes';
@@ -41,19 +42,7 @@ export function AccountsScreen() {
     >
       <View style={styles.header}>
         <Text style={styles.title}>{t('accounts.title')}</Text>
-        <View style={styles.headerActions}>
-          <Pressable
-            accessibilityLabel={t('accounts.add')}
-            accessibilityRole="button"
-            hitSlop={8}
-            onPress={() => router.push(routes.newAccount())}
-            style={styles.addButton}
-            testID="add-account"
-          >
-            <Text style={styles.addButtonText}>+</Text>
-          </Pressable>
-          <OverflowMenu />
-        </View>
+        <OverflowMenu />
       </View>
 
       <ScrollView
@@ -113,6 +102,13 @@ export function AccountsScreen() {
           />
         ))}
       </ScrollView>
+
+      <FloatingActionButton
+        accessibilityLabel={t('accounts.add')}
+        label={t('accounts.add')}
+        onPress={() => router.push(routes.newAccount())}
+        testID="add-account"
+      />
     </SafeAreaView>
   );
 }
@@ -138,30 +134,11 @@ const createStyles = (theme: AppTheme) =>
       fontWeight: '700',
       letterSpacing: -0.6,
     },
-    headerActions: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-    },
-    addButton: {
-      width: 42,
-      height: 42,
-      backgroundColor: theme.colors.primary,
-      borderRadius: 21,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    addButtonText: {
-      color: theme.colors.onPrimary,
-      fontSize: 29,
-      fontWeight: '400',
-      lineHeight: 32,
-    },
     content: {
       width: '100%',
       maxWidth: 720,
       padding: 24,
-      paddingBottom: 48,
+      paddingBottom: 120,
       alignSelf: 'center',
     },
     totalCard: {

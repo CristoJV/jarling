@@ -22,6 +22,7 @@ export default function TabsLayout() {
 
   return (
     <Tabs
+      initialRouteName="budget"
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: theme.colors.primary,
@@ -47,22 +48,22 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen
-        name="budget"
-        options={{
-          title: t('tabs.budget'),
-          tabBarButtonTestID: 'tab-budget',
-          tabBarIcon: ({ color }) => (
-            <TabIcon color={color} name="piggy-bank-outline" />
-          ),
-        }}
-      />
-      <Tabs.Screen
         name="accounts"
         options={{
           title: t('tabs.accounts'),
           tabBarButtonTestID: 'tab-accounts',
           tabBarIcon: ({ color }) => (
             <TabIcon color={color} name="bank-outline" />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="budget"
+        options={{
+          title: t('tabs.budget'),
+          tabBarButtonTestID: 'tab-budget',
+          tabBarIcon: ({ color }) => (
+            <TabIcon color={color} name="piggy-bank-outline" />
           ),
         }}
       />
