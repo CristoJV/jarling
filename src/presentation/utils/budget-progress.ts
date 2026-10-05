@@ -78,16 +78,22 @@ function borderTone(
 function targetProgress(
   input: Readonly<{
     target: number;
-    funded: number;
+    targetFunded: number;
+    covered: number;
     spent: number;
     occurrences?: number;
   }>,
 ): BudgetProgressBar {
-  const targetComplete = input.target > 0 && input.funded >= input.target;
+  const targetComplete = input.target > 0 && input.targetFunded >= input.target;
   const baseSegmentCount =
     input.occurrences === undefined ? 1 : Math.max(0, input.occurrences);
+  const unsegmentedTotal = Math.max(input.target, input.covered, input.spent);
   const baseCapacity =
-    baseSegmentCount === 0 ? 0 : input.target / baseSegmentCount;
+    baseSegmentCount === 0
+      ? 0
+      : input.occurrences === undefined
+        ? unsegmentedTotal
+        : input.target / baseSegmentCount;
   const segments: BudgetProgressSegment[] = [];
 
   for (let index = 0; index < baseSegmentCount; index += 1) {
@@ -96,7 +102,7 @@ function targetProgress(
     const regions = regionsForRange({
       start,
       end,
-      funded: input.funded,
+      funded: input.covered,
       spent: input.spent,
       targetComplete,
     });
@@ -107,12 +113,15 @@ function targetProgress(
     });
   }
 
-  const overflowCents = Math.max(0, input.funded, input.spent) - input.target;
+  const overflowCents =
+    input.occurrences === undefined
+      ? 0
+      : Math.max(0, input.covered, input.spent) - input.target;
   if (overflowCents > 0) {
     const regions = regionsForRange({
       start: input.target,
       end: input.target + overflowCents,
-      funded: input.funded,
+      funded: input.covered,
       spent: input.spent,
       targetComplete,
     });
@@ -178,7 +187,8 @@ export function buildBudgetProgress({
   if (targetCents !== undefined && targetFundedCents !== undefined) {
     return targetProgress({
       target: Math.max(0, targetCents),
-      funded: Math.max(0, targetFundedCents),
+      targetFunded: Math.max(0, targetFundedCents),
+      covered: Math.max(0, availableCents + spent),
       spent,
       ...(targetOccurrences === undefined
         ? {}

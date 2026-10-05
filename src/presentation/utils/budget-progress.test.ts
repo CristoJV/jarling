@@ -163,7 +163,7 @@ describe('buildBudgetProgress', () => {
     ).toHaveLength(1);
   });
 
-  it('uses one overflow segment for extra assigned money too', () => {
+  it('keeps extra money inside one continuous monthly target segment', () => {
     const result = buildBudgetProgress({
       spendingCents: [30_000],
       availableCents: 15_000,
@@ -171,13 +171,56 @@ describe('buildBudgetProgress', () => {
       targetFundedCents: 45_000,
     });
 
-    expect(result.segments).toHaveLength(2);
-    expect(result.segments[1]).toEqual({
-      cents: 5_000,
-      regions: [{ cents: 5_000, tone: 'available' }],
-      borderTone: 'positive',
-      overflow: true,
+    expect(result.segments).toEqual([
+      {
+        cents: 45_000,
+        regions: [
+          { cents: 30_000, tone: 'spent' },
+          { cents: 15_000, tone: 'available' },
+        ],
+        borderTone: 'positive',
+      },
+    ]);
+  });
+
+  it('treats rollover plus assignment as covered monthly spending', () => {
+    expect(
+      buildBudgetProgress({
+        spendingCents: [24_000],
+        availableCents: 0,
+        targetCents: 12_000,
+        targetFundedCents: 12_000,
+      }),
+    ).toEqual({
+      segments: [
+        {
+          cents: 24_000,
+          regions: [{ cents: 24_000, tone: 'spent' }],
+          borderTone: 'positive',
+        },
+      ],
+      totalCents: 24_000,
     });
+  });
+
+  it('colors only spending beyond all monthly available money red', () => {
+    expect(
+      buildBudgetProgress({
+        spendingCents: [27_000],
+        availableCents: -3_000,
+        targetCents: 12_000,
+        targetFundedCents: 12_000,
+      }).segments,
+    ).toEqual([
+      {
+        cents: 27_000,
+        regions: [
+          { cents: 24_000, tone: 'spent' },
+          { cents: 3_000, tone: 'overspent' },
+        ],
+        borderTone: 'negative',
+      },
+    ]);
   });
 
   it('does not invent a weekly segment when no occurrence remains', () => {

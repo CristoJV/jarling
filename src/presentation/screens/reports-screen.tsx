@@ -19,6 +19,7 @@ import { Money } from '@/domain/value-objects/money';
 import { OverflowMenu } from '@/presentation/components/common/overflow-menu';
 import { SelectionModal } from '@/presentation/components/common/selection-modal';
 import { ReportHero } from '@/presentation/components/reports/report-hero';
+import { NetWorthChart } from '@/presentation/components/reports/net-worth-chart';
 import { createReportCategoryColors } from '@/presentation/components/reports/report-category-colors';
 import {
   SpendingCategoryBreakdown,
@@ -412,8 +413,9 @@ function MonthlyReport({
           incomeReport ? t('reports.netIncome') : t('reports.netWorthUpper')
         }
         negative={netCents < 0}
-        muted={incomeReport}
+        muted
       />
+      {!incomeReport ? <NetWorthChart months={months} /> : null}
       <View style={[styles.card, incomeReport && styles.incomeCard]}>
         <Text style={styles.cardTitle}>
           {incomeReport
