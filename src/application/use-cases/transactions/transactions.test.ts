@@ -20,6 +20,7 @@ import { InMemoryTransactionRepository } from '@/infrastructure/persistence/in-m
 
 import { CreateTransaction } from './create-transaction';
 import { DeleteTransaction } from './delete-transaction';
+import { GetTransactionAmountSummary } from './get-transaction-amount-summary';
 import { GetTransactions } from './get-transactions';
 import { UpdateTransaction } from './update-transaction';
 
@@ -371,6 +372,46 @@ describe('transaction use cases', () => {
         categoryName: category.name,
       }),
     ]);
+  });
+
+  it('summarizes every matching transaction independently of list pagination', async () => {
+    const { transactions } = await setup();
+    const base = {
+      accountId: account.id,
+      date: '2026-08-20',
+      status: 'cleared' as const,
+      kind: 'standard' as const,
+      createdAt: '2026-08-20T10:00:00.000Z',
+      updatedAt: '2026-08-20T10:00:00.000Z',
+    };
+    await transactions.save({
+      ...base,
+      id: 'salary',
+      payee: 'Acme payroll',
+      amount: Money.fromCents(20_000),
+    });
+    await transactions.save({
+      ...base,
+      id: 'expense',
+      payee: 'Acme market',
+      amount: Money.fromCents(-7_500),
+    });
+    await transactions.save({
+      ...base,
+      id: 'other',
+      payee: 'Other shop',
+      amount: Money.fromCents(-9_000),
+    });
+
+    await expect(
+      new GetTransactionAmountSummary(transactions).execute({
+        payee: 'acme',
+      }),
+    ).resolves.toEqual({
+      income: Money.fromCents(20_000),
+      spending: Money.fromCents(7_500),
+      net: Money.fromCents(12_500),
+    });
   });
 
   it('keeps a historical inflow readable after its category is hidden', async () => {

@@ -6,11 +6,13 @@ import type {
   GetTransactionsInput,
   TransactionSummary,
 } from '@/application/use-cases/transactions/get-transactions';
+import type { TransactionAmountSummary } from '@/domain/services/calculate-transaction-amount-summary';
 import { useApplication } from '@/presentation/contexts/application-context';
 import { useFocusedResource } from '@/presentation/hooks/use-focused-resource';
 
 export type TransactionScreenData = Readonly<{
   transactions: readonly TransactionSummary[];
+  amountSummary: TransactionAmountSummary | null;
   hasMore: boolean;
   accounts: AccountsOverview;
   categoryGroups: readonly CategoryGroupSummary[];
@@ -18,27 +20,35 @@ export type TransactionScreenData = Readonly<{
 
 const PAGE_SIZE = 100;
 
-export function useTransactions(filters: GetTransactionsInput) {
+export function useTransactions(
+  filters: GetTransactionsInput,
+  includeAmountSummary = false,
+) {
   const application = useApplication();
   const [loadingMore, setLoadingMore] = useState(false);
   const loadingMoreRef = useRef(false);
 
   const load = useCallback(async () => {
-    const [transactions, accounts, categoryGroups] = await Promise.all([
-      application.transactions.getAll.execute({
-        ...filters,
-        limit: PAGE_SIZE,
-      }),
-      application.accounts.getAll.execute(),
-      application.categories.getGroups.execute(),
-    ]);
+    const [transactions, amountSummary, accounts, categoryGroups] =
+      await Promise.all([
+        application.transactions.getAll.execute({
+          ...filters,
+          limit: PAGE_SIZE,
+        }),
+        includeAmountSummary
+          ? application.transactions.getAmountSummary.execute(filters)
+          : Promise.resolve(null),
+        application.accounts.getAll.execute(),
+        application.categories.getGroups.execute(),
+      ]);
     return {
       transactions,
+      amountSummary,
       hasMore: transactions.length === PAGE_SIZE,
       accounts,
       categoryGroups,
     };
-  }, [application, filters]);
+  }, [application, filters, includeAmountSummary]);
 
   const { data, error, loading, refresh, reportError, clearError, updateData } =
     useFocusedResource<TransactionScreenData>(load);
