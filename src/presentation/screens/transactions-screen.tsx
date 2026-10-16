@@ -22,6 +22,7 @@ import { TransactionFilters } from '@/presentation/components/transactions/trans
 import { TransactionRow } from '@/presentation/components/transactions/transaction-row';
 import { TransactionSearchHeader } from '@/presentation/components/transactions/transaction-search-header';
 import { TransactionSearchSuggestions } from '@/presentation/components/transactions/transaction-search-suggestions';
+import { TransactionSearchSummary } from '@/presentation/components/transactions/transaction-search-summary';
 import { usePrefetchTransactionReferenceData } from '@/presentation/hooks/use-prefetch-transaction-reference-data';
 import { useTransactions } from '@/presentation/hooks/use-transactions';
 import { useTranslation } from '@/presentation/localization/localization-provider';
@@ -87,6 +88,7 @@ export function TransactionsScreen() {
       }),
     [accountId, appliedSearches, categoryId, dateFilter, status, uncategorized],
   );
+  const hasFilters = Object.keys(filters).length > 0;
   const {
     data,
     error,
@@ -95,7 +97,7 @@ export function TransactionsScreen() {
     refresh,
     loadMore,
     deleteTransaction,
-  } = useTransactions(filters);
+  } = useTransactions(filters, hasFilters);
 
   const searchLabels: Record<TransactionSearchField, string> = {
     search: t('transactions.anything'),
@@ -138,8 +140,6 @@ export function TransactionsScreen() {
     t,
     uncategorized,
   });
-  const hasFilters = activeFilters.length > 0;
-
   function closeSearch() {
     setSearchDraft('');
     setSearchActive(false);
@@ -253,6 +253,9 @@ export function TransactionsScreen() {
         onSubmit={() => applyTextSearch('search')}
         value={searchDraft}
       />
+      {hasFilters && data?.amountSummary && !loading ? (
+        <TransactionSearchSummary summary={data.amountSummary} />
+      ) : null}
       <TransactionFilters
         filters={activeFilters}
         onPress={editFilter}
