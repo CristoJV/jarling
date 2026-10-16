@@ -4,6 +4,7 @@ import type { BudgetMonthValues } from '@/domain/services/calculate-budget-month
 import { Money } from '@/domain/value-objects/money';
 import { InMemoryCategoryTargetRepository } from '@/infrastructure/persistence/in-memory/in-memory-category-target-repository';
 import { InMemoryCategoryTargetSnoozeRepository } from '@/infrastructure/persistence/in-memory/in-memory-category-target-snooze-repository';
+import { InMemoryBudgetAllocationMovementRepository } from '@/infrastructure/persistence/in-memory/in-memory-budget-allocation-movement-repository';
 
 import { GetCategoryDetails } from './get-category-details';
 
@@ -21,6 +22,7 @@ const values = {
   assigned: Money.fromCents(20_000),
   activity: Money.zero(),
   available: Money.fromCents(20_000),
+  activityHistory: [],
   spendingTransactions: [],
   assignedHistory: [
     { month: '2026-07', amount: Money.fromCents(10_000) },
@@ -66,6 +68,7 @@ describe('GetCategoryDetails', () => {
   it('returns budget values without target progress when no target exists', async () => {
     const useCase = new GetCategoryDetails(
       { execute: async () => budget },
+      new InMemoryBudgetAllocationMovementRepository(),
       new InMemoryCategoryTargetRepository(),
       new InMemoryCategoryTargetSnoozeRepository(),
       clock,
@@ -79,19 +82,66 @@ describe('GetCategoryDetails', () => {
     );
   });
 
+  it('returns balance history whose final value matches Available', async () => {
+    const movements = new InMemoryBudgetAllocationMovementRepository();
+    await movements.save({
+      id: 'movement-1',
+      month: '2026-08',
+      amount: Money.fromCents(20_000),
+      destinationCategoryId: 'category-1',
+      occurredAt: '2026-07-20T10:00:00.000Z',
+      occurredOn: '2026-07-20',
+      provenance: 'recorded',
+      recordedAt: '2026-07-20T10:00:00.000Z',
+    });
+    const useCase = new GetCategoryDetails(
+      { execute: async () => budget },
+      movements,
+      new InMemoryCategoryTargetRepository(),
+      new InMemoryCategoryTargetSnoozeRepository(),
+      clock,
+    );
+
+    const result = await useCase.execute('category-1', '2026-08');
+
+    expect(result.balanceHistory.at(-1)?.amount).toEqual(
+      result.values.available,
+    );
+    expect(result.balanceHistory[0]).toEqual(
+      expect.objectContaining({
+        day: 0,
+        amount: result.values.availableFromPreviousMonth,
+        kind: 'opening',
+      }),
+    );
+  });
+
   it('returns positive category inflow activity without turning it into Assigned', async () => {
     const inflowValues = {
       ...values,
       assigned: Money.fromCents(20_000),
       activity: Money.fromCents(4_000),
       available: Money.fromCents(24_000),
+      activityHistory: [{ date: '2026-08-10', amount: Money.fromCents(4_000) }],
     };
     const inflowBudget: BudgetMonthValues = {
       ...budget,
       groups: [{ ...budget.groups[0]!, categories: [inflowValues] }],
     };
+    const movements = new InMemoryBudgetAllocationMovementRepository();
+    await movements.save({
+      id: 'movement-1',
+      month: '2026-08',
+      amount: Money.fromCents(20_000),
+      destinationCategoryId: 'category-1',
+      occurredAt: '2026-08-01T10:00:00.000Z',
+      occurredOn: '2026-08-01',
+      provenance: 'recorded',
+      recordedAt: '2026-08-01T10:00:00.000Z',
+    });
     const result = await new GetCategoryDetails(
       { execute: async () => inflowBudget },
+      movements,
       new InMemoryCategoryTargetRepository(),
       new InMemoryCategoryTargetSnoozeRepository(),
       clock,
@@ -103,6 +153,9 @@ describe('GetCategoryDetails', () => {
         activity: Money.fromCents(4_000),
         available: Money.fromCents(24_000),
       }),
+    );
+    expect(result.balanceHistory.at(-1)?.amount).toEqual(
+      result.values.available,
     );
   });
 
@@ -123,6 +176,7 @@ describe('GetCategoryDetails', () => {
 
     const result = await new GetCategoryDetails(
       { execute: async () => budget },
+      new InMemoryBudgetAllocationMovementRepository(),
       targets,
       new InMemoryCategoryTargetSnoozeRepository(),
       clock,
@@ -171,6 +225,7 @@ describe('GetCategoryDetails', () => {
     };
     const result = await new GetCategoryDetails(
       { execute: async () => inflowBudget },
+      new InMemoryBudgetAllocationMovementRepository(),
       targets,
       snoozes,
       clock,
@@ -184,6 +239,7 @@ describe('GetCategoryDetails', () => {
   it('fails explicitly for an unknown category', async () => {
     const useCase = new GetCategoryDetails(
       { execute: async () => budget },
+      new InMemoryBudgetAllocationMovementRepository(),
       new InMemoryCategoryTargetRepository(),
       new InMemoryCategoryTargetSnoozeRepository(),
       clock,

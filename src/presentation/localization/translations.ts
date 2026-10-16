@@ -224,6 +224,14 @@ export const english = {
   'categoryDetails.startingAvailableForMonth':
     'Starting available for {{month}}',
   'categoryDetails.activityInMonth': 'Activity in {{month}}',
+  'categoryDetails.balanceHistory': 'Available this month',
+  'categoryDetails.balanceHistoryA11y':
+    'Available balance chart. Final available amount: {{amount}}.',
+  'categoryDetails.balanceHistoryHint':
+    'Tap to show or hide balances at weekly checkpoints.',
+  'categoryDetails.day': 'Day {{day}}',
+  'categoryDetails.retroactiveNote':
+    'Includes a later correction shown on the final day.',
   'categoryDetails.insufficientFunds':
     'Requested {{requested}} · Available {{available}} · Missing {{missing}}',
   'categoryDetails.insufficientFundsTitle': 'Not enough money to assign',
@@ -808,6 +816,14 @@ export const spanish: TranslationDictionary = {
   'categoryDetails.startingAvailableForMonth':
     'Disponible inicial en {{month}}',
   'categoryDetails.activityInMonth': 'Actividad en {{month}}',
+  'categoryDetails.balanceHistory': 'Disponible este mes',
+  'categoryDetails.balanceHistoryA11y':
+    'Gráfica del saldo disponible. Importe disponible final: {{amount}}.',
+  'categoryDetails.balanceHistoryHint':
+    'Toca para mostrar u ocultar los saldos en los puntos semanales.',
+  'categoryDetails.day': 'Día {{day}}',
+  'categoryDetails.retroactiveNote':
+    'Incluye una corrección posterior mostrada en el último día.',
   'categoryDetails.insufficientFunds':
     'Solicitado {{requested}} · Disponible {{available}} · Faltan {{missing}}',
   'categoryDetails.insufficientFundsTitle':

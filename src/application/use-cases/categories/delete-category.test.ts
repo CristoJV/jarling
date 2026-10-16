@@ -1,6 +1,7 @@
 import type { Clock } from '@/application/ports/clock';
 import type { IdGenerator } from '@/application/ports/id-generator';
 import type { BudgetAllocation } from '@/domain/entities/budget-allocation';
+import type { BudgetAllocationMovement } from '@/domain/entities/budget-allocation-movement';
 import type { Category } from '@/domain/entities/category';
 import type { Transaction } from '@/domain/entities/transaction';
 import { CategoryReassignmentRequiredError } from '@/domain/errors/category-reassignment-required-error';
@@ -8,6 +9,7 @@ import { InvalidCategoryReassignmentError } from '@/domain/errors/invalid-catego
 import { ProtectedCategoryError } from '@/domain/errors/protected-category-error';
 import { Money } from '@/domain/value-objects/money';
 import { InMemoryBudgetAllocationRepository } from '@/infrastructure/persistence/in-memory/in-memory-budget-allocation-repository';
+import { InMemoryBudgetAllocationMovementRepository } from '@/infrastructure/persistence/in-memory/in-memory-budget-allocation-movement-repository';
 import { InMemoryCategoryRepository } from '@/infrastructure/persistence/in-memory/in-memory-category-repository';
 import { InMemoryCategoryGroupRepository } from '@/infrastructure/persistence/in-memory/in-memory-category-group-repository';
 import { InMemoryCategoryTargetRepository } from '@/infrastructure/persistence/in-memory/in-memory-category-target-repository';
@@ -80,17 +82,38 @@ function expense(
   };
 }
 
+function movement(
+  id: string,
+  sourceCategoryId?: string,
+  destinationCategoryId?: string,
+  amountCents = 1_000,
+): BudgetAllocationMovement {
+  return {
+    id,
+    month: '2026-08',
+    amount: Money.fromCents(amountCents),
+    ...(sourceCategoryId ? { sourceCategoryId } : {}),
+    ...(destinationCategoryId ? { destinationCategoryId } : {}),
+    occurredAt: instant,
+    occurredOn: '2026-08-25',
+    provenance: 'recorded',
+    recordedAt: instant,
+  };
+}
+
 function setup() {
   const categories = new InMemoryCategoryRepository();
   const groups = new InMemoryCategoryGroupRepository();
   const transactions = new InMemoryTransactionRepository();
   const allocations = new InMemoryBudgetAllocationRepository();
+  const movements = new InMemoryBudgetAllocationMovementRepository();
   const targets = new InMemoryCategoryTargetRepository();
   const snoozes = new InMemoryCategoryTargetSnoozeRepository();
   const remove = new DeleteCategory(
     categories,
     transactions,
     allocations,
+    movements,
     targets,
     snoozes,
     new ImmediateUnitOfWork(),
@@ -106,6 +129,7 @@ function setup() {
     categories,
     transactions,
     allocations,
+    movements,
     targets,
     snoozes,
     new ImmediateUnitOfWork(),
@@ -118,6 +142,7 @@ function setup() {
     createReplacement,
     groups,
     impact,
+    movements,
     remove,
     targets,
     transactions,
@@ -162,6 +187,32 @@ describe('category deletion', () => {
     await expect(categories.findById('source')).resolves.toBeNull();
   });
 
+  it('maps both movement endpoints to Ready to Assign when deleting', async () => {
+    const { categories, movements, remove } = setup();
+    await categories.save(category('source', 'Old'));
+    await categories.save(category('other', 'Other'));
+    await movements.save(movement('fund', undefined, 'source', 3_000));
+    await movements.save(movement('out', 'source', 'other'));
+    await movements.save(movement('in', 'other', 'source'));
+
+    await remove.execute({ categoryId: 'source' });
+
+    await expect(
+      movements.findByCategoryAndMonth('other', '2026-08'),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        id: 'in',
+        sourceCategoryId: 'other',
+        destinationCategoryId: undefined,
+      }),
+      expect.objectContaining({
+        id: 'out',
+        sourceCategoryId: undefined,
+        destinationCategoryId: 'other',
+      }),
+    ]);
+  });
+
   it('requires a destination whenever past transactions exist', async () => {
     const { categories, remove, transactions } = setup();
     await categories.save(category('source', 'Old'));
@@ -177,7 +228,8 @@ describe('category deletion', () => {
   });
 
   it('reassigns every transaction and merges allocation history before deleting', async () => {
-    const { allocations, categories, remove, transactions } = setup();
+    const { allocations, categories, movements, remove, transactions } =
+      setup();
     await categories.save(category('source', 'Old'));
     await categories.save(category('destination', 'New'));
     await transactions.save(expense('transaction-1', 'source', -2_000));
@@ -191,6 +243,13 @@ describe('category deletion', () => {
     await allocations.save(
       allocation('destination-aug', 'destination', '2026-08', 5_000),
     );
+    await movements.save(
+      movement('source-funding', undefined, 'source', 30_000),
+    );
+    await movements.save(
+      movement('destination-funding', undefined, 'destination', 5_000),
+    );
+    await movements.save(movement('collapsed', 'source', 'destination'));
 
     await remove.execute({
       categoryId: 'source',
@@ -218,6 +277,18 @@ describe('category deletion', () => {
         id: 'source-sep',
         month: '2026-09',
         amount: Money.fromCents(10_000),
+      }),
+    ]);
+    await expect(
+      movements.findByCategoryAndMonth('destination', '2026-08'),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        id: 'destination-funding',
+        destinationCategoryId: 'destination',
+      }),
+      expect.objectContaining({
+        id: 'source-funding',
+        destinationCategoryId: 'destination',
       }),
     ]);
   });

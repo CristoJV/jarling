@@ -544,6 +544,10 @@ describe('calculateBudgetMonth', () => {
       expect.objectContaining({
         activity: Money.zero(),
         available: Money.zero(),
+        activityHistory: [
+          { date: '2026-08-15', amount: Money.fromCents(-10_000) },
+          { date: '2026-08-10', amount: Money.fromCents(10_000) },
+        ],
       }),
     );
   });

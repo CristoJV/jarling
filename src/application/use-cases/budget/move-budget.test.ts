@@ -14,6 +14,7 @@ import { InMemoryAccountRepository } from '@/infrastructure/persistence/in-memor
 import { InMemoryCategoryGroupRepository } from '@/infrastructure/persistence/in-memory/in-memory-category-group-repository';
 import { InMemoryCategoryRepository } from '@/infrastructure/persistence/in-memory/in-memory-category-repository';
 import { InMemoryCategoryTargetRepository } from '@/infrastructure/persistence/in-memory/in-memory-category-target-repository';
+import { InMemoryBudgetAllocationMovementRepository } from '@/infrastructure/persistence/in-memory/in-memory-budget-allocation-movement-repository';
 import { InMemoryTransactionRepository } from '@/infrastructure/persistence/in-memory/in-memory-transaction-repository';
 
 import { GetBudgetMonth } from './get-budget-month';
@@ -126,6 +127,7 @@ async function setup() {
   const categories = new InMemoryCategoryRepository();
   const transactions = new InMemoryTransactionRepository();
   const allocations = new TransactionalAllocationStore();
+  const movements = new InMemoryBudgetAllocationMovementRepository();
   const unitOfWork = allocations;
   const clock = new FixedClock();
   await new EnsureDefaultCategories(
@@ -140,6 +142,7 @@ async function setup() {
     categories,
     transactions,
     allocations,
+    movements,
     new InMemoryCategoryTargetRepository(),
     unitOfWork,
     clock,
@@ -154,6 +157,7 @@ async function setup() {
   const move = new MoveBudget(
     categories,
     allocations,
+    movements,
     getBudget,
     unitOfWork,
     new SequenceIdGenerator(),
@@ -162,7 +166,7 @@ async function setup() {
   const byName = new Map(
     (await categories.findAll()).map((category) => [category.name, category]),
   );
-  return { allocations, getBudget, move, byName };
+  return { allocations, movements, getBudget, move, byName };
 }
 
 const rta = { kind: 'ready-to-assign' } as const;
@@ -171,7 +175,7 @@ const category = (categoryId: string) =>
 
 describe('MoveBudget', () => {
   it('moves category to category without changing RTA', async () => {
-    const { getBudget, move, byName } = await setup();
+    const { getBudget, movements, move, byName } = await setup();
     const source = byName.get('⚡ Utilities');
     const target = byName.get('🚗 Transportation');
     if (!source || !target) throw new Error('Sample categories missing.');
@@ -184,6 +188,15 @@ describe('MoveBudget', () => {
     });
     const after = await getBudget.execute('2026-08');
     expect(after.readyToAssign).toEqual(before.readyToAssign);
+    await expect(
+      movements.findByCategoryAndMonth(source.id, '2026-08'),
+    ).resolves.toContainEqual(
+      expect.objectContaining({
+        sourceCategoryId: source.id,
+        destinationCategoryId: target.id,
+        amount: Money.fromCents(2_000),
+      }),
+    );
   });
 
   it('moves from a category to RTA and back', async () => {

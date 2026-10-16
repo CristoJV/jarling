@@ -13,6 +13,7 @@ import { InvalidMoneyError } from '@/domain/errors/invalid-money-error';
 import { Money } from '@/domain/value-objects/money';
 import { InMemoryAccountRepository } from '@/infrastructure/persistence/in-memory/in-memory-account-repository';
 import { InMemoryBudgetAllocationRepository } from '@/infrastructure/persistence/in-memory/in-memory-budget-allocation-repository';
+import { InMemoryBudgetAllocationMovementRepository } from '@/infrastructure/persistence/in-memory/in-memory-budget-allocation-movement-repository';
 import { InMemoryCategoryGroupRepository } from '@/infrastructure/persistence/in-memory/in-memory-category-group-repository';
 import { InMemoryCategoryRepository } from '@/infrastructure/persistence/in-memory/in-memory-category-repository';
 import { InMemoryTransactionRepository } from '@/infrastructure/persistence/in-memory/in-memory-transaction-repository';
@@ -26,9 +27,11 @@ class FixedClock implements Clock {
   }
 }
 
-class FixedIdGenerator implements IdGenerator {
+class SequenceIdGenerator implements IdGenerator {
+  private index = 0;
   next(): string {
-    return 'allocation-1';
+    this.index += 1;
+    return `allocation-${this.index}`;
   }
 }
 
@@ -84,6 +87,7 @@ async function setup() {
   const categories = new InMemoryCategoryRepository();
   const transactions = new InMemoryTransactionRepository();
   const allocations = new InMemoryBudgetAllocationRepository();
+  const movements = new InMemoryBudgetAllocationMovementRepository();
   const unitOfWork = new TrackingUnitOfWork();
   await accounts.save(account);
   await groups.save(group);
@@ -99,18 +103,26 @@ async function setup() {
   const assign = new AssignBudget(
     categories,
     allocations,
+    movements,
     getBudget,
     unitOfWork,
-    new FixedIdGenerator(),
+    new SequenceIdGenerator(),
     new FixedClock(),
   );
 
-  return { allocations, transactions, unitOfWork, getBudget, assign };
+  return {
+    allocations,
+    movements,
+    transactions,
+    unitOfWork,
+    getBudget,
+    assign,
+  };
 }
 
 describe('budget use cases', () => {
   it('assigns available cash to a category and reduces Ready to Assign', async () => {
-    const { assign, getBudget, unitOfWork } = await setup();
+    const { assign, getBudget, movements, unitOfWork } = await setup();
 
     const result = await assign.execute({
       categoryId: category.id,
@@ -130,10 +142,21 @@ describe('budget use cases', () => {
       expect.objectContaining({ readyToAssign: Money.fromCents(160_000) }),
     );
     expect(unitOfWork.executions).toBe(1);
+    await expect(
+      movements.findByCategoryAndMonth(category.id, '2026-08'),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        id: 'allocation-2',
+        amount: Money.fromCents(40_000),
+        destinationCategoryId: category.id,
+        occurredOn: '2026-08-18',
+        provenance: 'recorded',
+      }),
+    ]);
   });
 
   it('updates the single allocation for a category and month', async () => {
-    const { assign, allocations } = await setup();
+    const { assign, allocations, movements } = await setup();
     const first = await assign.execute({
       categoryId: category.id,
       month: '2026-08',
@@ -149,6 +172,31 @@ describe('budget use cases', () => {
     expect(reduced.id).toBe(first.id);
     expect(reduced.amount).toEqual(Money.fromCents(30_000));
     expect(await allocations.findThroughMonth('2026-08')).toEqual([reduced]);
+    await expect(
+      movements.findByCategoryAndMonth(category.id, '2026-08'),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        amount: Money.fromCents(40_000),
+        destinationCategoryId: category.id,
+      }),
+      expect.objectContaining({
+        amount: Money.fromCents(10_000),
+        sourceCategoryId: category.id,
+      }),
+    ]);
+  });
+
+  it('does not record a movement when Assigned is unchanged', async () => {
+    const { assign, movements } = await setup();
+    await assign.execute({
+      categoryId: category.id,
+      month: '2026-08',
+      amountCents: 0,
+    });
+
+    await expect(
+      movements.findByCategoryAndMonth(category.id, '2026-08'),
+    ).resolves.toEqual([]);
   });
 
   it('rejects an assignment that would make Ready to Assign negative', async () => {

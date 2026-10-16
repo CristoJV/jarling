@@ -40,6 +40,7 @@ describe('categoryStatus', () => {
       assigned: Money.fromCents(10_000),
       activity: Money.fromCents(-2_000),
       available: Money.fromCents(8_000),
+      activityHistory: [],
       spendingTransactions: [Money.fromCents(2_000)],
     };
     const funding = calculateCategoryFundingState({
@@ -61,6 +62,7 @@ describe('categoryStatus', () => {
       assigned: Money.fromCents(5_000),
       activity: Money.fromCents(-7_000),
       available: Money.fromCents(-2_000),
+      activityHistory: [],
       spendingTransactions: [Money.fromCents(7_000)],
     };
 
@@ -76,6 +78,7 @@ describe('categoryStatus', () => {
       assigned: Money.fromCents(5_000),
       activity: Money.fromCents(-2_000),
       available: Money.fromCents(3_000),
+      activityHistory: [],
       spendingTransactions: [Money.fromCents(2_000)],
     };
     const funding = calculateCategoryFundingState({
@@ -98,6 +101,7 @@ describe('categoryStatus', () => {
       assigned: Money.fromCents(7_500),
       activity: Money.fromCents(-2_500),
       available: Money.fromCents(7_500),
+      activityHistory: [],
       spendingTransactions: [Money.fromCents(5_000)],
     };
 
@@ -114,6 +118,7 @@ describe('categoryStatus', () => {
       assigned: Money.fromCents(10_000),
       activity: Money.fromCents(2_500),
       available: Money.fromCents(12_500),
+      activityHistory: [],
       spendingTransactions: [Money.fromCents(5_000)],
     };
 

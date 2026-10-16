@@ -30,6 +30,7 @@ function values(
     assigned: Money.fromCents(assignedCents),
     activity: Money.fromCents(availableCents - assignedCents),
     available: Money.fromCents(availableCents),
+    activityHistory: [],
     spendingTransactions:
       availableCents < assignedCents
         ? [Money.fromCents(assignedCents - availableCents)]

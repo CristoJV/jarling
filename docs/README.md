@@ -36,6 +36,7 @@ contracts that changes must preserve. They are not class-by-class API docs.
   `technical/`.
 - [Requests for Comments](rfc/README.md) describe proposals that are not
   implemented. An RFC is not a product promise.
+- [Implementation plans](plans/) track explicitly requested delivery work.
 - [Changelog](../CHANGELOG.md) records concise release history.
 
 ## Canonical-document rule

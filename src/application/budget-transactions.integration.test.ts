@@ -12,6 +12,7 @@ import { Money } from '@/domain/value-objects/money';
 import { ImmediateUnitOfWork } from '@/infrastructure/persistence/in-memory/immediate-unit-of-work';
 import { InMemoryAccountRepository } from '@/infrastructure/persistence/in-memory/in-memory-account-repository';
 import { InMemoryBudgetAllocationRepository } from '@/infrastructure/persistence/in-memory/in-memory-budget-allocation-repository';
+import { InMemoryBudgetAllocationMovementRepository } from '@/infrastructure/persistence/in-memory/in-memory-budget-allocation-movement-repository';
 import { InMemoryCategoryGroupRepository } from '@/infrastructure/persistence/in-memory/in-memory-category-group-repository';
 import { InMemoryCategoryRepository } from '@/infrastructure/persistence/in-memory/in-memory-category-repository';
 import { InMemoryCategoryTargetRepository } from '@/infrastructure/persistence/in-memory/in-memory-category-target-repository';
@@ -42,6 +43,7 @@ describe('accounts, transactions and budget integration', () => {
     const categories = new InMemoryCategoryRepository();
     const transactions = new InMemoryTransactionRepository();
     const allocations = new InMemoryBudgetAllocationRepository();
+    const movements = new InMemoryBudgetAllocationMovementRepository();
     const unitOfWork = new ImmediateUnitOfWork();
     const clock = new FixedClock();
     const ids = new SequenceIdGenerator([
@@ -50,6 +52,7 @@ describe('accounts, transactions and budget integration', () => {
       'group-1',
       'category-1',
       'allocation-1',
+      'allocation-movement-1',
       'expense-1',
       'refund-1',
       'target-1',
@@ -91,6 +94,7 @@ describe('accounts, transactions and budget integration', () => {
     await new AssignBudget(
       categories,
       allocations,
+      movements,
       getBudget,
       unitOfWork,
       ids,

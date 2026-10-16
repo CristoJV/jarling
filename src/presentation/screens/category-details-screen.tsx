@@ -25,6 +25,7 @@ import { FullScreenSelectionScreen } from '@/presentation/components/common/full
 import { KeyboardResponsiveScreen } from '@/presentation/components/common/keyboard-responsive-screen';
 import { SelectCategoryScreen } from '@/presentation/components/categories/select-category-screen';
 import { CategoryBalanceBreakdown } from '@/presentation/components/categories/category-balance-breakdown';
+import { CategoryBalanceChart } from '@/presentation/components/categories/category-balance-chart';
 import { CategoryNotesSection } from '@/presentation/components/categories/category-notes-section';
 import { invalidateTransactionReferenceData } from '@/presentation/cache/transaction-reference-data';
 import { useApplication } from '@/presentation/contexts/application-context';
@@ -461,6 +462,11 @@ export function CategoryDetailsScreen() {
           </View>
 
           <CategoryBalanceBreakdown month={month} values={values} />
+
+          <CategoryBalanceChart
+            history={details.balanceHistory}
+            month={month}
+          />
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>

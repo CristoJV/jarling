@@ -21,6 +21,7 @@ export type BudgetCategoryValues = Readonly<{
   assigned: Money;
   activity: Money;
   available: Money;
+  activityHistory: readonly Readonly<{ date: string; amount: Money }>[];
   spendingTransactions: readonly Money[];
   assignedHistory?: readonly Readonly<{ month: string; amount: Money }>[];
   spendingHistory?: readonly Readonly<{ month: string; amount: Money }>[];
@@ -171,6 +172,21 @@ function calculateCategoryValues(
   const spendingTransactions = currentMonthTransactions.filter(
     (transaction) => transaction.amount.cents < 0,
   );
+  const activityHistory = [
+    ...currentMonthTransactions.map((transaction) => ({
+      date: transaction.date,
+      amount: transaction.amount,
+    })),
+    ...(category.linkedAccountId
+      ? (
+          cardFunding.currentActivityByAccount.get(category.linkedAccountId) ??
+          []
+        ).map(({ date, amountCents }) => ({
+          date,
+          amount: Money.fromCents(amountCents),
+        }))
+      : []),
+  ];
 
   return {
     category,
@@ -180,6 +196,7 @@ function calculateCategoryValues(
     assigned,
     activity,
     available,
+    activityHistory,
     spendingTransactions: category.linkedAccountId
       ? []
       : spendingTransactions.map((transaction) =>

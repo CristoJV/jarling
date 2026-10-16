@@ -135,6 +135,7 @@ const emptySnapshot = {
     transactions: [],
     transaction_links: [],
     budget_allocations: [],
+    budget_allocation_movements: [],
     category_targets: [],
     category_target_snoozes: [],
   },
@@ -327,7 +328,7 @@ describe('encrypted Jarling backup codec', () => {
     ).toThrow(expect.objectContaining({ code: 'unsupported-version' }));
   });
 
-  it.each([1, 2] as const)(
+  it.each([1, 2, 3] as const)(
     'decrypts version %s and lets the snapshot migration chain normalize it',
     async (version) => {
       const { transaction_links: _, ...legacyTables } = emptySnapshot.tables;
@@ -361,7 +362,7 @@ describe('encrypted Jarling backup codec', () => {
                 ]),
               )
             : encrypted.payload,
-        ...(version === 2
+        ...(version !== 1
           ? {
               nonce: encrypted.nonce,
               authenticationTag: encrypted.authenticationTag,

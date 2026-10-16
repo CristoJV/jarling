@@ -6,6 +6,10 @@ import type { Transaction } from '@/domain/entities/transaction';
 export type CreditCardPaymentState = Readonly<{
   totalByAccount: ReadonlyMap<string, number>;
   currentByAccount: ReadonlyMap<string, number>;
+  currentActivityByAccount: ReadonlyMap<
+    string,
+    readonly Readonly<{ date: string; amountCents: number }>[]
+  >;
 }>;
 
 type Input = Readonly<{
@@ -24,6 +28,10 @@ export function calculateCreditCardPaymentState(
   );
   const totalByAccount = new Map<string, number>();
   const currentByAccount = new Map<string, number>();
+  const currentActivityByAccount = new Map<
+    string,
+    Readonly<{ date: string; amountCents: number }>[]
+  >();
   const allocationsByCategory = new Map<string, BudgetAllocation[]>();
   const transactionsByCategory = new Map<string, Transaction[]>();
   for (const allocation of input.allocations) {
@@ -51,12 +59,14 @@ export function calculateCreditCardPaymentState(
       ...(allocationsByCategory.get(category.id) ?? []).map((allocation) => ({
         order: `${allocation.month}-00:${allocation.createdAt}`,
         month: allocation.month,
+        date: `${allocation.month}-01`,
         amount: allocation.amount.cents,
         accountId: undefined,
       })),
       ...(transactionsByCategory.get(category.id) ?? []).map((transaction) => ({
         order: `${transaction.date}:${transaction.createdAt}`,
         month: transaction.date.slice(0, 7),
+        date: transaction.date,
         amount: transaction.amount.cents,
         accountId: transaction.accountId,
       })),
@@ -65,7 +75,12 @@ export function calculateCreditCardPaymentState(
     const fundedByAccount = new Map<string, number>();
     const debtByAccount = new Map<string, number>();
 
-    const addFunding = (accountId: string, cents: number, month: string) => {
+    const addFunding = (
+      accountId: string,
+      cents: number,
+      month: string,
+      date: string,
+    ) => {
       totalByAccount.set(
         accountId,
         (totalByAccount.get(accountId) ?? 0) + cents,
@@ -75,6 +90,9 @@ export function calculateCreditCardPaymentState(
           accountId,
           (currentByAccount.get(accountId) ?? 0) + cents,
         );
+        const activity = currentActivityByAccount.get(accountId) ?? [];
+        activity.push({ date, amountCents: cents });
+        currentActivityByAccount.set(accountId, activity);
       }
     };
 
@@ -89,7 +107,7 @@ export function calculateCreditCardPaymentState(
             accountId,
             (fundedByAccount.get(accountId) ?? 0) + covered,
           );
-          addFunding(accountId, covered, event.month);
+          addFunding(accountId, covered, event.month, event.date);
           remaining -= covered;
         }
         available += event.amount;
@@ -110,7 +128,7 @@ export function calculateCreditCardPaymentState(
             account.id,
             (fundedByAccount.get(account.id) ?? 0) + covered,
           );
-          addFunding(account.id, covered, event.month);
+          addFunding(account.id, covered, event.month, event.date);
         }
         if (uncovered > 0) {
           debtByAccount.set(
@@ -128,11 +146,11 @@ export function calculateCreditCardPaymentState(
         const fundingReduction = Math.min(funded, refund);
         if (fundingReduction > 0) {
           fundedByAccount.set(account.id, funded - fundingReduction);
-          addFunding(account.id, -fundingReduction, event.month);
+          addFunding(account.id, -fundingReduction, event.month, event.date);
         }
       }
       available += event.amount;
     }
   }
-  return { totalByAccount, currentByAccount };
+  return { totalByAccount, currentByAccount, currentActivityByAccount };
 }

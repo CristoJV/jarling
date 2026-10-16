@@ -90,6 +90,23 @@ describe('initializeDatabase', () => {
     expect(result).toEqual({ created: false });
   });
 
+  it('backfills assignment movements while upgrading a version 3 database', async () => {
+    const { database, transactionExecAsync, transactionRunAsync } =
+      createDatabaseMock([1, 2, 3]);
+
+    await initializeDatabase(database);
+
+    expect(transactionExecAsync).toHaveBeenCalledWith(
+      expect.stringContaining("'migration_baseline'"),
+    );
+    expect(transactionRunAsync).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO schema_migrations'),
+      4,
+      'assignment_movement_history',
+      expect.any(String),
+    );
+  });
+
   it('refuses an unknown schema version instead of guessing', async () => {
     const { database } = createDatabaseMock([999]);
 

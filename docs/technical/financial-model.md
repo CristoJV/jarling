@@ -12,6 +12,11 @@ source records. Account balances, Assigned, Activity, Available, Ready to
 Assign, target progress, and reports are derived. A screen must not maintain a
 second financial truth.
 
+Allocation totals remain the accounting source for Assigned. Each change also
+records one assignment movement from Ready to Assign or a category to another
+location. Movements explain how a total changed but do not replace account
+transactions and are not used as a competing balance.
+
 For a category and month:
 
 ```text
@@ -21,6 +26,25 @@ Available = previous Available + Assigned + Activity
 Availability rolls forward and may be negative. Moving money changes
 allocations, not the ledger. A target recommends an allocation and never writes
 one automatically.
+
+Assignment movement history follows the current category structure. Category
+deletion maps that category to Ready to Assign; category replacement maps it to
+the replacement. Both movement endpoints are rewritten and movements that then
+have identical endpoints disappear. This is a user-facing historical
+reinterpretation, not an immutable audit log.
+
+For a category's monthly Available chart, the previous month's Available is the
+opening point. A movement contributes positively when the category is its
+destination and negatively when it is its source. Movements before the budget
+month and migration baselines are placed on day 1; post-month corrections are
+placed on the final day and remain identified as retroactive. Same-day movement
+effects are aggregated and applied before that day's signed Activity. The final
+point must therefore satisfy the Available accounting identity above.
+
+The current month's series is evaluated only through today's local date; its
+calendar axis still covers the complete month. Past months close on their final
+day. Checkpoint values are derived from the same series and do not persist a
+second balance.
 
 ## Accounts
 

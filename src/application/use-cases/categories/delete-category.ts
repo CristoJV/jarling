@@ -5,6 +5,7 @@ import { CategoryNotFoundError } from '@/domain/errors/category-not-found-error'
 import { InvalidCategoryReassignmentError } from '@/domain/errors/invalid-category-reassignment-error';
 import { ProtectedCategoryError } from '@/domain/errors/protected-category-error';
 import type { BudgetAllocationRepository } from '@/domain/repositories/budget-allocation-repository';
+import type { BudgetAllocationMovementRepository } from '@/domain/repositories/budget-allocation-movement-repository';
 import type { CategoryRepository } from '@/domain/repositories/category-repository';
 import type { CategoryTargetRepository } from '@/domain/repositories/category-target-repository';
 import type { CategoryTargetSnoozeRepository } from '@/domain/repositories/category-target-snooze-repository';
@@ -22,6 +23,7 @@ export class DeleteCategory {
     private readonly categories: CategoryRepository,
     private readonly transactions: TransactionRepository,
     private readonly allocations: BudgetAllocationRepository,
+    private readonly movements: BudgetAllocationMovementRepository,
     private readonly targets: CategoryTargetRepository,
     private readonly snoozes: CategoryTargetSnoozeRepository,
     private readonly unitOfWork: UnitOfWork,
@@ -71,11 +73,13 @@ export class DeleteCategory {
             categories: this.categories,
             transactions: this.transactions,
             allocations: this.allocations,
+            movements: this.movements,
             targets: this.targets,
             snoozes: this.snoozes,
           },
         );
       } else {
+        await this.movements.replaceCategory(category.id);
         await this.allocations.deleteByCategory(category.id);
         await this.snoozes.deleteByCategory(category.id);
         await this.targets.deleteByCategory(category.id);
