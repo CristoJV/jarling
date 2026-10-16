@@ -6,9 +6,11 @@ import {
   createBudgetAllocation,
   type BudgetAllocation,
 } from '@/domain/entities/budget-allocation';
+import { createBudgetAllocationMovement } from '@/domain/entities/budget-allocation-movement';
 import { CategoryNotFoundError } from '@/domain/errors/category-not-found-error';
 import { InsufficientReadyToAssignError } from '@/domain/errors/insufficient-ready-to-assign-error';
 import type { BudgetAllocationRepository } from '@/domain/repositories/budget-allocation-repository';
+import type { BudgetAllocationMovementRepository } from '@/domain/repositories/budget-allocation-movement-repository';
 import type { CategoryRepository } from '@/domain/repositories/category-repository';
 import { Money } from '@/domain/value-objects/money';
 
@@ -24,6 +26,7 @@ export class AssignBudget {
   constructor(
     private readonly categories: CategoryRepository,
     private readonly allocations: BudgetAllocationRepository,
+    private readonly movements: BudgetAllocationMovementRepository,
     private readonly getBudgetMonth: Pick<GetBudgetMonth, 'execute'>,
     private readonly unitOfWork: UnitOfWork,
     private readonly ids: IdGenerator,
@@ -52,7 +55,7 @@ export class AssignBudget {
         );
       }
 
-      const { instant } = this.clock.now();
+      const { instant, date } = this.clock.now();
       const allocation = createBudgetAllocation({
         id: current?.id ?? this.ids.next(),
         categoryId: input.categoryId,
@@ -62,6 +65,22 @@ export class AssignBudget {
         updatedAt: instant,
       });
       await this.allocations.save(allocation);
+      if (difference !== 0) {
+        await this.movements.save(
+          createBudgetAllocationMovement({
+            id: this.ids.next(),
+            month: input.month,
+            amount: Money.fromCents(Math.abs(difference)),
+            ...(difference < 0
+              ? { sourceCategoryId: input.categoryId }
+              : { destinationCategoryId: input.categoryId }),
+            occurredAt: instant,
+            occurredOn: date,
+            provenance: 'recorded',
+            recordedAt: instant,
+          }),
+        );
+      }
       return allocation;
     });
   }

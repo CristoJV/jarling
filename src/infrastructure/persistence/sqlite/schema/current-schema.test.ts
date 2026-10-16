@@ -13,9 +13,11 @@ describe('current database schema', () => {
         name: `schema_v${CURRENT_SCHEMA_VERSION}`,
       }),
     );
-    expect(migrations.map(({ version }) => version)).toEqual([2, 3]);
+    expect(migrations.map(({ version }) => version)).toEqual([2, 3, 4]);
     expect(migrations.at(-1)?.version).toBe(CURRENT_SCHEMA_VERSION);
-    expect(migrations.at(-1)?.up).toContain('PRIMARY KEY (category_id, month)');
+    expect(migrations.at(-1)?.up).toContain(
+      'CREATE TABLE budget_allocation_movements',
+    );
   });
 
   it('does not predate the first public database contract', () => {
@@ -31,6 +33,7 @@ describe('current database schema', () => {
     'transactions',
     'transaction_links',
     'budget_allocations',
+    'budget_allocation_movements',
     'category_targets',
     'category_target_snoozes',
   ])('creates the %s source of truth', (table) => {

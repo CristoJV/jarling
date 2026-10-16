@@ -4,11 +4,14 @@ import { createAccount } from '@/domain/entities/account';
 import {
   createBudgetAllocation,
   shiftBudgetMonth,
+  type BudgetAllocation,
 } from '@/domain/entities/budget-allocation';
+import { createBudgetAllocationMovement } from '@/domain/entities/budget-allocation-movement';
 import { createCategoryTarget } from '@/domain/entities/category-target';
 import { createTransaction } from '@/domain/entities/transaction';
 import type { AccountRepository } from '@/domain/repositories/account-repository';
 import type { BudgetAllocationRepository } from '@/domain/repositories/budget-allocation-repository';
+import type { BudgetAllocationMovementRepository } from '@/domain/repositories/budget-allocation-movement-repository';
 import type { CategoryGroupRepository } from '@/domain/repositories/category-group-repository';
 import type { CategoryRepository } from '@/domain/repositories/category-repository';
 import type { CategoryTargetRepository } from '@/domain/repositories/category-target-repository';
@@ -43,6 +46,7 @@ export class PopulateSampleData {
     private readonly categories: CategoryRepository,
     private readonly transactions: TransactionRepository,
     private readonly allocations: BudgetAllocationRepository,
+    private readonly movements: BudgetAllocationMovementRepository,
     private readonly targets: CategoryTargetRepository,
     private readonly unitOfWork: UnitOfWork,
     private readonly clock: Clock,
@@ -180,14 +184,9 @@ export class PopulateSampleData {
       for (const transaction of transactions)
         await this.transactions.save(transaction);
       for (const target of targets) await this.targets.save(target);
-      for (const allocation of createHistoricalSampleAllocations(
-        month,
-        instant,
-      )) {
-        await this.allocations.save(allocation);
-      }
-      for (const [categoryId, amountCents] of assigned) {
-        await this.allocations.save(
+      const sampleAllocations: BudgetAllocation[] = [
+        ...createHistoricalSampleAllocations(month, instant),
+        ...assigned.map(([categoryId, amountCents]) =>
           createBudgetAllocation({
             id: `sample-allocation-${categoryId}`,
             categoryId,
@@ -195,6 +194,21 @@ export class PopulateSampleData {
             amount: Money.fromCents(amountCents),
             createdAt: instant,
             updatedAt: instant,
+          }),
+        ),
+      ];
+      for (const allocation of sampleAllocations) {
+        await this.allocations.save(allocation);
+        await this.movements.save(
+          createBudgetAllocationMovement({
+            id: `sample-movement-${allocation.id}`,
+            month: allocation.month,
+            amount: Money.fromCents(Math.abs(allocation.amount.cents)),
+            ...(allocation.amount.cents < 0
+              ? { sourceCategoryId: allocation.categoryId }
+              : { destinationCategoryId: allocation.categoryId }),
+            provenance: 'sample',
+            recordedAt: instant,
           }),
         );
       }

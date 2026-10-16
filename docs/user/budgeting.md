@@ -52,6 +52,33 @@ and category to category. It refuses moves that exceed the source category's
 available amount. Assigning from Category Details similarly reports
 insufficient funds and can lead into Move Money.
 
+Jarling records these assignment changes separately from account transactions.
+This history follows the categories that exist now: deleting a category treats
+its earlier assignment movements as Ready to Assign movements, while replacing
+a category treats its earlier movements as belonging to the replacement. The
+history is therefore reinterpreted after category changes and is not an
+immutable audit trail.
+
+Category Details shows how Available evolved during its selected month. The
+yellow starting point is the previous month's closing Available, placed just
+before day 1. Each day then applies assignment changes before that day's signed
+Activity. Every portion of the balance path above the dotted zero line is green;
+every portion below it is red.
+
+Money assigned before that month and reconstructed migration baselines appear
+on day 1. Changes made during the month appear on their local date. A later
+correction to an earlier month appears on the month's final day and is identified
+as a later correction. Dotted vertical guides mark Mondays; the axis labels only
+the first day, Mondays, and the last day in the device language.
+
+For the current month, the balance path stops on today even though the axis
+continues through the end of the month. Tapping the chart reveals compact
+balance labels for the opening point, day 1, each Monday, and the last plotted
+day; tapping again hides them. Consecutive checkpoints with the same balance
+are collapsed into the first one. Each compact label is sized to its amount,
+placed so it does not overlap another label, and joined to its point by a fine
+white line.
+
 Categories with historical activity cannot simply disappear: deletion asks
 for a replacement category and reassigns their records. If there is money but
 no activity, deleting returns it to Ready to Assign. Protected system

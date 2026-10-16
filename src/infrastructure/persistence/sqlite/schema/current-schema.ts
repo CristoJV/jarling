@@ -10,7 +10,7 @@ export const FIRST_RELEASE_SCHEMA_VERSION = 1;
  * baseline SQL whenever a forward migration is added. Fresh installations can
  * then start at the latest version without replaying historical migrations.
  */
-export const CURRENT_SCHEMA_VERSION = 3;
+export const CURRENT_SCHEMA_VERSION = 4;
 
 /**
  * Fresh installations create this schema directly instead of replaying the
@@ -111,6 +111,29 @@ export const currentSchema: Migration = {
       UNIQUE (category_id, month)
     );
 
+    CREATE TABLE budget_allocation_movements (
+      id TEXT PRIMARY KEY NOT NULL,
+      month TEXT NOT NULL CHECK (
+        length(month) = 7
+        AND month GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]'
+        AND CAST(substr(month, 6, 2) AS INTEGER) BETWEEN 1 AND 12
+      ),
+      amount INTEGER NOT NULL CHECK (typeof(amount) = 'integer' AND amount > 0),
+      source_category_id TEXT,
+      destination_category_id TEXT,
+      occurred_at TEXT,
+      occurred_on TEXT,
+      provenance TEXT NOT NULL CHECK (
+        provenance IN ('recorded', 'migration_baseline', 'sample')
+      ),
+      recorded_at TEXT NOT NULL,
+      FOREIGN KEY (source_category_id) REFERENCES categories(id) ON DELETE RESTRICT,
+      FOREIGN KEY (destination_category_id) REFERENCES categories(id) ON DELETE RESTRICT,
+      CHECK (source_category_id IS NOT destination_category_id),
+      CHECK ((occurred_at IS NULL) = (occurred_on IS NULL)),
+      CHECK (occurred_on IS NULL OR length(occurred_on) = 10)
+    );
+
     CREATE TABLE category_targets (
       id TEXT PRIMARY KEY NOT NULL,
       category_id TEXT NOT NULL UNIQUE,
@@ -182,6 +205,10 @@ export const currentSchema: Migration = {
     CREATE INDEX transaction_links_source_idx ON transaction_links(source_transaction_id);
     CREATE INDEX transaction_links_target_idx ON transaction_links(target_transaction_id);
     CREATE INDEX budget_allocations_month_idx ON budget_allocations(month);
+    CREATE INDEX budget_allocation_movements_source_idx
+      ON budget_allocation_movements(source_category_id, month, occurred_on);
+    CREATE INDEX budget_allocation_movements_destination_idx
+      ON budget_allocation_movements(destination_category_id, month, occurred_on);
     CREATE INDEX category_targets_kind_idx ON category_targets(kind);
     CREATE INDEX category_target_snoozes_month_idx
       ON category_target_snoozes(month);

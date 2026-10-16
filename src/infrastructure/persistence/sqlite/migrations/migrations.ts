@@ -190,4 +190,54 @@ export const migrations: readonly Migration[] = [
         ON category_target_snoozes(month);
     `,
   },
+  {
+    version: 4,
+    name: 'assignment_movement_history',
+    up: `
+      CREATE TABLE budget_allocation_movements (
+        id TEXT PRIMARY KEY NOT NULL,
+        month TEXT NOT NULL CHECK (
+          length(month) = 7
+          AND month GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]'
+          AND CAST(substr(month, 6, 2) AS INTEGER) BETWEEN 1 AND 12
+        ),
+        amount INTEGER NOT NULL CHECK (typeof(amount) = 'integer' AND amount > 0),
+        source_category_id TEXT,
+        destination_category_id TEXT,
+        occurred_at TEXT,
+        occurred_on TEXT,
+        provenance TEXT NOT NULL CHECK (
+          provenance IN ('recorded', 'migration_baseline', 'sample')
+        ),
+        recorded_at TEXT NOT NULL,
+        FOREIGN KEY (source_category_id) REFERENCES categories(id) ON DELETE RESTRICT,
+        FOREIGN KEY (destination_category_id) REFERENCES categories(id) ON DELETE RESTRICT,
+        CHECK (source_category_id IS NOT destination_category_id),
+        CHECK ((occurred_at IS NULL) = (occurred_on IS NULL)),
+        CHECK (occurred_on IS NULL OR length(occurred_on) = 10)
+      );
+
+      INSERT INTO budget_allocation_movements (
+        id, month, amount, source_category_id, destination_category_id,
+        occurred_at, occurred_on, provenance, recorded_at
+      )
+      SELECT
+        'allocation-baseline:' || id,
+        month,
+        abs(amount),
+        CASE WHEN amount < 0 THEN category_id ELSE NULL END,
+        CASE WHEN amount > 0 THEN category_id ELSE NULL END,
+        NULL,
+        NULL,
+        'migration_baseline',
+        updated_at
+      FROM budget_allocations
+      WHERE amount <> 0;
+
+      CREATE INDEX budget_allocation_movements_source_idx
+        ON budget_allocation_movements(source_category_id, month, occurred_on);
+      CREATE INDEX budget_allocation_movements_destination_idx
+        ON budget_allocation_movements(destination_category_id, month, occurred_on);
+    `,
+  },
 ];

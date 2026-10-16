@@ -27,6 +27,7 @@ ADR that supersedes the previous one instead of rewriting history.
 | [0010](0010-budget-progress-uses-available-coverage.md) | Budget progress uses total available coverage      | Accepted |
 | [0011](0011-net-worth-history-presentation.md)          | Scrollable monthly Net Worth history               | Accepted |
 | [0012](0012-monthly-report-change-visualization.md)     | Monthly report direction and change visualization  | Accepted |
+| [0013](0013-mutable-assignment-movement-history.md)     | Assignment history follows current categories      | Accepted |
 
 ## Creating an ADR
 

@@ -7,6 +7,7 @@ import { calculateTargetProgress } from '@/domain/services/calculate-target-prog
 import { ImmediateUnitOfWork } from '@/infrastructure/persistence/in-memory/immediate-unit-of-work';
 import { InMemoryAccountRepository } from '@/infrastructure/persistence/in-memory/in-memory-account-repository';
 import { InMemoryBudgetAllocationRepository } from '@/infrastructure/persistence/in-memory/in-memory-budget-allocation-repository';
+import { InMemoryBudgetAllocationMovementRepository } from '@/infrastructure/persistence/in-memory/in-memory-budget-allocation-movement-repository';
 import { InMemoryCategoryGroupRepository } from '@/infrastructure/persistence/in-memory/in-memory-category-group-repository';
 import { InMemoryCategoryRepository } from '@/infrastructure/persistence/in-memory/in-memory-category-repository';
 import { InMemoryCategoryTargetRepository } from '@/infrastructure/persistence/in-memory/in-memory-category-target-repository';
@@ -26,6 +27,7 @@ function setup() {
   const categories = new InMemoryCategoryRepository();
   const transactions = new InMemoryTransactionRepository();
   const allocations = new InMemoryBudgetAllocationRepository();
+  const movements = new InMemoryBudgetAllocationMovementRepository();
   const targets = new InMemoryCategoryTargetRepository();
   const ensureDefaults = new EnsureDefaultCategories(
     groups,
@@ -39,6 +41,7 @@ function setup() {
     categories,
     transactions,
     allocations,
+    movements,
     targets,
     new ImmediateUnitOfWork(),
     new FixedClock(),

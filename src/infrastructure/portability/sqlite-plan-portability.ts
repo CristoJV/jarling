@@ -17,6 +17,7 @@ import {
   type AccountType,
 } from '@/domain/entities/account';
 import { isValidBudgetMonth } from '@/domain/entities/budget-allocation';
+import { BUDGET_ALLOCATION_MOVEMENT_PROVENANCES } from '@/domain/entities/budget-allocation-movement';
 import { CATEGORY_NOTES_MAX_LENGTH } from '@/domain/entities/category';
 import {
   createCategoryTarget,
@@ -117,6 +118,20 @@ const tables = [
     ],
   },
   {
+    name: 'budget_allocation_movements',
+    columns: [
+      'id',
+      'month',
+      'amount',
+      'source_category_id',
+      'destination_category_id',
+      'occurred_at',
+      'occurred_on',
+      'provenance',
+      'recorded_at',
+    ],
+  },
+  {
     name: 'category_targets',
     columns: [
       'id',
@@ -150,6 +165,36 @@ type PlanSnapshot = Readonly<{
   tables: Readonly<Record<TableName, readonly DataRow[]>>;
 }>;
 
+function baselineMovements(
+  allocations: readonly Record<string, unknown>[],
+): readonly Record<string, unknown>[] {
+  return allocations.flatMap((row) => {
+    if (
+      typeof row.id !== 'string' ||
+      typeof row.category_id !== 'string' ||
+      typeof row.month !== 'string' ||
+      typeof row.amount !== 'number' ||
+      row.amount === 0 ||
+      typeof row.updated_at !== 'string'
+    ) {
+      return [];
+    }
+    return [
+      {
+        id: `allocation-baseline:${row.id}`,
+        month: row.month,
+        amount: Math.abs(row.amount),
+        source_category_id: row.amount < 0 ? row.category_id : null,
+        destination_category_id: row.amount > 0 ? row.category_id : null,
+        occurred_at: null,
+        occurred_on: null,
+        provenance: 'migration_baseline',
+        recorded_at: row.updated_at,
+      },
+    ];
+  });
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -181,6 +226,11 @@ function removeLegacyUncategorized(
     ),
     budget_allocations: source.budget_allocations.filter(
       (row) => row.category_id !== LEGACY_UNCATEGORIZED_CATEGORY_ID,
+    ),
+    budget_allocation_movements: source.budget_allocation_movements.filter(
+      (row) =>
+        row.source_category_id !== LEGACY_UNCATEGORIZED_CATEGORY_ID &&
+        row.destination_category_id !== LEGACY_UNCATEGORIZED_CATEGORY_ID,
     ),
     category_targets: source.category_targets.filter(
       (row) => row.category_id !== LEGACY_UNCATEGORIZED_CATEGORY_ID,
@@ -243,7 +293,7 @@ function migrateSnapshotDocument(value: unknown): unknown {
   if (migrated.version === 2 && isRecord(migrated.tables)) {
     migrated = {
       ...migrated,
-      version: CURRENT_BACKUP_VERSION,
+      version: 3,
       tables: {
         ...migrated.tables,
         category_target_snoozes: Array.isArray(
@@ -251,6 +301,24 @@ function migrateSnapshotDocument(value: unknown): unknown {
         )
           ? migrated.tables.category_target_snoozes
           : [],
+      },
+    };
+  }
+
+  if (migrated.version === 3 && isRecord(migrated.tables)) {
+    const allocations = Array.isArray(migrated.tables.budget_allocations)
+      ? migrated.tables.budget_allocations.filter(isRecord)
+      : [];
+    migrated = {
+      ...migrated,
+      version: CURRENT_BACKUP_VERSION,
+      tables: {
+        ...migrated.tables,
+        budget_allocation_movements: Array.isArray(
+          migrated.tables.budget_allocation_movements,
+        )
+          ? migrated.tables.budget_allocation_movements
+          : baselineMovements(allocations),
       },
     };
   }
@@ -334,7 +402,7 @@ export function detectPortablePlanFormat(
       'The file is not a supported Jarling backup.',
     );
   }
-  if (![1, 2, CURRENT_BACKUP_VERSION].includes(value.version as number)) {
+  if (![1, 2, 3, CURRENT_BACKUP_VERSION].includes(value.version as number)) {
     throw new PlanPortabilityError(
       'unsupported-version',
       'The backup version is not supported.',
@@ -538,12 +606,64 @@ function validateSnapshotSemantics(snapshot: PlanSnapshot): void {
     linkIds.add(id);
   }
 
+  const allocationTotals = new Map<string, number>();
   for (const row of snapshot.tables.budget_allocations) {
-    if (
-      !categoryIds.has(requiredText(row, 'category_id')) ||
-      !isValidBudgetMonth(requiredText(row, 'month'))
-    ) {
+    const categoryId = requiredText(row, 'category_id');
+    const month = requiredText(row, 'month');
+    if (!categoryIds.has(categoryId) || !isValidBudgetMonth(month)) {
       throw new Error('The backup contains an invalid budget allocation.');
+    }
+    const key = `${categoryId}\u0000${month}`;
+    if (allocationTotals.has(key)) {
+      throw new Error('The backup contains a duplicate budget allocation.');
+    }
+    allocationTotals.set(key, integer(row, 'amount'));
+  }
+
+  const movementIds = new Set<string>();
+  const movementTotals = new Map<string, number>();
+  for (const row of snapshot.tables.budget_allocation_movements) {
+    const id = requiredText(row, 'id');
+    const month = requiredText(row, 'month');
+    const source = nullableString(row, 'source_category_id');
+    const destination = nullableString(row, 'destination_category_id');
+    const occurredAt = nullableString(row, 'occurred_at');
+    const occurredOn = nullableString(row, 'occurred_on');
+    const provenance = requiredText(row, 'provenance');
+    const amount = integer(row, 'amount');
+    if (
+      movementIds.has(id) ||
+      !isValidBudgetMonth(month) ||
+      amount <= 0 ||
+      source === destination ||
+      (source !== undefined && !categoryIds.has(source)) ||
+      (destination !== undefined && !categoryIds.has(destination)) ||
+      (occurredAt === undefined) !== (occurredOn === undefined) ||
+      (occurredOn !== undefined && occurredOn.length !== 10) ||
+      !BUDGET_ALLOCATION_MOVEMENT_PROVENANCES.includes(provenance as never)
+    ) {
+      throw new Error('The backup contains an invalid assignment movement.');
+    }
+    requiredText(row, 'recorded_at');
+    movementIds.add(id);
+    if (source) {
+      const key = `${source}\u0000${month}`;
+      movementTotals.set(key, (movementTotals.get(key) ?? 0) - amount);
+    }
+    if (destination) {
+      const key = `${destination}\u0000${month}`;
+      movementTotals.set(key, (movementTotals.get(key) ?? 0) + amount);
+    }
+  }
+  const totalKeys = new Set([
+    ...allocationTotals.keys(),
+    ...movementTotals.keys(),
+  ]);
+  for (const key of totalKeys) {
+    if ((allocationTotals.get(key) ?? 0) !== (movementTotals.get(key) ?? 0)) {
+      throw new Error(
+        'Assignment movement history does not match allocations.',
+      );
     }
   }
 

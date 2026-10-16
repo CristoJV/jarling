@@ -6,11 +6,13 @@ import {
   createBudgetAllocation,
   type BudgetAllocation,
 } from '@/domain/entities/budget-allocation';
+import { createBudgetAllocationMovement } from '@/domain/entities/budget-allocation-movement';
 import { CategoryNotFoundError } from '@/domain/errors/category-not-found-error';
 import { InsufficientCategoryAvailableError } from '@/domain/errors/insufficient-category-available-error';
 import { InsufficientReadyToAssignError } from '@/domain/errors/insufficient-ready-to-assign-error';
 import { InvalidBudgetMoveError } from '@/domain/errors/invalid-budget-move-error';
 import type { BudgetAllocationRepository } from '@/domain/repositories/budget-allocation-repository';
+import type { BudgetAllocationMovementRepository } from '@/domain/repositories/budget-allocation-movement-repository';
 import type { CategoryRepository } from '@/domain/repositories/category-repository';
 import { Money } from '@/domain/value-objects/money';
 
@@ -45,6 +47,7 @@ export class MoveBudget {
   constructor(
     private readonly categories: CategoryRepository,
     private readonly allocations: BudgetAllocationRepository,
+    private readonly movements: BudgetAllocationMovementRepository,
     private readonly getBudgetMonth: Pick<GetBudgetMonth, 'execute'>,
     private readonly unitOfWork: UnitOfWork,
     private readonly ids: IdGenerator,
@@ -101,12 +104,14 @@ export class MoveBudget {
         }
       }
 
+      const { instant, date } = this.clock.now();
       const source =
         input.source.kind === 'category'
           ? await this.changeAllocation(
               input.source.categoryId,
               input.month,
               -amount.cents,
+              instant,
             )
           : undefined;
       const target =
@@ -115,8 +120,26 @@ export class MoveBudget {
               input.target.categoryId,
               input.month,
               amount.cents,
+              instant,
             )
           : undefined;
+      await this.movements.save(
+        createBudgetAllocationMovement({
+          id: this.ids.next(),
+          month: input.month,
+          amount,
+          ...(input.source.kind === 'category'
+            ? { sourceCategoryId: input.source.categoryId }
+            : {}),
+          ...(input.target.kind === 'category'
+            ? { destinationCategoryId: input.target.categoryId }
+            : {}),
+          occurredAt: instant,
+          occurredOn: date,
+          provenance: 'recorded',
+          recordedAt: instant,
+        }),
+      );
       return { ...(source ? { source } : {}), ...(target ? { target } : {}) };
     });
   }
@@ -125,12 +148,12 @@ export class MoveBudget {
     categoryId: string,
     month: string,
     deltaCents: number,
+    instant: string,
   ): Promise<BudgetAllocation> {
     const current = await this.allocations.findByCategoryAndMonth(
       categoryId,
       month,
     );
-    const { instant } = this.clock.now();
     const allocation = createBudgetAllocation({
       id: current?.id ?? this.ids.next(),
       categoryId,

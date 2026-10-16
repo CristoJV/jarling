@@ -79,6 +79,9 @@ describe('calculateCreditCardPaymentState', () => {
 
     expect(result.totalByAccount.get(card.id)).toBe(5_000);
     expect(result.currentByAccount.get(card.id)).toBe(5_000);
+    expect(result.currentActivityByAccount.get(card.id)).toEqual([
+      { date: '2026-08-10', amountCents: 5_000 },
+    ]);
   });
 
   it('reverses payment funding when a funded purchase is refunded', () => {
@@ -134,6 +137,9 @@ describe('calculateCreditCardPaymentState', () => {
     expect(august.currentByAccount.get(card.id)).toBe(8_000);
     expect(september.totalByAccount.get(card.id)).toBe(5_000);
     expect(september.currentByAccount.get(card.id)).toBe(-3_000);
+    expect(september.currentActivityByAccount.get(card.id)).toEqual([
+      { date: '2026-09-11', amountCents: -3_000 },
+    ]);
   });
 
   it('uses a later month allocation to cover earlier unfunded debt', () => {
@@ -145,5 +151,8 @@ describe('calculateCreditCardPaymentState', () => {
 
     expect(result.totalByAccount.get(card.id)).toBe(8_000);
     expect(result.currentByAccount.get(card.id)).toBe(8_000);
+    expect(result.currentActivityByAccount.get(card.id)).toEqual([
+      { date: '2026-09-01', amountCents: 8_000 },
+    ]);
   });
 });

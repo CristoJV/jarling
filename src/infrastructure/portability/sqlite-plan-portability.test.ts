@@ -115,11 +115,12 @@ describe('Jarling plan snapshots', () => {
       }),
     ).toEqual({
       ...emptySnapshot,
-      version: 3,
+      version: 4,
       preferences: { currency: 'EUR', theme: 'dark' },
       tables: {
         ...emptySnapshot.tables,
         category_target_snoozes: [],
+        budget_allocation_movements: [],
       },
     });
   });
@@ -174,6 +175,64 @@ describe('Jarling plan snapshots', () => {
         include_previous_weeks: 0,
       }),
     );
+  });
+
+  it('creates assignment baselines while upgrading a version 3 backup', () => {
+    const timestamp = '2026-08-19T10:00:00.000Z';
+    const parsed = parsePlanSnapshot({
+      ...emptySnapshot,
+      version: 3,
+      tables: {
+        ...emptySnapshot.tables,
+        category_groups: [
+          {
+            id: 'group-1',
+            name: 'Needs',
+            sort_order: 0,
+            created_at: timestamp,
+            updated_at: timestamp,
+          },
+        ],
+        categories: [
+          {
+            id: 'category-1',
+            group_id: 'group-1',
+            name: 'Groceries',
+            notes: null,
+            hidden: 0,
+            linked_account_id: null,
+            sort_order: 0,
+            created_at: timestamp,
+            updated_at: timestamp,
+          },
+        ],
+        budget_allocations: [
+          {
+            id: 'allocation-1',
+            category_id: 'category-1',
+            month: '2026-08',
+            amount: 3_000,
+            created_at: timestamp,
+            updated_at: timestamp,
+          },
+        ],
+        category_target_snoozes: [],
+      },
+    });
+
+    expect(parsed.tables.budget_allocation_movements).toEqual([
+      {
+        id: 'allocation-baseline:allocation-1',
+        month: '2026-08',
+        amount: 3_000,
+        source_category_id: null,
+        destination_category_id: 'category-1',
+        occurred_at: null,
+        occurred_on: null,
+        provenance: 'migration_baseline',
+        recorded_at: timestamp,
+      },
+    ]);
   });
 
   it('adds the transaction links table missing from genuine version 1 backups', () => {
@@ -262,7 +321,11 @@ describe('Jarling plan snapshots', () => {
       },
     };
 
-    expect(parsePlanSnapshot(current)).toEqual(current);
+    expect(parsePlanSnapshot(current)).toEqual({
+      ...current,
+      version: 4,
+      tables: { ...current.tables, budget_allocation_movements: [] },
+    });
     expect(() =>
       parsePlanSnapshot({
         ...current,
@@ -366,10 +429,11 @@ describe('Jarling plan snapshots', () => {
   it('accepts a categorized transfer into its linked credit account', () => {
     expect(parsePlanSnapshot(cardPaymentSnapshot)).toEqual({
       ...cardPaymentSnapshot,
-      version: 3,
+      version: 4,
       tables: {
         ...cardPaymentSnapshot.tables,
         category_target_snoozes: [],
+        budget_allocation_movements: [],
       },
     });
   });
@@ -488,7 +552,7 @@ describe('Jarling plan snapshots', () => {
   it('round-trips a standard category inflow without changing backup version', () => {
     const snapshot = {
       ...emptySnapshot,
-      version: 3,
+      version: 4,
       tables: {
         ...emptySnapshot.tables,
         category_groups: [
@@ -541,6 +605,7 @@ describe('Jarling plan snapshots', () => {
           },
         ],
         category_target_snoozes: [],
+        budget_allocation_movements: [],
       },
     };
 
@@ -698,11 +763,23 @@ describe('Jarling plan snapshots', () => {
             updated_at: '2026-08-19T10:00:00.000Z',
           },
         ],
+        budget_allocations: [
+          {
+            id: 'legacy-allocation',
+            category_id: 'default-category-uncategorized',
+            month: '2026-08',
+            amount: 1_000,
+            created_at: '2026-08-19T10:00:00.000Z',
+            updated_at: '2026-08-19T10:00:00.000Z',
+          },
+        ],
       },
     });
 
     expect(parsed.tables.category_groups).toEqual([]);
     expect(parsed.tables.categories).toEqual([]);
+    expect(parsed.tables.budget_allocations).toEqual([]);
+    expect(parsed.tables.budget_allocation_movements).toEqual([]);
     expect(parsed.tables.transactions[0]).toEqual(
       expect.objectContaining({ category_id: null }),
     );

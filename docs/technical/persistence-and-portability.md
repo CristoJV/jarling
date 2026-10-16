@@ -17,6 +17,11 @@ Compound writes use a serialized `UnitOfWork`. Native SQLite runs them through
 the transaction-scoped connection supplied by Expo. Repositories must never
 escape to the raw connection during that operation.
 
+Allocation totals and their explanatory movement records are written in the
+same unit. Version 4 creates a synthetic start-of-month movement for every
+non-zero allocation already present. These rows are marked as migration
+baselines because their real occurrence time cannot be reconstructed.
+
 ## Portable plan snapshot
 
 Readable JSON export and encrypted `.jarling` backup carry the same versioned
@@ -44,6 +49,10 @@ creating a second restore implementation.
 Schema and backup versions are independent. A schema change does not
 automatically require a backup version increase unless it changes the portable
 contract or valid state set.
+
+Assignment movements are portable financial data. Backup version 4 carries the
+movement table, and restore of older snapshots synthesizes the same baselines
+used by the SQLite migration.
 
 See [ADR 0003](../adr/0003-sqlite-baseline-and-forward-migrations.md),
 [ADR 0004](../adr/0004-data-protection-and-portability.md), and

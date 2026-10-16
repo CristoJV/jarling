@@ -49,6 +49,7 @@ import { SQLiteUnitOfWork } from '@/infrastructure/persistence/sqlite/database/s
 import { SQLitePlanDataStore } from '@/infrastructure/persistence/sqlite/database/sqlite-plan-data-store';
 import { SQLiteAccountRepository } from '@/infrastructure/persistence/sqlite/repositories/sqlite-account-repository';
 import { SQLiteBudgetAllocationRepository } from '@/infrastructure/persistence/sqlite/repositories/sqlite-budget-allocation-repository';
+import { SQLiteBudgetAllocationMovementRepository } from '@/infrastructure/persistence/sqlite/repositories/sqlite-budget-allocation-movement-repository';
 import { SQLiteCategoryGroupRepository } from '@/infrastructure/persistence/sqlite/repositories/sqlite-category-group-repository';
 import { SQLiteCategoryRepository } from '@/infrastructure/persistence/sqlite/repositories/sqlite-category-repository';
 import { SQLiteCategoryTargetRepository } from '@/infrastructure/persistence/sqlite/repositories/sqlite-category-target-repository';
@@ -68,6 +69,9 @@ export function createApplication(
   const categoryGroups = new SQLiteCategoryGroupRepository(connection);
   const categories = new SQLiteCategoryRepository(connection);
   const allocations = new SQLiteBudgetAllocationRepository(connection);
+  const allocationMovements = new SQLiteBudgetAllocationMovementRepository(
+    connection,
+  );
   const transactions = new SQLiteTransactionRepository(connection);
   const transactionLinks = new SQLiteTransactionLinkRepository(connection);
   const targets = new SQLiteCategoryTargetRepository(connection);
@@ -139,6 +143,7 @@ export function createApplication(
         categories,
         transactions,
         allocations,
+        allocationMovements,
         targets,
         targetSnoozes,
         unitOfWork,
@@ -149,6 +154,7 @@ export function createApplication(
         categories,
         transactions,
         allocations,
+        allocationMovements,
         targets,
         targetSnoozes,
         unitOfWork,
@@ -162,6 +168,7 @@ export function createApplication(
       getGroups: new GetCategoryGroups(categoryGroups, categories),
       getDetails: new GetCategoryDetails(
         getBudgetMonth,
+        allocationMovements,
         targets,
         targetSnoozes,
         clock,
@@ -213,6 +220,7 @@ export function createApplication(
       assign: new AssignBudget(
         categories,
         allocations,
+        allocationMovements,
         getBudgetMonth,
         unitOfWork,
         ids,
@@ -221,6 +229,7 @@ export function createApplication(
       move: new MoveBudget(
         categories,
         allocations,
+        allocationMovements,
         getBudgetMonth,
         unitOfWork,
         ids,
@@ -271,6 +280,7 @@ export function createApplication(
         categories,
         transactions,
         allocations,
+        allocationMovements,
         targets,
         unitOfWork,
         clock,

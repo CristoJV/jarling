@@ -21,6 +21,7 @@ describe('category budget values index', () => {
       assigned: Money.fromCents(30_000),
       activity: Money.fromCents(-17_600),
       available: Money.fromCents(12_400),
+      activityHistory: [],
       spendingTransactions: [Money.fromCents(17_600)],
     };
     const budget: BudgetMonthValues = {
