@@ -272,7 +272,14 @@ describe('calculateReports', () => {
       debt: Money.zero(),
       netWorth: Money.fromCents(18_000),
     });
-    expect(result.spending.categories).toEqual([]);
+    expect(result.spending.total).toEqual(Money.zero());
+    expect(
+      result.spending.categories.every(
+        ({ total, spendingByInterval }) =>
+          total.cents === 0 &&
+          spendingByInterval.every(({ cents }) => cents === 0),
+      ),
+    ).toBe(true);
   });
 
   it('keeps a categorized credit refund in net spending rather than Income', () => {

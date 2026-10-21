@@ -164,7 +164,7 @@ describe('buildSpendingIntervals', () => {
 });
 
 describe('calculateSpendingReport', () => {
-  it('returns only the current interval when there are no transactions', () => {
+  it('returns the current interval and selectable categories when there are no transactions', () => {
     const report = calculateSpendingReport({
       throughDate: '2026-08-26',
       interval: 'day',
@@ -177,7 +177,18 @@ describe('calculateSpendingReport', () => {
 
     expect(report.total).toEqual(Money.zero());
     expect(report.average).toEqual(Money.zero());
-    expect(report.categories).toEqual([]);
+    expect(report.categories).toEqual([
+      expect.objectContaining({
+        categoryId: 'food',
+        total: Money.zero(),
+        spendingByInterval: [Money.zero()],
+      }),
+      expect.objectContaining({
+        categoryId: 'transport',
+        total: Money.zero(),
+        spendingByInterval: [Money.zero()],
+      }),
+    ]);
     expect(report.intervals.map(({ spending }) => spending)).toEqual([
       Money.zero(),
     ]);
@@ -200,6 +211,75 @@ describe('calculateSpendingReport', () => {
     ]);
     expect(report.average).toEqual(Money.fromCents(6_000));
     expect(report.categories[0]?.average).toEqual(Money.fromCents(6_000));
+  });
+
+  it('keeps activity whose signed total cancels across intervals', () => {
+    const refund = createTransaction({
+      id: 'refund',
+      accountId: 'cash',
+      categoryId: 'food',
+      amount: Money.fromCents(10_000),
+      date: '2026-08-10',
+      status: 'cleared',
+      kind: 'standard',
+      createdAt: '2026-08-10T00:00:00.000Z',
+      updatedAt: '2026-08-10T00:00:00.000Z',
+    });
+    const report = calculateSpendingReport({
+      throughDate: '2026-08-31',
+      interval: 'month',
+      intervalCount: 2,
+      accounts,
+      categories,
+      groups,
+      transactions: [expense('purchase', 10_000, '2026-07-10', 'food'), refund],
+    });
+
+    expect(report.total).toEqual(Money.zero());
+    expect(report.intervals.map(({ spending }) => spending.cents)).toEqual([
+      10_000, -10_000,
+    ]);
+    expect(report.categories[0]).toMatchObject({
+      categoryId: 'food',
+      total: Money.zero(),
+      spendingByInterval: [Money.fromCents(10_000), Money.fromCents(-10_000)],
+    });
+  });
+
+  it('distinguishes zero net activity from an interval with no activity', () => {
+    const refund = createTransaction({
+      id: 'same-month-refund',
+      accountId: 'cash',
+      categoryId: 'food',
+      amount: Money.fromCents(10_000),
+      date: '2026-08-20',
+      status: 'cleared',
+      kind: 'standard',
+      createdAt: '2026-08-20T00:00:00.000Z',
+      updatedAt: '2026-08-20T00:00:00.000Z',
+    });
+    const report = calculateSpendingReport({
+      throughDate: '2026-08-31',
+      interval: 'month',
+      intervalCount: 2,
+      accounts,
+      categories,
+      groups,
+      transactions: [
+        expense('same-month-purchase', 10_000, '2026-08-10', 'food'),
+        refund,
+      ],
+    });
+
+    expect(report.categories[0]?.total).toEqual(Money.zero());
+    expect(report.intervals).toHaveLength(1);
+    expect(report.intervals[0]?.categories).toEqual([
+      {
+        categoryId: 'food',
+        spending: Money.zero(),
+        percentageOfInterval: 0,
+      },
+    ]);
   });
 
   it('uses the same weekly intervals for totals, averages and category extremes', () => {
@@ -377,11 +457,13 @@ describe('calculateSpendingReport', () => {
     });
 
     expect(report.total).toEqual(Money.fromCents(4_000));
-    expect(report.categories).toEqual([
-      expect.objectContaining({
-        categoryId: UNCATEGORIZED_REPORT_CATEGORY_ID,
-        total: Money.fromCents(4_000),
-      }),
-    ]);
+    expect(report.categories).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          categoryId: UNCATEGORIZED_REPORT_CATEGORY_ID,
+          total: Money.fromCents(4_000),
+        }),
+      ]),
+    );
   });
 });
