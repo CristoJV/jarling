@@ -1,5 +1,9 @@
 import React from 'react';
-import { TextInput, View as mockSafeAreaView } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  TextInput,
+  View as mockSafeAreaView,
+} from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 
 import { createTag } from '@/domain/entities/tag';
@@ -39,6 +43,29 @@ const tags = [
 ];
 
 describe('TagSelectionScreen', () => {
+  it('keeps the confirm action in a keyboard-avoiding layout', async () => {
+    let renderer!: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(
+        <TagSelectionScreen
+          onBack={jest.fn()}
+          onConfirm={jest.fn()}
+          recentTags={[]}
+          selectedTagIds={[]}
+          tags={tags}
+        />,
+      );
+    });
+
+    expect(renderer.root.findByType(KeyboardAvoidingView).props.behavior).toBe(
+      'padding',
+    );
+    expect(
+      renderer.root.findByProps({ accessibilityRole: 'button' }),
+    ).toBeDefined();
+    await act(async () => renderer.unmount());
+  });
+
   it('toggles multiple rows and applies only on Confirm', async () => {
     const onConfirm = jest.fn();
     let renderer!: TestRenderer.ReactTestRenderer;
@@ -131,6 +158,35 @@ describe('TagSelectionScreen', () => {
       .find(({ props }) => typeof props.onPress === 'function');
     await act(async () => confirm!.props.onPress());
     expect(onConfirm).toHaveBeenCalledWith({ tagIds: [], newTagNames: [] });
+    await act(async () => renderer.unmount());
+  });
+
+  it('disables additional choices when 20 tags are selected', async () => {
+    const selectedTagIds = [
+      tags[0]!.id,
+      ...Array.from({ length: 19 }, (_, index) => `selected-${index}`),
+    ];
+    let renderer!: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(
+        <TagSelectionScreen
+          onBack={jest.fn()}
+          onConfirm={jest.fn()}
+          recentTags={[]}
+          selectedTagIds={selectedTagIds}
+          tags={tags}
+        />,
+      );
+    });
+
+    expect(
+      renderer.root.findByProps({ accessibilityRole: 'alert' }).props,
+    ).toEqual(expect.objectContaining({ children: 'tags.limitReached:20' }));
+    expect(
+      renderer.root
+        .findAllByProps({ accessibilityRole: 'checkbox' })
+        .filter(({ props }) => props.accessibilityState.disabled),
+    ).not.toHaveLength(0);
     await act(async () => renderer.unmount());
   });
 });

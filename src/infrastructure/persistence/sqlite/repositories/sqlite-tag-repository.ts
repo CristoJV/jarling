@@ -1,6 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-import type { Tag } from '@/domain/entities/tag';
+import { assertTransactionTagLimit, type Tag } from '@/domain/entities/tag';
 import type { TagRepository } from '@/domain/repositories/tag-repository';
 
 type TagRow = Readonly<{
@@ -97,6 +97,7 @@ export class SQLiteTagRepository implements TagRepository {
     tagIds: readonly string[],
     attachedAt: string,
   ): Promise<void> {
+    assertTransactionTagLimit(tagIds);
     const desired = new Set(tagIds);
     for (const transactionId of new Set(transactionIds)) {
       const rows = await this.database.getAllAsync<{ tag_id: string }>(

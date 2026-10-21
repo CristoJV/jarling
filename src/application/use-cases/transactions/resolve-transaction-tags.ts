@@ -2,11 +2,10 @@ import type { Clock } from '@/application/ports/clock';
 import type { IdGenerator } from '@/application/ports/id-generator';
 import {
   createTag,
+  assertTransactionTagLimit,
   tagNameKey,
-  TRANSACTION_TAG_LIMIT,
 } from '@/domain/entities/tag';
 import { TagNotFoundError } from '@/domain/errors/tag-not-found-error';
-import { TooManyTransactionTagsError } from '@/domain/errors/too-many-transaction-tags-error';
 import type { TagRepository } from '@/domain/repositories/tag-repository';
 
 export type TransactionTagsInput = Readonly<{
@@ -28,15 +27,14 @@ export async function resolveTransactionTagIds(
   const namesByKey = new Map(
     (input.newTagNames ?? []).map((name) => [tagNameKey(name), name]),
   );
-  if (requestedIds.length + namesByKey.size > TRANSACTION_TAG_LIMIT) {
-    throw new TooManyTransactionTagsError();
-  }
+  assertTransactionTagLimit(requestedIds);
 
   for (const id of requestedIds) {
     if (!(await tags.findById(id))) throw new TagNotFoundError(id);
   }
 
   const resolved = [...requestedIds];
+  const pending = [];
   for (const [nameKey, name] of namesByKey) {
     const existing = await tags.findByNameKey(nameKey);
     if (existing) {
@@ -50,13 +48,12 @@ export async function resolveTransactionTagIds(
       createdAt: instant,
       updatedAt: instant,
     });
-    await tags.save(tag);
+    pending.push(tag);
     resolved.push(tag.id);
   }
 
   const unique = [...new Set(resolved)];
-  if (unique.length > TRANSACTION_TAG_LIMIT) {
-    throw new TooManyTransactionTagsError();
-  }
+  assertTransactionTagLimit(unique);
+  for (const tag of pending) await tags.save(tag);
   return unique;
 }

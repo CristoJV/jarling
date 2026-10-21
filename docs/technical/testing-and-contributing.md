@@ -10,6 +10,8 @@ Test the narrowest authoritative layer first:
   repository interactions using in-memory adapters.
 - Infrastructure tests cover SQLite mapping, schema/migrations, transactions,
   encrypted codecs, validation, and export/restore round trips.
+- Released-schema fixtures are upgraded with Node's real in-memory SQLite engine;
+  string mocks remain useful for API routing but are not migration proof.
 - Presentation tests cover reusable state machines, view models, filters, and
   critical component behavior.
 - Maestro and manual device checks cover navigation, keyboards, safe areas,

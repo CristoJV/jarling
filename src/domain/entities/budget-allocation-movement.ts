@@ -1,6 +1,8 @@
 import { assertValidBudgetMonth } from '@/domain/entities/budget-allocation';
 import { InvalidBudgetMoveError } from '@/domain/errors/invalid-budget-move-error';
 import type { Money } from '@/domain/value-objects/money';
+import { isValidIsoDate } from '@/domain/value-objects/iso-date';
+import { isValidIsoInstant } from '@/domain/value-objects/iso-instant';
 
 export const BUDGET_ALLOCATION_MOVEMENT_PROVENANCES = [
   'recorded',
@@ -44,6 +46,15 @@ export function createBudgetAllocationMovement(
     throw new InvalidBudgetMoveError(
       'Movement occurrence instant and date must be recorded together.',
     );
+  }
+  if (
+    (movement.occurredOn !== undefined &&
+      !isValidIsoDate(movement.occurredOn)) ||
+    (movement.occurredAt !== undefined &&
+      !isValidIsoInstant(movement.occurredAt)) ||
+    !isValidIsoInstant(movement.recordedAt)
+  ) {
+    throw new InvalidBudgetMoveError('Movement timestamps must be valid.');
   }
   return movement;
 }

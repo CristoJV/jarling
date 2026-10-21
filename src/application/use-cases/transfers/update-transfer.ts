@@ -31,8 +31,8 @@ export class UpdateTransfer {
     private readonly transactions: TransactionRepository,
     private readonly unitOfWork: UnitOfWork,
     private readonly clock: Clock,
-    private readonly ids?: IdGenerator,
-    private readonly tags?: TagRepository,
+    private readonly ids: IdGenerator,
+    private readonly tags: TagRepository,
   ) {}
 
   async execute(input: UpdateTransferInput): Promise<TransferPair> {
@@ -74,9 +74,6 @@ export class UpdateTransfer {
       await this.transactions.save(source);
       await this.transactions.save(destination);
       if (hasTransactionTagChanges(input)) {
-        if (!this.ids || !this.tags) {
-          throw new Error('Tag dependencies are not configured.');
-        }
         const tagIds = await resolveTransactionTagIds(
           input,
           this.tags,

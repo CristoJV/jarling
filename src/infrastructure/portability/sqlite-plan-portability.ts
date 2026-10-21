@@ -33,7 +33,9 @@ import {
   TRANSACTION_STATUSES,
 } from '@/domain/entities/transaction';
 import { Money } from '@/domain/value-objects/money';
-import { tagNameKey } from '@/domain/entities/tag';
+import { tagNameKey, TRANSACTION_TAG_LIMIT } from '@/domain/entities/tag';
+import { isValidIsoDate } from '@/domain/value-objects/iso-date';
+import { isValidIsoInstant } from '@/domain/value-objects/iso-instant';
 import {
   BACKUP_FORMAT,
   CURRENT_BACKUP_VERSION,
@@ -522,6 +524,7 @@ function validateSnapshotSemantics(snapshot: PlanSnapshot): void {
   const transferGroups = new Map<
     string,
     Readonly<{
+      id: string;
       accountId: string;
       amount: number;
       categoryId?: string;
@@ -569,6 +572,7 @@ function validateSnapshotSemantics(snapshot: PlanSnapshot): void {
       transferGroups.set(groupId, [
         ...(transferGroups.get(groupId) ?? []),
         {
+          id,
           accountId,
           amount,
           ...(categoryId ? { categoryId } : {}),
@@ -614,13 +618,18 @@ function validateSnapshotSemantics(snapshot: PlanSnapshot): void {
     ) {
       throw new Error('The backup contains an invalid or duplicate tag.');
     }
-    requiredText(row, 'created_at');
-    requiredText(row, 'updated_at');
+    if (
+      !isValidIsoInstant(requiredText(row, 'created_at')) ||
+      !isValidIsoInstant(requiredText(row, 'updated_at'))
+    ) {
+      throw new Error('The backup contains invalid tag timestamps.');
+    }
     tagIds.add(id);
     tagNameKeys.add(nameKey);
   }
 
   const transactionTagKeys = new Set<string>();
+  const tagIdsByTransaction = new Map<string, Set<string>>();
   for (const row of snapshot.tables.transaction_tags) {
     const transactionId = requiredText(row, 'transaction_id');
     const tagId = requiredText(row, 'tag_id');
@@ -628,12 +637,28 @@ function validateSnapshotSemantics(snapshot: PlanSnapshot): void {
     if (
       transactionTagKeys.has(key) ||
       !transactionIds.has(transactionId) ||
-      !tagIds.has(tagId)
+      !tagIds.has(tagId) ||
+      !isValidIsoInstant(requiredText(row, 'attached_at'))
     ) {
       throw new Error('The backup contains an invalid transaction tag.');
     }
-    requiredText(row, 'attached_at');
     transactionTagKeys.add(key);
+    const assigned = tagIdsByTransaction.get(transactionId) ?? new Set();
+    assigned.add(tagId);
+    if (assigned.size > TRANSACTION_TAG_LIMIT) {
+      throw new Error('A transaction in the backup has too many tags.');
+    }
+    tagIdsByTransaction.set(transactionId, assigned);
+  }
+  for (const legs of transferGroups.values()) {
+    const first = tagIdsByTransaction.get(legs[0]!.id) ?? new Set<string>();
+    const second = tagIdsByTransaction.get(legs[1]!.id) ?? new Set<string>();
+    if (
+      first.size !== second.size ||
+      [...first].some((tagId) => !second.has(tagId))
+    ) {
+      throw new Error('Transfer legs in the backup have different tags.');
+    }
   }
 
   const linkIds = new Set<string>();
@@ -687,12 +712,15 @@ function validateSnapshotSemantics(snapshot: PlanSnapshot): void {
       (source !== undefined && !categoryIds.has(source)) ||
       (destination !== undefined && !categoryIds.has(destination)) ||
       (occurredAt === undefined) !== (occurredOn === undefined) ||
-      (occurredOn !== undefined && occurredOn.length !== 10) ||
+      (occurredOn !== undefined && !isValidIsoDate(occurredOn)) ||
+      (occurredAt !== undefined && !isValidIsoInstant(occurredAt)) ||
       !BUDGET_ALLOCATION_MOVEMENT_PROVENANCES.includes(provenance as never)
     ) {
       throw new Error('The backup contains an invalid assignment movement.');
     }
-    requiredText(row, 'recorded_at');
+    if (!isValidIsoInstant(requiredText(row, 'recorded_at'))) {
+      throw new Error('The backup contains an invalid movement timestamp.');
+    }
     movementIds.add(id);
     if (source) {
       const key = `${source}\u0000${month}`;

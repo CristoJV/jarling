@@ -504,6 +504,7 @@ export const english = {
   'tags.empty': 'No tags yet.',
   'tags.clearAll': 'Clear all',
   'tags.confirm': 'Confirm ({{count}})',
+  'tags.limitReached': 'A transaction can have at most {{count}} tags.',
   'tags.untagged': 'Without tags',
   'tags.filter': 'Tags: {{value}}',
   'targets.weekly': 'Weekly',
@@ -1121,6 +1122,8 @@ export const spanish: TranslationDictionary = {
   'tags.empty': 'Todavía no hay etiquetas.',
   'tags.clearAll': 'Deseleccionar',
   'tags.confirm': 'Confirmar ({{count}})',
+  'tags.limitReached':
+    'Una transacción puede tener como máximo {{count}} etiquetas.',
   'tags.untagged': 'Sin etiquetas',
   'tags.filter': 'Etiquetas: {{value}}',
   'targets.weekly': 'Semanal',

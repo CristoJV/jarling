@@ -1,4 +1,4 @@
-import type { Tag } from '@/domain/entities/tag';
+import { assertTransactionTagLimit, type Tag } from '@/domain/entities/tag';
 import type { TagRepository } from '@/domain/repositories/tag-repository';
 
 export class InMemoryTagRepository implements TagRepository {
@@ -65,6 +65,7 @@ export class InMemoryTagRepository implements TagRepository {
     tagIds: readonly string[],
     attachedAt: string,
   ): Promise<void> {
+    assertTransactionTagLimit(tagIds);
     for (const transactionId of transactionIds) {
       const current = this.associations.get(transactionId) ?? new Map();
       const desired = new Set(tagIds);

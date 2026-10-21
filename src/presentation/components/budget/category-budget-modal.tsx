@@ -157,6 +157,8 @@ export function CategoryBudgetModal({
 
           <View style={styles.actions}>
             <Pressable
+              accessibilityLabel={t('budget.moveMoney')}
+              accessibilityRole="button"
               onPress={() => {
                 keypadRef.current?.resolve();
                 onMoveMoney();
@@ -166,16 +168,16 @@ export function CategoryBudgetModal({
                 pressed && styles.actionPressed,
               ]}
             >
-              <View style={styles.actionIconButton}>
-                <MaterialCommunityIcons
-                  color={theme.colors.primary}
-                  name="swap-horizontal"
-                  size={27}
-                />
-              </View>
+              <MaterialCommunityIcons
+                color={theme.colors.primary}
+                name="swap-horizontal"
+                size={25}
+              />
               <Text style={styles.actionText}>{t('budget.moveMoney')}</Text>
             </Pressable>
             <Pressable
+              accessibilityLabel={t('budget.details')}
+              accessibilityRole="button"
               onPress={() => {
                 keypadRef.current?.resolve();
                 onDetails();
@@ -185,13 +187,11 @@ export function CategoryBudgetModal({
                 pressed && styles.actionPressed,
               ]}
             >
-              <View style={styles.actionIconButton}>
-                <MaterialCommunityIcons
-                  color={theme.colors.primary}
-                  name="dots-horizontal"
-                  size={29}
-                />
-              </View>
+              <MaterialCommunityIcons
+                color={theme.colors.primary}
+                name="information-outline"
+                size={25}
+              />
               <Text style={styles.actionText}>{t('budget.details')}</Text>
             </Pressable>
           </View>
@@ -320,23 +320,19 @@ const createStyles = (theme: AppTheme) =>
     },
     action: {
       flex: 1,
-      minHeight: CATEGORY_CALCULATOR_BUTTON_HEIGHT + 16,
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 3,
-    },
-    actionIconButton: {
-      width: '100%',
       height: CATEGORY_CALCULATOR_BUTTON_HEIGHT,
+      paddingHorizontal: 14,
       backgroundColor: theme.colors.surfaceMuted,
       borderRadius: theme.radii.pill,
+      flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
+      gap: 8,
     },
     actionText: {
-      color: theme.colors.textSecondary,
-      fontSize: 11,
-      fontWeight: '700',
+      color: theme.colors.primary,
+      fontSize: 13,
+      fontWeight: '800',
     },
     contextualActions: {
       width: '100%',

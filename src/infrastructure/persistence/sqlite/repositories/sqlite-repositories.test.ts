@@ -290,4 +290,39 @@ describe('SQLite repositories', () => {
       ),
     );
   });
+
+  it('aggregates filtered non-transfer amounts in SQLite', async () => {
+    const { database, getFirstAsync } = databaseMock({
+      firstRow: { income: 12_000, spending: 3_500 },
+    });
+
+    await expect(
+      new SQLiteTransactionRepository(database).summarizeAmounts({
+        accountId: 'account-1',
+        tagIds: ['tag-1'],
+        payee: 'market',
+      }),
+    ).resolves.toEqual({
+      income: Money.fromCents(12_000),
+      spending: Money.fromCents(3_500),
+      net: Money.fromCents(8_500),
+    });
+    expect(getFirstAsync).toHaveBeenCalledWith(
+      expect.stringMatching(/sum\(CASE WHEN kind <> 'transfer'/),
+      'account-1',
+      'tag-1',
+      '%market%',
+    );
+  });
+
+  it('rejects an unbounded tag filter before issuing SQL', async () => {
+    const { database, getAllAsync } = databaseMock();
+
+    await expect(
+      new SQLiteTransactionRepository(database).findAll({
+        tagIds: Array.from({ length: 21 }, (_, index) => `tag-${index}`),
+      }),
+    ).rejects.toThrow('more than 20 tags');
+    expect(getAllAsync).not.toHaveBeenCalled();
+  });
 });

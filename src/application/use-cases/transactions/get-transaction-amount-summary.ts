@@ -1,9 +1,7 @@
 import type { GetTransactionsInput } from '@/application/use-cases/transactions/get-transactions';
 import type { TransactionRepository } from '@/domain/repositories/transaction-repository';
-import {
-  calculateTransactionAmountSummary,
-  type TransactionAmountSummary,
-} from '@/domain/services/calculate-transaction-amount-summary';
+import type { TransactionAmountSummary } from '@/domain/services/calculate-transaction-amount-summary';
+import { assertTransactionTagLimit } from '@/domain/entities/tag';
 
 export type GetTransactionAmountSummaryInput = Omit<
   GetTransactionsInput,
@@ -16,8 +14,7 @@ export class GetTransactionAmountSummary {
   async execute(
     input: GetTransactionAmountSummaryInput,
   ): Promise<TransactionAmountSummary> {
-    return calculateTransactionAmountSummary(
-      await this.transactions.findAll(input),
-    );
+    assertTransactionTagLimit(input.tagIds ?? []);
+    return this.transactions.summarizeAmounts(input);
   }
 }

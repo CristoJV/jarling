@@ -3,6 +3,7 @@ import type {
   TransactionStatus,
 } from '@/domain/entities/transaction';
 import type { Money } from '@/domain/value-objects/money';
+import type { TransactionAmountSummary } from '@/domain/services/calculate-transaction-amount-summary';
 
 export type TransactionFilters = Readonly<{
   accountId?: string;
@@ -28,6 +29,9 @@ export interface TransactionRepository {
   findByGroup(groupId: string): Promise<readonly Transaction[]>;
   findDistinctPayees(): Promise<readonly string[]>;
   findBalancesByAccount(): Promise<ReadonlyMap<string, Money>>;
+  summarizeAmounts(
+    filters?: TransactionFilters,
+  ): Promise<TransactionAmountSummary>;
   save(transaction: Transaction): Promise<void>;
   reassignCategory(
     sourceCategoryId: string,

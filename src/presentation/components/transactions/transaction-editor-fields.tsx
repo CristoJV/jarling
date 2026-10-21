@@ -143,13 +143,6 @@ export function TransactionEditorFields({
           />
         ) : null}
         <FormRow
-          icon="tag-multiple-outline"
-          label={tagSummary}
-          muted={tagSummary === t('tags.none')}
-          onPress={() => onEdit('tags')}
-          overline={t('tags.title')}
-        />
-        <FormRow
           icon="cash"
           label={accountName}
           muted={!accountId}
@@ -174,6 +167,13 @@ export function TransactionEditorFields({
           label={formatDate(date, language)}
           onPress={() => onEdit('date')}
           overline={t('transactions.date')}
+        />
+        <FormRow
+          icon="tag-multiple-outline"
+          label={tagSummary}
+          muted={tagSummary === t('tags.none')}
+          onPress={() => onEdit('tags')}
+          overline={t('tags.title')}
         />
         {showMore ? (
           <>
