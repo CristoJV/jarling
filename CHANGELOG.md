@@ -3,6 +3,16 @@
 All notable user-facing changes to Jarling are documented here. The project
 follows [Semantic Versioning](https://semver.org/).
 
+## [1.5.0](https://github.com/CristoJV/jarling/compare/v1.4.0...v1.5.0) (2026-10-21)
+
+### Features
+
+- add budget allocation movements trazability ([ed7acf1](https://github.com/CristoJV/jarling/commit/ed7acf1c90128b20a5fc265f6943e59d3786ed90))
+- **reports:** Improve Spending reports ([f46dacf](https://github.com/CristoJV/jarling/commit/f46dacf71c142c9145b4b94db0f68c5144127cdd))
+- transaction tags ([bdec78a](https://github.com/CristoJV/jarling/commit/bdec78a1c8f6c02d3c6796c5e3f890f6b4ad4a76))
+- transactions screen shows total net income on searching ([5b4a8d2](https://github.com/CristoJV/jarling/commit/5b4a8d271584af59fba32654b31cf0fac02ef036))
+- **transactions:** harden tag handling and polish transaction flows ([51e44dc](https://github.com/CristoJV/jarling/commit/51e44dc64d309d95d35f05a85d0cd915db4c2ab4))
+
 ## [1.4.0](https://github.com/CristoJV/jarling/compare/v1.3.0...v1.4.0) (2026-10-05)
 
 ### Features
