@@ -1,5 +1,6 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { useMemo, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   type NativeScrollEvent,
@@ -74,7 +75,7 @@ function monthLabel(month: string, language: SupportedLanguage): string {
 }
 
 export function ReportsScreen() {
-  const [throughDate] = useState(localIsoDate);
+  const [throughDate, setThroughDate] = useState(localIsoDate);
   const [kind, setKind] = useState<ReportKind>('spending');
   const [spendingInterval, setSpendingInterval] =
     useState<SpendingIntervalUnit>('month');
@@ -106,14 +107,12 @@ export function ReportsScreen() {
     reports && reports.numberOfMonths === undefined ? reports : null;
 
   const effectiveSelectedCategoryId =
-    spendingIntervalCount > 1 &&
     selectedSpendingReports?.spending.categories.some(
       ({ categoryId }) => categoryId === selectedCategoryId,
     )
       ? selectedCategoryId
       : undefined;
   const effectiveSelectedIntervalKey =
-    spendingIntervalCount > 1 &&
     selectedSpendingReports?.spending.intervals.some(
       ({ key }) => key === selectedIntervalKey,
     )
@@ -128,6 +127,14 @@ export function ReportsScreen() {
         theme.dark,
       ),
     [selectedSpendingReports, theme.dark],
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      setThroughDate(localIsoDate());
+      setSelectedCategoryId(undefined);
+      setSelectedIntervalKey(undefined);
+    }, []),
   );
 
   return (
@@ -173,23 +180,19 @@ export function ReportsScreen() {
             <>
               <View style={styles.reportSelectors}>
                 <ReportSelectorButton
-                  label={intervalLabel(spendingInterval, t)}
-                  onPress={() => setSelector('interval')}
-                />
-                <ReportSelectorButton
                   label={periodLabel(spendingIntervalCount, t)}
                   onPress={() => setSelector('period')}
+                />
+                <ReportSelectorButton
+                  label={intervalPluralLabel(spendingInterval, t)}
+                  onPress={() => setSelector('interval')}
                 />
               </View>
               {selectedSpendingReports ? (
                 <SpendingReportOverview
                   categoryColors={categoryColors}
                   onClearCategory={() => setSelectedCategoryId(undefined)}
-                  onSelectInterval={(intervalKey) =>
-                    setSelectedIntervalKey((current) =>
-                      current === intervalKey ? undefined : intervalKey,
-                    )
-                  }
+                  onSelectInterval={setSelectedIntervalKey}
                   report={selectedSpendingReports.spending}
                   selectedCategoryId={effectiveSelectedCategoryId}
                   selectedIntervalKey={effectiveSelectedIntervalKey}
@@ -207,7 +210,6 @@ export function ReportsScreen() {
           {selectedSpendingReports && kind === 'spending' ? (
             <SpendingCategoryBreakdown
               categoryColors={categoryColors}
-              onClearInterval={() => setSelectedIntervalKey(undefined)}
               onSelectCategory={(categoryId) =>
                 setSelectedCategoryId((current) =>
                   current === categoryId ? undefined : categoryId,
@@ -268,7 +270,7 @@ export function ReportsScreen() {
             }
             setSpendingInterval(value);
           }}
-          options={(['day', 'week', 'month', 'year'] as const).map((value) => ({
+          options={(['week', 'month', 'year'] as const).map((value) => ({
             value,
             label: intervalLabel(value, t),
           }))}
@@ -524,6 +526,13 @@ function intervalLabel(
   return t(`reports.interval.${interval}`);
 }
 
+function intervalPluralLabel(
+  interval: SpendingIntervalUnit,
+  t: ReturnType<typeof useTranslation>['t'],
+) {
+  return t(`reports.intervalPlural.${interval}`);
+}
+
 function periodLabel(count: number, t: ReturnType<typeof useTranslation>['t']) {
   return t('reports.lastIntervals', { count });
 }
@@ -576,7 +585,7 @@ const createStyles = (theme: AppTheme) =>
     headerActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
     reportSelectors: {
       flexDirection: 'row',
-      gap: 10,
+      gap: 8,
     },
     overviewLoading: {
       minHeight: 132,
@@ -585,11 +594,11 @@ const createStyles = (theme: AppTheme) =>
     },
     reportSelector: {
       minWidth: 0,
-      minHeight: 48,
-      paddingHorizontal: 14,
+      minHeight: 40,
+      paddingHorizontal: 11,
       backgroundColor: theme.colors.surface,
       borderColor: theme.colors.border,
-      borderRadius: 15,
+      borderRadius: 13,
       borderWidth: 1,
       flex: 1,
       flexDirection: 'row',
@@ -601,7 +610,7 @@ const createStyles = (theme: AppTheme) =>
     reportSelectorText: {
       flex: 1,
       color: theme.colors.text,
-      fontSize: 14,
+      fontSize: 13,
       fontWeight: '700',
     },
     content: {

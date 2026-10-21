@@ -33,7 +33,21 @@ by color alone.
 
 ## Reports
 
-- **Spending Breakdown** groups dated net category spending.
+- **Spending Breakdown** groups dated net category spending by week, month, or
+  year. It opens on the current month and compares it with the last six months.
+  The selected period shows its total, the average for the complete comparison
+  window, and its category composition. Selecting an earlier period updates the
+  category detail, while **Current period** returns directly to the latest one.
+  Monthly history shows three rows at a time and scrolls for the remaining
+  months. Selecting a category switches the headline, window total, average,
+  and history values to that category until its filter is removed. Bar geometry
+  remains anchored to the complete interval composition: other category colors
+  disappear while the selected category keeps its original position and size.
+  The comparison begins with the interval containing the oldest transaction,
+  so averages do not treat earlier unavailable history as zero spending.
+  History bars share one scale based on the largest positive interval. Net
+  credits remain signed and appear separately from positive spending
+  percentages.
 - **Income vs Spending** compares periods and treats inflows to Ready to Assign
   as income. Its centered monthly chart grows upward in green for positive Net
   Income and downward in red for negative Net Income.
@@ -48,6 +62,7 @@ Income/Spending. Reports respect transaction dates: a September refund does not
 rewrite an August report, though a range containing both months includes both
 movements.
 
-Signed net credits are preserved by the calculations. A richer dedicated
-presentation for credit-only categories remains a future proposal in
-[RFC 0001](../rfc/0001-signed-net-spending-presentation.md).
+Signed net credits are preserved by the calculations and displayed separately
+from positive spending. Zero net activity also remains distinct from a period
+with no activity. [RFC 0001](../rfc/0001-signed-net-spending-presentation.md)
+records the presentation decision.

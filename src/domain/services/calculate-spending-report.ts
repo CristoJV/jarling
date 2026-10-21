@@ -112,17 +112,29 @@ export function calculateSpendingReport({
         ({ endDate }) => endDate >= oldestTransactionDate,
       )
     : requestedIntervals.slice(-1);
-  const effectiveIntervalCount = intervals.length;
   const accountById = new Map(accounts.map((account) => [account.id, account]));
   const categoryById = new Map(
     categories.map((category) => [category.id, category]),
   );
   const groupById = new Map(groups.map((group) => [group.id, group]));
   const spendingByCategory = new Map<string, number[]>();
+  const activityByCategory = new Map<string, boolean[]>();
   const intervalIndexByKey = new Map(
     intervals.map(({ key }, index) => [key, index]),
   );
   const firstDate = intervals[0]!.startDate;
+
+  for (const category of categories) {
+    if (category.hidden || category.linkedAccountId) continue;
+    spendingByCategory.set(
+      category.id,
+      Array.from({ length: intervals.length }, () => 0),
+    );
+    activityByCategory.set(
+      category.id,
+      Array.from({ length: intervals.length }, () => false),
+    );
+  }
 
   for (const transaction of transactions) {
     if (transaction.date < firstDate || transaction.date > throughDate) {
@@ -141,10 +153,15 @@ export function calculateSpendingReport({
 
     const values =
       spendingByCategory.get(categoryId) ??
-      Array.from({ length: effectiveIntervalCount }, () => 0);
+      Array.from({ length: intervals.length }, () => 0);
     values[intervalIndex] =
       (values[intervalIndex] ?? 0) - transaction.amount.cents;
     spendingByCategory.set(categoryId, values);
+    const activity =
+      activityByCategory.get(categoryId) ??
+      Array.from({ length: intervals.length }, () => false);
+    activity[intervalIndex] = true;
+    activityByCategory.set(categoryId, activity);
   }
 
   const categoryRows = [...spendingByCategory]
@@ -168,10 +185,10 @@ export function calculateSpendingReport({
             ? (groupById.get(category.groupId)?.name ?? 'Other')
             : 'Other',
         values,
+        activity: activityByCategory.get(categoryId)!,
         totalCents,
       };
     })
-    .filter(({ totalCents }) => totalCents !== 0)
     .sort((left, right) => right.totalCents - left.totalCents);
   const totalCents = categoryRows.reduce(
     (sum, category) => sum + category.totalCents,
@@ -205,7 +222,7 @@ export function calculateSpendingReport({
         spending: Money.fromCents(intervalTotalCents),
         categories: categoryRows.flatMap((category) => {
           const spendingCents = category.values[index] ?? 0;
-          return spendingCents !== 0
+          return category.activity[index]
             ? [
                 {
                   categoryId: category.categoryId,
@@ -221,7 +238,7 @@ export function calculateSpendingReport({
       };
     }),
     total: Money.fromCents(totalCents),
-    average: Money.fromCents(Math.round(totalCents / effectiveIntervalCount)),
+    average: Money.fromCents(Math.round(totalCents / intervals.length)),
     categories: categoryRows.map((category) => {
       const lowestIndex = extremeIndex(category.values, 'lowest');
       const highestIndex = extremeIndex(category.values, 'highest');
@@ -232,7 +249,7 @@ export function calculateSpendingReport({
         groupName: category.groupName,
         total: Money.fromCents(category.totalCents),
         average: Money.fromCents(
-          Math.round(category.totalCents / effectiveIntervalCount),
+          Math.round(category.totalCents / intervals.length),
         ),
         spendingByInterval: category.values.map((value) =>
           Money.fromCents(value),

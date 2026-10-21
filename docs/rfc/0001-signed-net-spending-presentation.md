@@ -1,8 +1,8 @@
 # RFC 0001: Signed net-spending presentation
 
-- Status: Draft
+- Status: Implemented
 - Origin: Category Inflows P2
-- Last reviewed: 2026-08-31
+- Last reviewed: 2026-10-21
 
 ## Problem
 
