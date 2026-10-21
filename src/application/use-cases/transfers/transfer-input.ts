@@ -15,6 +15,8 @@ export type TransferInput = Readonly<{
   date: string;
   notes?: string;
   status: Exclude<TransactionStatus, 'reconciled'>;
+  tagIds?: readonly string[];
+  newTagNames?: readonly string[];
 }>;
 
 export async function prepareTransferInput(

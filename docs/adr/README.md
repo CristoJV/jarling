@@ -28,6 +28,8 @@ ADR that supersedes the previous one instead of rewriting history.
 | [0011](0011-net-worth-history-presentation.md)          | Scrollable monthly Net Worth history               | Accepted |
 | [0012](0012-monthly-report-change-visualization.md)     | Monthly report direction and change visualization  | Accepted |
 | [0013](0013-mutable-assignment-movement-history.md)     | Assignment history follows current categories      | Accepted |
+| [0014](0014-transaction-tag-persistence.md)             | Normalized and atomic transaction tags             | Accepted |
+| [0015](0015-confirmed-multi-select-tag-flow.md)         | Confirmed multi-select transaction tag flow        | Accepted |
 
 ## Creating an ADR
 

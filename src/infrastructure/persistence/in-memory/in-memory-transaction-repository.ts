@@ -10,6 +10,13 @@ import { Money } from '@/domain/value-objects/money';
 
 export class InMemoryTransactionRepository implements TransactionRepository {
   private readonly transactions = new Map<string, Transaction>();
+  private tagLookup?: (transactionId: string) => Promise<readonly string[]>;
+
+  setTagLookup(
+    lookup: (transactionId: string) => Promise<readonly string[]>,
+  ): void {
+    this.tagLookup = lookup;
+  }
 
   async findAll(
     filters: TransactionFilters = {},
@@ -17,6 +24,15 @@ export class InMemoryTransactionRepository implements TransactionRepository {
     const search = filters.search?.trim().toLocaleLowerCase();
     const payee = filters.payee?.trim().toLocaleLowerCase();
     const memo = filters.memo?.trim().toLocaleLowerCase();
+
+    const tagIdsByTransaction = new Map<string, readonly string[]>();
+    if ((filters.tagIds?.length || filters.untagged) && this.tagLookup) {
+      await Promise.all(
+        [...this.transactions.keys()].map(async (id) => {
+          tagIdsByTransaction.set(id, await this.tagLookup!(id));
+        }),
+      );
+    }
 
     const matching = [...this.transactions.values()]
       .filter(
@@ -38,6 +54,16 @@ export class InMemoryTransactionRepository implements TransactionRepository {
       .filter(
         (transaction) =>
           !filters.status || transaction.status === filters.status,
+      )
+      .filter((transaction) => {
+        if (!filters.tagIds?.length) return true;
+        const assigned = tagIdsByTransaction.get(transaction.id) ?? [];
+        return filters.tagIds.some((id) => assigned.includes(id));
+      })
+      .filter(
+        (transaction) =>
+          !filters.untagged ||
+          (tagIdsByTransaction.get(transaction.id) ?? []).length === 0,
       )
       .filter(
         (transaction) =>

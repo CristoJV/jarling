@@ -20,5 +20,7 @@ describe('SQLitePlanDataStore', () => {
     expect(sql).toContain('DELETE FROM category_targets');
     expect(sql).toContain('DELETE FROM category_target_snoozes');
     expect(sql).toContain('DELETE FROM transaction_links');
+    expect(sql).toContain('DELETE FROM transaction_tags');
+    expect(sql).toContain('DELETE FROM tags');
   });
 });

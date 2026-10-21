@@ -33,6 +33,7 @@ import {
   TRANSACTION_STATUSES,
 } from '@/domain/entities/transaction';
 import { Money } from '@/domain/value-objects/money';
+import { tagNameKey } from '@/domain/entities/tag';
 import {
   BACKUP_FORMAT,
   CURRENT_BACKUP_VERSION,
@@ -95,6 +96,14 @@ const tables = [
       'created_at',
       'updated_at',
     ],
+  },
+  {
+    name: 'tags',
+    columns: ['id', 'name', 'name_key', 'created_at', 'updated_at'],
+  },
+  {
+    name: 'transaction_tags',
+    columns: ['transaction_id', 'tag_id', 'attached_at'],
   },
   {
     name: 'transaction_links',
@@ -319,6 +328,10 @@ function migrateSnapshotDocument(value: unknown): unknown {
         )
           ? migrated.tables.budget_allocation_movements
           : baselineMovements(allocations),
+        tags: Array.isArray(migrated.tables.tags) ? migrated.tables.tags : [],
+        transaction_tags: Array.isArray(migrated.tables.transaction_tags)
+          ? migrated.tables.transaction_tags
+          : [],
       },
     };
   }
@@ -586,6 +599,41 @@ function validateSnapshotSemantics(snapshot: PlanSnapshot): void {
     ) {
       throw new Error('The backup contains an invalid card payment transfer.');
     }
+  }
+
+  const tagIds = new Set<string>();
+  const tagNameKeys = new Set<string>();
+  for (const row of snapshot.tables.tags) {
+    const id = requiredText(row, 'id');
+    const name = requiredText(row, 'name');
+    const nameKey = requiredText(row, 'name_key');
+    if (
+      tagIds.has(id) ||
+      tagNameKeys.has(nameKey) ||
+      tagNameKey(name) !== nameKey
+    ) {
+      throw new Error('The backup contains an invalid or duplicate tag.');
+    }
+    requiredText(row, 'created_at');
+    requiredText(row, 'updated_at');
+    tagIds.add(id);
+    tagNameKeys.add(nameKey);
+  }
+
+  const transactionTagKeys = new Set<string>();
+  for (const row of snapshot.tables.transaction_tags) {
+    const transactionId = requiredText(row, 'transaction_id');
+    const tagId = requiredText(row, 'tag_id');
+    const key = `${transactionId}\u0000${tagId}`;
+    if (
+      transactionTagKeys.has(key) ||
+      !transactionIds.has(transactionId) ||
+      !tagIds.has(tagId)
+    ) {
+      throw new Error('The backup contains an invalid transaction tag.');
+    }
+    requiredText(row, 'attached_at');
+    transactionTagKeys.add(key);
   }
 
   const linkIds = new Set<string>();

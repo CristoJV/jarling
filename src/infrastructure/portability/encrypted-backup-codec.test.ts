@@ -133,6 +133,8 @@ const emptySnapshot = {
     category_groups: [],
     categories: [],
     transactions: [],
+    tags: [],
+    transaction_tags: [],
     transaction_links: [],
     budget_allocations: [],
     budget_allocation_movements: [],

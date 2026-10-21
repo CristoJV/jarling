@@ -8,9 +8,14 @@ import {
 import type { AccountRepository } from '@/domain/repositories/account-repository';
 import type { CategoryRepository } from '@/domain/repositories/category-repository';
 import type { TransactionRepository } from '@/domain/repositories/transaction-repository';
+import type { TagRepository } from '@/domain/repositories/tag-repository';
 import { Money } from '@/domain/value-objects/money';
 
 import { prepareTransferInput, type TransferInput } from './transfer-input';
+import {
+  hasTransactionTagChanges,
+  resolveTransactionTagIds,
+} from '@/application/use-cases/transactions/resolve-transaction-tags';
 
 export type TransferPair = Readonly<{
   source: Transaction;
@@ -25,6 +30,7 @@ export class CreateTransfer {
     private readonly unitOfWork: UnitOfWork,
     private readonly ids: IdGenerator,
     private readonly clock: Clock,
+    private readonly tags?: TagRepository,
   ) {}
 
   async execute(input: TransferInput): Promise<TransferPair> {
@@ -62,6 +68,20 @@ export class CreateTransfer {
     return this.unitOfWork.run(async () => {
       await this.transactions.save(source);
       await this.transactions.save(destination);
+      if (hasTransactionTagChanges(input)) {
+        if (!this.tags) throw new Error('Tag repository is not configured.');
+        const tagIds = await resolveTransactionTagIds(
+          input,
+          this.tags,
+          this.ids,
+          this.clock,
+        );
+        await this.tags.replaceTransactionTags(
+          [source.id, destination.id],
+          tagIds,
+          instant,
+        );
+      }
       return { source, destination };
     });
   }

@@ -1,4 +1,5 @@
 import type { Clock } from '@/application/ports/clock';
+import type { IdGenerator } from '@/application/ports/id-generator';
 import type { UnitOfWork } from '@/application/ports/unit-of-work';
 import {
   updateTransaction as applyChanges,
@@ -12,6 +13,7 @@ import { ProtectedTransactionError } from '@/domain/errors/protected-transaction
 import type { AccountRepository } from '@/domain/repositories/account-repository';
 import type { CategoryRepository } from '@/domain/repositories/category-repository';
 import type { TransactionRepository } from '@/domain/repositories/transaction-repository';
+import type { TagRepository } from '@/domain/repositories/tag-repository';
 import { transactionAccountLockReason } from '@/domain/services/transaction-edit-policy';
 import { Money } from '@/domain/value-objects/money';
 
@@ -19,6 +21,10 @@ import {
   prepareTransactionInput,
   type TransactionInput,
 } from './transaction-input';
+import {
+  hasTransactionTagChanges,
+  resolveTransactionTagIds,
+} from './resolve-transaction-tags';
 
 export type UpdateTransactionInput = TransactionInput &
   Readonly<{ id: string }>;
@@ -30,6 +36,8 @@ export class UpdateTransaction {
     private readonly transactions: TransactionRepository,
     private readonly unitOfWork: UnitOfWork,
     private readonly clock: Clock,
+    private readonly ids?: IdGenerator,
+    private readonly tags?: TagRepository,
   ) {}
 
   async execute(input: UpdateTransactionInput): Promise<Transaction> {
@@ -65,6 +73,22 @@ export class UpdateTransaction {
 
     return this.unitOfWork.run(async () => {
       await this.transactions.save(updated);
+      if (hasTransactionTagChanges(input)) {
+        if (!this.ids || !this.tags) {
+          throw new Error('Tag dependencies are not configured.');
+        }
+        const tagIds = await resolveTransactionTagIds(
+          input,
+          this.tags,
+          this.ids,
+          this.clock,
+        );
+        await this.tags.replaceTransactionTags(
+          [updated.id],
+          tagIds,
+          updated.updatedAt,
+        );
+      }
       return updated;
     });
   }

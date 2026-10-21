@@ -192,7 +192,7 @@ export const migrations: readonly Migration[] = [
   },
   {
     version: 4,
-    name: 'assignment_movement_history',
+    name: 'assignment_movement_history_and_transaction_tags',
     up: `
       CREATE TABLE budget_allocation_movements (
         id TEXT PRIMARY KEY NOT NULL,
@@ -238,6 +238,28 @@ export const migrations: readonly Migration[] = [
         ON budget_allocation_movements(source_category_id, month, occurred_on);
       CREATE INDEX budget_allocation_movements_destination_idx
         ON budget_allocation_movements(destination_category_id, month, occurred_on);
+
+      CREATE TABLE tags (
+        id TEXT PRIMARY KEY NOT NULL,
+        name TEXT NOT NULL CHECK (
+          length(trim(name)) > 0 AND length(name) <= 60
+        ),
+        name_key TEXT NOT NULL UNIQUE CHECK (length(name_key) > 0),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+
+      CREATE TABLE transaction_tags (
+        transaction_id TEXT NOT NULL,
+        tag_id TEXT NOT NULL,
+        attached_at TEXT NOT NULL,
+        PRIMARY KEY (transaction_id, tag_id),
+        FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE CASCADE,
+        FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX transaction_tags_tag_transaction_idx
+        ON transaction_tags(tag_id, transaction_id);
     `,
   },
 ];

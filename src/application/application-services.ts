@@ -29,6 +29,7 @@ import type { GetTransactions } from '@/application/use-cases/transactions/get-t
 import type { GetTransactionAmountSummary } from '@/application/use-cases/transactions/get-transaction-amount-summary';
 import type { GetTransaction } from '@/application/use-cases/transactions/get-transaction';
 import type { GetPayees } from '@/application/use-cases/transactions/get-payees';
+import type { GetTags } from '@/application/use-cases/transactions/get-tags';
 import type { UpdateTransaction } from '@/application/use-cases/transactions/update-transaction';
 import type { CreateTransactionLink } from '@/application/use-cases/transactions/create-transaction-link';
 import type { DeleteTransactionLink } from '@/application/use-cases/transactions/delete-transaction-link';
@@ -80,6 +81,7 @@ export type ApplicationServices = Readonly<{
     getAmountSummary: Pick<GetTransactionAmountSummary, 'execute'>;
     getById: Pick<GetTransaction, 'execute'>;
     getPayees: Pick<GetPayees, 'execute'>;
+    getTags: Pick<GetTags, 'execute'>;
     createLink: Pick<CreateTransactionLink, 'execute'>;
     getLinks: Pick<GetTransactionLinks, 'execute'>;
     deleteLink: Pick<DeleteTransactionLink, 'execute'>;

@@ -32,6 +32,7 @@ import { GetTransactions } from '@/application/use-cases/transactions/get-transa
 import { GetTransactionAmountSummary } from '@/application/use-cases/transactions/get-transaction-amount-summary';
 import { GetTransaction } from '@/application/use-cases/transactions/get-transaction';
 import { GetPayees } from '@/application/use-cases/transactions/get-payees';
+import { GetTags } from '@/application/use-cases/transactions/get-tags';
 import { UpdateTransaction } from '@/application/use-cases/transactions/update-transaction';
 import { CreateTransactionLink } from '@/application/use-cases/transactions/create-transaction-link';
 import { DeleteTransactionLink } from '@/application/use-cases/transactions/delete-transaction-link';
@@ -57,6 +58,7 @@ import { SQLiteCategoryTargetRepository } from '@/infrastructure/persistence/sql
 import { SQLiteCategoryTargetSnoozeRepository } from '@/infrastructure/persistence/sqlite/repositories/sqlite-category-target-snooze-repository';
 import { SQLiteTransactionRepository } from '@/infrastructure/persistence/sqlite/repositories/sqlite-transaction-repository';
 import { SQLiteTransactionLinkRepository } from '@/infrastructure/persistence/sqlite/repositories/sqlite-transaction-link-repository';
+import { SQLiteTagRepository } from '@/infrastructure/persistence/sqlite/repositories/sqlite-tag-repository';
 import { ExpoIdGenerator } from '@/infrastructure/system/expo-id-generator';
 import { SystemClock } from '@/infrastructure/system/system-clock';
 import { SQLitePlanPortability } from '@/infrastructure/portability/sqlite-plan-portability';
@@ -74,6 +76,7 @@ export function createApplication(
     connection,
   );
   const transactions = new SQLiteTransactionRepository(connection);
+  const tags = new SQLiteTagRepository(connection);
   const transactionLinks = new SQLiteTransactionLinkRepository(connection);
   const targets = new SQLiteCategoryTargetRepository(connection);
   const targetSnoozes = new SQLiteCategoryTargetSnoozeRepository(connection);
@@ -194,6 +197,7 @@ export function createApplication(
         unitOfWork,
         ids,
         clock,
+        tags,
       ),
       update: new UpdateTransaction(
         accounts,
@@ -201,12 +205,15 @@ export function createApplication(
         transactions,
         unitOfWork,
         clock,
+        ids,
+        tags,
       ),
       delete: new DeleteTransaction(transactions, unitOfWork),
       getAll: new GetTransactions(transactions, accounts, categories),
       getAmountSummary: new GetTransactionAmountSummary(transactions),
-      getById: new GetTransaction(transactions, accounts, categories),
+      getById: new GetTransaction(transactions, accounts, categories, tags),
       getPayees: new GetPayees(transactions),
+      getTags: new GetTags(tags),
       createLink: new CreateTransactionLink(
         transactions,
         transactionLinks,
@@ -263,6 +270,7 @@ export function createApplication(
         unitOfWork,
         ids,
         clock,
+        tags,
       ),
       update: new UpdateTransfer(
         accounts,
@@ -270,6 +278,8 @@ export function createApplication(
         transactions,
         unitOfWork,
         clock,
+        ids,
+        tags,
       ),
     },
     reports: {

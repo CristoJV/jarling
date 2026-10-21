@@ -18,6 +18,8 @@ describe('current database schema', () => {
     expect(migrations.at(-1)?.up).toContain(
       'CREATE TABLE budget_allocation_movements',
     );
+    expect(migrations.at(-1)?.up).toContain('CREATE TABLE tags');
+    expect(migrations.at(-1)?.up).toContain('CREATE TABLE transaction_tags');
   });
 
   it('does not predate the first public database contract', () => {
@@ -31,6 +33,8 @@ describe('current database schema', () => {
     'category_groups',
     'categories',
     'transactions',
+    'tags',
+    'transaction_tags',
     'transaction_links',
     'budget_allocations',
     'budget_allocation_movements',
@@ -62,6 +66,7 @@ describe('current database schema', () => {
     expect(currentSchema.up).toContain('transactions_account_date_idx');
     expect(currentSchema.up).toContain('transactions_category_date_idx');
     expect(currentSchema.up).toContain('transactions_payee_search_idx');
+    expect(currentSchema.up).toContain('transaction_tags_tag_transaction_idx');
     expect(currentSchema.up).not.toContain('ALTER TABLE');
     expect(currentSchema.up).not.toContain('DROP TABLE');
   });

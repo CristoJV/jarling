@@ -84,6 +84,25 @@ export const currentSchema: Migration = {
       )
     );
 
+    CREATE TABLE tags (
+      id TEXT PRIMARY KEY NOT NULL,
+      name TEXT NOT NULL CHECK (
+        length(trim(name)) > 0 AND length(name) <= 60
+      ),
+      name_key TEXT NOT NULL UNIQUE CHECK (length(name_key) > 0),
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE transaction_tags (
+      transaction_id TEXT NOT NULL,
+      tag_id TEXT NOT NULL,
+      attached_at TEXT NOT NULL,
+      PRIMARY KEY (transaction_id, tag_id),
+      FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE CASCADE,
+      FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
+    );
+
     CREATE TABLE transaction_links (
       id TEXT PRIMARY KEY NOT NULL,
       source_transaction_id TEXT NOT NULL,
@@ -202,6 +221,8 @@ export const currentSchema: Migration = {
     CREATE UNIQUE INDEX transactions_group_account_unique_idx
       ON transactions(transaction_group_id, account_id)
       WHERE transaction_group_id IS NOT NULL;
+    CREATE INDEX transaction_tags_tag_transaction_idx
+      ON transaction_tags(tag_id, transaction_id);
     CREATE INDEX transaction_links_source_idx ON transaction_links(source_transaction_id);
     CREATE INDEX transaction_links_target_idx ON transaction_links(target_transaction_id);
     CREATE INDEX budget_allocations_month_idx ON budget_allocations(month);

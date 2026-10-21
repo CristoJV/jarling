@@ -17,6 +17,8 @@ type Props = Readonly<{
   onSelectDateBoundary: (boundary: 'from' | 'to') => void;
   onSelectDatePreset: (preset: TransactionDatePreset) => void;
   onSelectStatus: (status: TransactionStatus) => void;
+  onSelectTags: () => void;
+  onSelectUntagged: () => void;
   onSelectText: (field: TransactionSearchField) => void;
   onSelectUncategorized: () => void;
   searchLabels: Readonly<Record<TransactionSearchField, string>>;
@@ -31,6 +33,8 @@ export function TransactionSearchSuggestions({
   onSelectDateBoundary,
   onSelectDatePreset,
   onSelectStatus,
+  onSelectTags,
+  onSelectUntagged,
   onSelectText,
   onSelectUncategorized,
   searchLabels,
@@ -121,6 +125,11 @@ export function TransactionSearchSuggestions({
               label={t('transactions.selectAccountFilter')}
               onPress={onSelectAccount}
             />
+          </Section>
+
+          <Section title={t('tags.title')}>
+            <Option label={t('tags.choose')} onPress={onSelectTags} />
+            <Option label={t('tags.untagged')} onPress={onSelectUntagged} />
           </Section>
 
           <Section title={t('transactions.clearedFilter')}>

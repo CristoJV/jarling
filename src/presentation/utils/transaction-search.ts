@@ -14,6 +14,8 @@ export type TransactionQuery = Readonly<{
   accountId?: string;
   categoryId?: string;
   status?: TransactionStatus;
+  tagIds?: readonly string[];
+  untagged?: boolean;
   uncategorized?: boolean;
   dateFilter?: TransactionDateFilter;
 }>;
@@ -23,6 +25,8 @@ export type TransactionFilterKey =
   | 'account'
   | 'category'
   | 'status'
+  | 'tags'
+  | 'untagged'
   | 'uncategorized'
   | 'date';
 
@@ -41,6 +45,8 @@ export function buildTransactionQuery(
     ...(query.accountId ? { accountId: query.accountId } : {}),
     ...(query.categoryId ? { categoryId: query.categoryId } : {}),
     ...(query.status ? { status: query.status } : {}),
+    ...(query.tagIds?.length ? { tagIds: query.tagIds } : {}),
+    ...(query.untagged ? { untagged: true } : {}),
     ...(query.uncategorized ? { uncategorized: true } : {}),
     ...(query.dateFilter?.dateFrom
       ? { dateFrom: query.dateFilter.dateFrom }

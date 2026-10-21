@@ -8,11 +8,16 @@ import {
 import type { AccountRepository } from '@/domain/repositories/account-repository';
 import type { CategoryRepository } from '@/domain/repositories/category-repository';
 import type { TransactionRepository } from '@/domain/repositories/transaction-repository';
+import type { TagRepository } from '@/domain/repositories/tag-repository';
 
 import {
   prepareTransactionInput,
   type TransactionInput,
 } from './transaction-input';
+import {
+  hasTransactionTagChanges,
+  resolveTransactionTagIds,
+} from './resolve-transaction-tags';
 
 export class CreateTransaction {
   constructor(
@@ -22,6 +27,7 @@ export class CreateTransaction {
     private readonly unitOfWork: UnitOfWork,
     private readonly ids: IdGenerator,
     private readonly clock: Clock,
+    private readonly tags?: TagRepository,
   ) {}
 
   async execute(input: TransactionInput): Promise<Transaction> {
@@ -40,6 +46,20 @@ export class CreateTransaction {
 
     return this.unitOfWork.run(async () => {
       await this.transactions.save(transaction);
+      if (hasTransactionTagChanges(input)) {
+        if (!this.tags) throw new Error('Tag repository is not configured.');
+        const tagIds = await resolveTransactionTagIds(
+          input,
+          this.tags,
+          this.ids,
+          this.clock,
+        );
+        await this.tags.replaceTransactionTags(
+          [transaction.id],
+          tagIds,
+          instant,
+        );
+      }
       return transaction;
     });
   }

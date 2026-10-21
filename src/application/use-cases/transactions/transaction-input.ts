@@ -26,6 +26,8 @@ type TransactionInputBase = Readonly<{
   date: string;
   notes?: string;
   status: EditableTransactionStatus;
+  tagIds?: readonly string[];
+  newTagNames?: readonly string[];
 }>;
 
 export type TransactionInput =

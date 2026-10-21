@@ -19,11 +19,19 @@ its actual date; a later refund does not rewrite an earlier month.
 ## Transaction details and search
 
 A standard transaction can include an account, payee, category, date, memo,
-and uncleared, cleared, or reconciled status. Payees are discovered from
-existing transaction names rather than maintained as a separate catalogue.
+reusable tags, and uncleared, cleared, or reconciled status. Payees are
+discovered from existing transaction names rather than maintained as a
+separate catalogue.
+
+The tag selector supports multiple choices and creating a tag while editing.
+Its Confirm action applies the selection to the transaction draft; tags are not
+created until the transaction itself is saved. The empty selection removes all
+tags. Transfers use the same tags on both account movements.
 
 Search can be refined step by step using text, payee, memo, status, account,
-category, and date suggestions. Applied filters remain removable. Swipe a
+category, tags, and date suggestions. Selecting multiple tags matches a
+transaction carrying any selected tag; **Without tags** finds transactions
+that have none. Applied filters remain removable. Swipe a
 transaction beyond the delete threshold to request deletion confirmation.
 Reconciled transactions remain editable and deletable because they are user
 data. Their account stays fixed; changing an amount or date requires explicit

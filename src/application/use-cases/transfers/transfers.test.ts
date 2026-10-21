@@ -12,6 +12,7 @@ import { ImmediateUnitOfWork } from '@/infrastructure/persistence/in-memory/imme
 import { InMemoryAccountRepository } from '@/infrastructure/persistence/in-memory/in-memory-account-repository';
 import { InMemoryCategoryRepository } from '@/infrastructure/persistence/in-memory/in-memory-category-repository';
 import { InMemoryTransactionRepository } from '@/infrastructure/persistence/in-memory/in-memory-transaction-repository';
+import { InMemoryTagRepository } from '@/infrastructure/persistence/in-memory/in-memory-tag-repository';
 
 import { CreateTransfer } from './create-transfer';
 import { UpdateTransfer } from './update-transfer';
@@ -32,6 +33,8 @@ async function setup() {
   const accounts = new InMemoryAccountRepository();
   const categories = new InMemoryCategoryRepository();
   const transactions = new InMemoryTransactionRepository();
+  const tags = new InMemoryTagRepository();
+  const ids = new SequenceIds();
   const unitOfWork = new ImmediateUnitOfWork();
   for (const account of [
     createAccount({
@@ -83,13 +86,15 @@ async function setup() {
   return {
     accounts,
     transactions,
+    tags,
     create: new CreateTransfer(
       accounts,
       categories,
       transactions,
       unitOfWork,
-      new SequenceIds(),
+      ids,
       clock,
+      tags,
     ),
     update: new UpdateTransfer(
       accounts,
@@ -97,12 +102,36 @@ async function setup() {
       transactions,
       unitOfWork,
       clock,
+      ids,
+      tags,
     ),
     remove: new DeleteTransaction(transactions, unitOfWork),
   };
 }
 
 describe('transfers', () => {
+  it('applies one tag selection to both transfer legs', async () => {
+    const { create, tags } = await setup();
+    const pair = await create.execute({
+      kind: 'transfer',
+      sourceAccountId: 'source',
+      destinationAccountId: 'destination',
+      amountCents: 1_000,
+      date: '2026-08-18',
+      status: 'cleared',
+      newTagNames: ['Savings'],
+    });
+
+    const [sourceTags, destinationTags] = await Promise.all([
+      tags.findByTransaction(pair.source.id),
+      tags.findByTransaction(pair.destination.id),
+    ]);
+    expect(sourceTags.map(({ id }) => id)).toEqual(
+      destinationTags.map(({ id }) => id),
+    );
+    expect(sourceTags.map(({ name }) => name)).toEqual(['Savings']);
+  });
+
   it('categorizes a credit-card payment without categorizing its destination leg', async () => {
     const { create } = await setup();
     const pair = await create.execute({

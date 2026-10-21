@@ -41,6 +41,8 @@ describe('transaction search', () => {
         accountId: 'account-1',
         categoryId: 'category-1',
         status: 'cleared',
+        tagIds: ['tag-1', 'tag-2'],
+        untagged: false,
         dateFilter: {
           kind: 'custom',
           dateFrom: '2026-08-02',
@@ -53,6 +55,7 @@ describe('transaction search', () => {
       accountId: 'account-1',
       categoryId: 'category-1',
       status: 'cleared',
+      tagIds: ['tag-1', 'tag-2'],
       dateFrom: '2026-08-02',
       dateTo: '2026-08-18',
     });
