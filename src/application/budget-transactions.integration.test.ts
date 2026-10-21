@@ -17,6 +17,7 @@ import { InMemoryCategoryGroupRepository } from '@/infrastructure/persistence/in
 import { InMemoryCategoryRepository } from '@/infrastructure/persistence/in-memory/in-memory-category-repository';
 import { InMemoryCategoryTargetRepository } from '@/infrastructure/persistence/in-memory/in-memory-category-target-repository';
 import { InMemoryTransactionRepository } from '@/infrastructure/persistence/in-memory/in-memory-transaction-repository';
+import { InMemoryTagRepository } from '@/infrastructure/persistence/in-memory/in-memory-tag-repository';
 
 class FixedClock implements Clock {
   now() {
@@ -42,6 +43,7 @@ describe('accounts, transactions and budget integration', () => {
     const groups = new InMemoryCategoryGroupRepository();
     const categories = new InMemoryCategoryRepository();
     const transactions = new InMemoryTransactionRepository();
+    const tags = new InMemoryTagRepository();
     const allocations = new InMemoryBudgetAllocationRepository();
     const movements = new InMemoryBudgetAllocationMovementRepository();
     const unitOfWork = new ImmediateUnitOfWork();
@@ -111,6 +113,7 @@ describe('accounts, transactions and budget integration', () => {
       unitOfWork,
       ids,
       clock,
+      tags,
     ).execute({
       direction: 'outflow',
       accountId: account.id,
@@ -127,6 +130,7 @@ describe('accounts, transactions and budget integration', () => {
       unitOfWork,
       ids,
       clock,
+      tags,
     ).execute({
       direction: 'inflow',
       accountId: account.id,

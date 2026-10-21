@@ -26,6 +26,8 @@ Version 4 also creates the normalized `tags` catalogue and the many-to-many
 `transaction_tags` table. Existing transactions receive no associations.
 Transaction and transfer writes create tags and change associations inside the
 same unit of work; both transfer legs carry the same tag selection.
+Tag selections and tag filters are bounded to 20 unique tags at application and
+repository boundaries.
 
 ## Portable plan snapshot
 
@@ -58,7 +60,10 @@ contract or valid state set.
 Assignment movements are portable financial data. Backup version 4 carries the
 movement table, and restore of older snapshots synthesizes the same baselines
 used by the SQLite migration. Version 4 also carries tags and their transaction
-associations; older snapshots migrate with both collections empty.
+associations; older snapshots migrate with both collections empty. Restore
+rejects malformed canonical timestamps, impossible movement dates, excessive
+tag associations, and transfers whose two legs have different tags before
+replacing local data.
 
 See [ADR 0003](../adr/0003-sqlite-baseline-and-forward-migrations.md),
 [ADR 0004](../adr/0004-data-protection-and-portability.md), and

@@ -30,7 +30,7 @@ export class CreateTransfer {
     private readonly unitOfWork: UnitOfWork,
     private readonly ids: IdGenerator,
     private readonly clock: Clock,
-    private readonly tags?: TagRepository,
+    private readonly tags: TagRepository,
   ) {}
 
   async execute(input: TransferInput): Promise<TransferPair> {
@@ -69,7 +69,6 @@ export class CreateTransfer {
       await this.transactions.save(source);
       await this.transactions.save(destination);
       if (hasTransactionTagChanges(input)) {
-        if (!this.tags) throw new Error('Tag repository is not configured.');
         const tagIds = await resolveTransactionTagIds(
           input,
           this.tags,

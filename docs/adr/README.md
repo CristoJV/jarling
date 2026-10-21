@@ -13,23 +13,25 @@ ADR that supersedes the previous one instead of rewriting history.
 
 ## Index
 
-| ADR                                                     | Decision                                           | Status   |
-| ------------------------------------------------------- | -------------------------------------------------- | -------- |
-| [0001](0001-local-first-clean-architecture.md)          | Local-first pragmatic clean architecture           | Accepted |
-| [0002](0002-envelope-budgeting-domain-rules.md)         | Envelope-budgeting financial invariants            | Accepted |
-| [0003](0003-sqlite-baseline-and-forward-migrations.md)  | Direct SQLite baseline and forward-only migrations | Accepted |
-| [0004](0004-data-protection-and-portability.md)         | Data protection and portability boundaries         | Accepted |
-| [0005](0005-first-release-scope.md)                     | First-release scope and deferred CSV import        | Accepted |
-| [0006](0006-atomic-sqlite-application-writes.md)        | Atomic SQLite application writes                   | Accepted |
-| [0007](0007-full-screen-navigation-flows.md)            | Route-backed full-screen creation flows            | Accepted |
-| [0008](0008-defer-reimbursement-tracking.md)            | Defer reimbursement tracking beyond 1.2.0          | Accepted |
-| [0009](0009-transaction-editor-destructive-action.md)   | Transaction deletion is available in the editor    | Accepted |
-| [0010](0010-budget-progress-uses-available-coverage.md) | Budget progress uses total available coverage      | Accepted |
-| [0011](0011-net-worth-history-presentation.md)          | Scrollable monthly Net Worth history               | Accepted |
-| [0012](0012-monthly-report-change-visualization.md)     | Monthly report direction and change visualization  | Accepted |
-| [0013](0013-mutable-assignment-movement-history.md)     | Assignment history follows current categories      | Accepted |
-| [0014](0014-transaction-tag-persistence.md)             | Normalized and atomic transaction tags             | Accepted |
-| [0015](0015-confirmed-multi-select-tag-flow.md)         | Confirmed multi-select transaction tag flow        | Accepted |
+| ADR                                                         | Decision                                           | Status   |
+| ----------------------------------------------------------- | -------------------------------------------------- | -------- |
+| [0001](0001-local-first-clean-architecture.md)              | Local-first pragmatic clean architecture           | Accepted |
+| [0002](0002-envelope-budgeting-domain-rules.md)             | Envelope-budgeting financial invariants            | Accepted |
+| [0003](0003-sqlite-baseline-and-forward-migrations.md)      | Direct SQLite baseline and forward-only migrations | Accepted |
+| [0004](0004-data-protection-and-portability.md)             | Data protection and portability boundaries         | Accepted |
+| [0005](0005-first-release-scope.md)                         | First-release scope and deferred CSV import        | Accepted |
+| [0006](0006-atomic-sqlite-application-writes.md)            | Atomic SQLite application writes                   | Accepted |
+| [0007](0007-full-screen-navigation-flows.md)                | Route-backed full-screen creation flows            | Accepted |
+| [0008](0008-defer-reimbursement-tracking.md)                | Defer reimbursement tracking beyond 1.2.0          | Accepted |
+| [0009](0009-transaction-editor-destructive-action.md)       | Transaction deletion is available in the editor    | Accepted |
+| [0010](0010-budget-progress-uses-available-coverage.md)     | Budget progress uses total available coverage      | Accepted |
+| [0011](0011-net-worth-history-presentation.md)              | Scrollable monthly Net Worth history               | Accepted |
+| [0012](0012-monthly-report-change-visualization.md)         | Monthly report direction and change visualization  | Accepted |
+| [0013](0013-mutable-assignment-movement-history.md)         | Assignment history follows current categories      | Accepted |
+| [0014](0014-transaction-tag-persistence.md)                 | Normalized and atomic transaction tags             | Accepted |
+| [0015](0015-confirmed-multi-select-tag-flow.md)             | Confirmed multi-select transaction tag flow        | Accepted |
+| [0016](0016-portable-restore-enforces-write-invariants.md)  | Portable restore enforces write invariants         | Accepted |
+| [0017](0017-sqlite-owns-filtered-transaction-aggregates.md) | SQLite owns filtered transaction aggregates        | Accepted |
 
 ## Creating an ADR
 

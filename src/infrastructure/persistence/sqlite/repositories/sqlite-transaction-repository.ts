@@ -6,11 +6,13 @@ import type {
   TransactionStatus,
 } from '@/domain/entities/transaction';
 import { createTransaction } from '@/domain/entities/transaction';
+import { assertTransactionTagLimit } from '@/domain/entities/tag';
 import type {
   TransactionFilters,
   TransactionRepository,
 } from '@/domain/repositories/transaction-repository';
 import { Money } from '@/domain/value-objects/money';
+import type { TransactionAmountSummary } from '@/domain/services/calculate-transaction-amount-summary';
 
 export type TransactionRow = {
   id: string;
@@ -56,107 +58,107 @@ export function transactionFromRow(row: TransactionRow): Transaction {
   return createTransaction({ ...base, kind: row.kind });
 }
 
+type TransactionPredicate = Readonly<{
+  where: string;
+  values: SQLiteBindValue[];
+}>;
+
+export function buildTransactionPredicate(
+  filters: TransactionFilters,
+): TransactionPredicate {
+  assertTransactionTagLimit(filters.tagIds ?? []);
+  const conditions: string[] = [];
+  const values: SQLiteBindValue[] = [];
+
+  if (filters.accountId) {
+    conditions.push('account_id = ?');
+    values.push(filters.accountId);
+  }
+  if (filters.categoryId) {
+    conditions.push('category_id = ?');
+    values.push(filters.categoryId);
+  }
+  if (filters.status) {
+    conditions.push('status = ?');
+    values.push(filters.status);
+  }
+  if (filters.tagIds?.length) {
+    const uniqueTagIds = [...new Set(filters.tagIds)];
+    const placeholders = uniqueTagIds.map(() => '?').join(', ');
+    conditions.push(`EXISTS (
+      SELECT 1 FROM transaction_tags tt
+      WHERE tt.transaction_id = transactions.id
+        AND tt.tag_id IN (${placeholders})
+    )`);
+    values.push(...uniqueTagIds);
+  }
+  if (filters.untagged) {
+    conditions.push(`NOT EXISTS (
+      SELECT 1 FROM transaction_tags tt
+      WHERE tt.transaction_id = transactions.id
+    )`);
+  }
+  if (filters.uncategorized) {
+    conditions.push("category_id IS NULL AND kind = 'standard' AND amount < 0");
+  }
+  if (filters.dateFrom) {
+    conditions.push('date >= ?');
+    values.push(filters.dateFrom);
+  }
+  if (filters.dateTo) {
+    conditions.push('date <= ?');
+    values.push(filters.dateTo);
+  }
+  if (filters.transactionGroupId) {
+    conditions.push('transaction_group_id = ?');
+    values.push(filters.transactionGroupId);
+  }
+  if (filters.before) {
+    conditions.push(`(
+      date < ? OR
+      (date = ? AND created_at < ?) OR
+      (date = ? AND created_at = ? AND id < ?)
+    )`);
+    values.push(
+      filters.before.date,
+      filters.before.date,
+      filters.before.createdAt,
+      filters.before.date,
+      filters.before.createdAt,
+      filters.before.id,
+    );
+  }
+  const search = filters.search?.trim().toLocaleLowerCase();
+  if (search) {
+    conditions.push(
+      "(lower(coalesce(payee, '')) LIKE ? OR lower(coalesce(notes, '')) LIKE ?)",
+    );
+    values.push(`%${search}%`, `%${search}%`);
+  }
+  const payee = filters.payee?.trim().toLocaleLowerCase();
+  if (payee) {
+    conditions.push("lower(coalesce(payee, '')) LIKE ?");
+    values.push(`%${payee}%`);
+  }
+  const memo = filters.memo?.trim().toLocaleLowerCase();
+  if (memo) {
+    conditions.push("lower(coalesce(notes, '')) LIKE ?");
+    values.push(`%${memo}%`);
+  }
+
+  return {
+    where: conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '',
+    values,
+  };
+}
+
 export class SQLiteTransactionRepository implements TransactionRepository {
   constructor(private readonly database: SQLiteDatabase) {}
 
   async findAll(
     filters: TransactionFilters = {},
   ): Promise<readonly Transaction[]> {
-    const conditions: string[] = [];
-    const values: SQLiteBindValue[] = [];
-
-    if (filters.accountId) {
-      conditions.push('account_id = ?');
-      values.push(filters.accountId);
-    }
-
-    if (filters.categoryId) {
-      conditions.push('category_id = ?');
-      values.push(filters.categoryId);
-    }
-
-    if (filters.status) {
-      conditions.push('status = ?');
-      values.push(filters.status);
-    }
-
-    if (filters.tagIds?.length) {
-      const uniqueTagIds = [...new Set(filters.tagIds)];
-      const placeholders = uniqueTagIds.map(() => '?').join(', ');
-      conditions.push(`EXISTS (
-        SELECT 1 FROM transaction_tags tt
-        WHERE tt.transaction_id = transactions.id
-          AND tt.tag_id IN (${placeholders})
-      )`);
-      values.push(...uniqueTagIds);
-    }
-
-    if (filters.untagged) {
-      conditions.push(`NOT EXISTS (
-        SELECT 1 FROM transaction_tags tt
-        WHERE tt.transaction_id = transactions.id
-      )`);
-    }
-
-    if (filters.uncategorized) {
-      conditions.push(
-        "category_id IS NULL AND kind = 'standard' AND amount < 0",
-      );
-    }
-
-    if (filters.dateFrom) {
-      conditions.push('date >= ?');
-      values.push(filters.dateFrom);
-    }
-
-    if (filters.dateTo) {
-      conditions.push('date <= ?');
-      values.push(filters.dateTo);
-    }
-
-    if (filters.transactionGroupId) {
-      conditions.push('transaction_group_id = ?');
-      values.push(filters.transactionGroupId);
-    }
-
-    if (filters.before) {
-      conditions.push(`(
-        date < ? OR
-        (date = ? AND created_at < ?) OR
-        (date = ? AND created_at = ? AND id < ?)
-      )`);
-      values.push(
-        filters.before.date,
-        filters.before.date,
-        filters.before.createdAt,
-        filters.before.date,
-        filters.before.createdAt,
-        filters.before.id,
-      );
-    }
-
-    const search = filters.search?.trim().toLocaleLowerCase();
-    if (search) {
-      conditions.push(
-        "(lower(coalesce(payee, '')) LIKE ? OR lower(coalesce(notes, '')) LIKE ?)",
-      );
-      values.push(`%${search}%`, `%${search}%`);
-    }
-
-    const payee = filters.payee?.trim().toLocaleLowerCase();
-    if (payee) {
-      conditions.push("lower(coalesce(payee, '')) LIKE ?");
-      values.push(`%${payee}%`);
-    }
-
-    const memo = filters.memo?.trim().toLocaleLowerCase();
-    if (memo) {
-      conditions.push("lower(coalesce(notes, '')) LIKE ?");
-      values.push(`%${memo}%`);
-    }
-
-    const where =
-      conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const { where, values } = buildTransactionPredicate(filters);
     const limit = filters.limit
       ? Math.min(200, Math.max(1, Math.trunc(filters.limit)))
       : undefined;
@@ -174,6 +176,32 @@ export class SQLiteTransactionRepository implements TransactionRepository {
     );
 
     return rows.map(transactionFromRow);
+  }
+
+  async summarizeAmounts(
+    filters: TransactionFilters = {},
+  ): Promise<TransactionAmountSummary> {
+    const { where, values } = buildTransactionPredicate(filters);
+    const row = await this.database.getFirstAsync<{
+      income: number;
+      spending: number;
+    }>(
+      `SELECT
+         coalesce(sum(CASE WHEN kind <> 'transfer' AND amount > 0
+                           THEN amount ELSE 0 END), 0) AS income,
+         coalesce(sum(CASE WHEN kind <> 'transfer' AND amount < 0
+                           THEN -amount ELSE 0 END), 0) AS spending
+       FROM transactions
+       ${where}`,
+      ...values,
+    );
+    const income = Money.fromCents(row?.income ?? 0);
+    const spending = Money.fromCents(row?.spending ?? 0);
+    return {
+      income,
+      spending,
+      net: Money.fromCents(income.cents - spending.cents),
+    };
   }
 
   async findByAccount(accountId: string): Promise<readonly Transaction[]> {

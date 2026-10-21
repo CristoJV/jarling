@@ -5,6 +5,7 @@ import { Money } from '@/domain/value-objects/money';
 import { InMemoryAccountRepository } from '@/infrastructure/persistence/in-memory/in-memory-account-repository';
 import { InMemoryCategoryRepository } from '@/infrastructure/persistence/in-memory/in-memory-category-repository';
 import { InMemoryTransactionRepository } from '@/infrastructure/persistence/in-memory/in-memory-transaction-repository';
+import { InMemoryTagRepository } from '@/infrastructure/persistence/in-memory/in-memory-tag-repository';
 
 import { GetTransaction } from './get-transaction';
 
@@ -50,9 +51,12 @@ describe('GetTransaction', () => {
     );
 
     await expect(
-      new GetTransaction(transactions, accounts, categories).execute(
-        'transaction-1',
-      ),
+      new GetTransaction(
+        transactions,
+        accounts,
+        categories,
+        new InMemoryTagRepository(),
+      ).execute('transaction-1'),
     ).resolves.toEqual(
       expect.objectContaining({
         accountName: 'Wallet',
@@ -67,7 +71,12 @@ describe('GetTransaction', () => {
     const transactions = new InMemoryTransactionRepository();
 
     await expect(
-      new GetTransaction(transactions, accounts, categories).execute('missing'),
+      new GetTransaction(
+        transactions,
+        accounts,
+        categories,
+        new InMemoryTagRepository(),
+      ).execute('missing'),
     ).resolves.toBeNull();
   });
 });

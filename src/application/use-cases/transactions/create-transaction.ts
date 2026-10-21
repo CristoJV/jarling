@@ -27,7 +27,7 @@ export class CreateTransaction {
     private readonly unitOfWork: UnitOfWork,
     private readonly ids: IdGenerator,
     private readonly clock: Clock,
-    private readonly tags?: TagRepository,
+    private readonly tags: TagRepository,
   ) {}
 
   async execute(input: TransactionInput): Promise<Transaction> {
@@ -47,7 +47,6 @@ export class CreateTransaction {
     return this.unitOfWork.run(async () => {
       await this.transactions.save(transaction);
       if (hasTransactionTagChanges(input)) {
-        if (!this.tags) throw new Error('Tag repository is not configured.');
         const tagIds = await resolveTransactionTagIds(
           input,
           this.tags,

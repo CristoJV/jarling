@@ -58,6 +58,37 @@ const budget = {
 } as unknown as BudgetMonthValues;
 
 describe('TransactionEditorScreen', () => {
+  test('places tags immediately after the transaction date', async () => {
+    let renderer!: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(
+        <TransactionEditorScreen
+          accounts={accounts}
+          budget={budget}
+          categoryGroups={[]}
+          onCreateCategory={async () => {
+            throw new Error('unused');
+          }}
+          onDismiss={jest.fn()}
+          onLoadBudgetMonth={async () => budget}
+          onSave={async () => undefined}
+          payees={[]}
+          transaction={transaction}
+        />,
+      );
+    });
+
+    const rows = renderer.root.findAllByType(FormRow);
+    const dateIndex = rows.findIndex(
+      ({ props }) => props.overline === 'transactions.date',
+    );
+    const tagsIndex = rows.findIndex(
+      ({ props }) => props.overline === 'tags.title',
+    );
+    expect(tagsIndex).toBe(dateIndex + 1);
+    await act(async () => renderer.unmount());
+  });
+
   test('asks before discarding changes to an existing transaction', async () => {
     const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     const onDismiss = jest.fn();

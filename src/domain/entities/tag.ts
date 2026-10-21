@@ -1,7 +1,14 @@
 import { InvalidTagNameError } from '@/domain/errors/invalid-tag-name-error';
+import { TooManyTransactionTagsError } from '@/domain/errors/too-many-transaction-tags-error';
 
 export const TAG_NAME_MAX_LENGTH = 60;
 export const TRANSACTION_TAG_LIMIT = 20;
+
+export function assertTransactionTagLimit(tagIds: readonly string[]): void {
+  if (new Set(tagIds).size > TRANSACTION_TAG_LIMIT) {
+    throw new TooManyTransactionTagsError();
+  }
+}
 
 export type Tag = Readonly<{
   id: string;

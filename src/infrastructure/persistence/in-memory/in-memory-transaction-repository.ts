@@ -7,6 +7,11 @@ import type {
   TransactionRepository,
 } from '@/domain/repositories/transaction-repository';
 import { Money } from '@/domain/value-objects/money';
+import { assertTransactionTagLimit } from '@/domain/entities/tag';
+import {
+  calculateTransactionAmountSummary,
+  type TransactionAmountSummary,
+} from '@/domain/services/calculate-transaction-amount-summary';
 
 export class InMemoryTransactionRepository implements TransactionRepository {
   private readonly transactions = new Map<string, Transaction>();
@@ -21,6 +26,7 @@ export class InMemoryTransactionRepository implements TransactionRepository {
   async findAll(
     filters: TransactionFilters = {},
   ): Promise<readonly Transaction[]> {
+    assertTransactionTagLimit(filters.tagIds ?? []);
     const search = filters.search?.trim().toLocaleLowerCase();
     const payee = filters.payee?.trim().toLocaleLowerCase();
     const memo = filters.memo?.trim().toLocaleLowerCase();
@@ -156,6 +162,12 @@ export class InMemoryTransactionRepository implements TransactionRepository {
         Money.fromCents(balance),
       ]),
     );
+  }
+
+  async summarizeAmounts(
+    filters: TransactionFilters = {},
+  ): Promise<TransactionAmountSummary> {
+    return calculateTransactionAmountSummary(await this.findAll(filters));
   }
 
   async save(transaction: Transaction): Promise<void> {

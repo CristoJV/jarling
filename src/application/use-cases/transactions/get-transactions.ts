@@ -1,5 +1,6 @@
 import type { Transaction } from '@/domain/entities/transaction';
 import type { Tag } from '@/domain/entities/tag';
+import { assertTransactionTagLimit } from '@/domain/entities/tag';
 import type { AccountRepository } from '@/domain/repositories/account-repository';
 import type { CategoryRepository } from '@/domain/repositories/category-repository';
 import type {
@@ -42,6 +43,7 @@ export class GetTransactions {
   async execute(
     input: GetTransactionsInput = {},
   ): Promise<readonly TransactionSummary[]> {
+    assertTransactionTagLimit(input.tagIds ?? []);
     const [transactions, accounts, categories] = await Promise.all([
       this.transactions.findAll(input),
       this.accounts.findAll(),

@@ -47,4 +47,20 @@ describe('SQLiteTagRepository', () => {
       3,
     );
   });
+
+  it('rejects more than 20 associations before issuing SQL', async () => {
+    const getAllAsync = jest.fn(async () => []);
+    const runAsync = jest.fn();
+    const database = { getAllAsync, runAsync } as unknown as SQLiteDatabase;
+
+    await expect(
+      new SQLiteTagRepository(database).replaceTransactionTags(
+        ['transaction-1'],
+        Array.from({ length: 21 }, (_, index) => `tag-${index}`),
+        '2026-10-21T10:00:00.000Z',
+      ),
+    ).rejects.toThrow('more than 20 tags');
+    expect(getAllAsync).not.toHaveBeenCalled();
+    expect(runAsync).not.toHaveBeenCalled();
+  });
 });

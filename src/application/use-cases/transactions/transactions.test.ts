@@ -17,6 +17,7 @@ import { calculateBudgetMonth } from '@/domain/services/calculate-budget-month';
 import { InMemoryAccountRepository } from '@/infrastructure/persistence/in-memory/in-memory-account-repository';
 import { InMemoryCategoryRepository } from '@/infrastructure/persistence/in-memory/in-memory-category-repository';
 import { InMemoryTransactionRepository } from '@/infrastructure/persistence/in-memory/in-memory-transaction-repository';
+import { InMemoryTagRepository } from '@/infrastructure/persistence/in-memory/in-memory-tag-repository';
 
 import { CreateTransaction } from './create-transaction';
 import { DeleteTransaction } from './delete-transaction';
@@ -43,6 +44,24 @@ class TrackingUnitOfWork implements UnitOfWork {
     this.executions += 1;
     return task();
   }
+}
+
+function createUpdateTransaction(
+  accounts: InMemoryAccountRepository,
+  categories: InMemoryCategoryRepository,
+  transactions: InMemoryTransactionRepository,
+  unitOfWork: TrackingUnitOfWork,
+  clock: FixedClock,
+) {
+  return new UpdateTransaction(
+    accounts,
+    categories,
+    transactions,
+    unitOfWork,
+    clock,
+    new FixedIdGenerator(),
+    new InMemoryTagRepository(),
+  );
 }
 
 const account: Account = {
@@ -87,6 +106,7 @@ async function setup() {
       unitOfWork,
       new FixedIdGenerator(),
       clock,
+      new InMemoryTagRepository(),
     ),
   };
 }
@@ -414,6 +434,20 @@ describe('transaction use cases', () => {
     });
   });
 
+  it('rejects unbounded tag filters at the application boundary', async () => {
+    const { accounts, categories, transactions } = await setup();
+    const tagIds = Array.from({ length: 21 }, (_, index) => `tag-${index}`);
+
+    await expect(
+      new GetTransactions(transactions, accounts, categories).execute({
+        tagIds,
+      }),
+    ).rejects.toThrow('more than 20 tags');
+    await expect(
+      new GetTransactionAmountSummary(transactions).execute({ tagIds }),
+    ).rejects.toThrow('more than 20 tags');
+  });
+
   it('keeps a historical inflow readable after its category is hidden', async () => {
     const { accounts, categories, transactions } = await setup();
     await categories.save({ ...category, hidden: true });
@@ -493,7 +527,7 @@ describe('transaction use cases', () => {
       status: 'uncleared',
     });
 
-    const updated = await new UpdateTransaction(
+    const updated = await createUpdateTransaction(
       accounts,
       categories,
       transactions,
@@ -534,7 +568,7 @@ describe('transaction use cases', () => {
       status: 'uncleared',
     });
 
-    const updated = await new UpdateTransaction(
+    const updated = await createUpdateTransaction(
       accounts,
       categories,
       transactions,
@@ -572,7 +606,7 @@ describe('transaction use cases', () => {
       date: '2026-08-18',
       status: 'cleared',
     });
-    const update = new UpdateTransaction(
+    const update = createUpdateTransaction(
       accounts,
       categories,
       transactions,
@@ -643,7 +677,7 @@ describe('transaction use cases', () => {
     };
     await transactions.save(reconciled);
 
-    const updated = await new UpdateTransaction(
+    const updated = await createUpdateTransaction(
       accounts,
       categories,
       transactions,
@@ -688,7 +722,7 @@ describe('transaction use cases', () => {
     await transactions.save(reconciled);
 
     await expect(
-      new UpdateTransaction(
+      createUpdateTransaction(
         accounts,
         categories,
         transactions,
@@ -721,7 +755,7 @@ describe('transaction use cases', () => {
         updatedAt: '2026-08-18T10:00:00.000Z',
       };
       await transactions.save(opening);
-      const updated = await new UpdateTransaction(
+      const updated = await createUpdateTransaction(
         accounts,
         categories,
         transactions,
@@ -776,7 +810,7 @@ describe('transaction use cases', () => {
     await transactions.save(opening);
 
     await expect(
-      new UpdateTransaction(
+      createUpdateTransaction(
         accounts,
         categories,
         transactions,
@@ -808,7 +842,7 @@ describe('transaction use cases', () => {
     };
     await transactions.save(opening);
 
-    await new UpdateTransaction(
+    await createUpdateTransaction(
       accounts,
       categories,
       transactions,
@@ -855,7 +889,7 @@ describe('transaction use cases', () => {
     };
     await transactions.save(adjustment);
 
-    const updated = await new UpdateTransaction(
+    const updated = await createUpdateTransaction(
       accounts,
       categories,
       transactions,

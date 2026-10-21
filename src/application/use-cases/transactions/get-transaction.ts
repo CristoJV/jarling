@@ -10,7 +10,7 @@ export class GetTransaction {
     private readonly transactions: TransactionRepository,
     private readonly accounts: AccountRepository,
     private readonly categories: CategoryRepository,
-    private readonly tags?: TagRepository,
+    private readonly tags: TagRepository,
   ) {}
 
   async execute(id: string): Promise<TransactionSummary | null> {
@@ -22,7 +22,7 @@ export class GetTransaction {
       transaction.categoryId
         ? this.categories.findById(transaction.categoryId)
         : null,
-      this.tags?.findByTransaction(transaction.id) ?? Promise.resolve([]),
+      this.tags.findByTransaction(transaction.id),
     ]);
 
     return {

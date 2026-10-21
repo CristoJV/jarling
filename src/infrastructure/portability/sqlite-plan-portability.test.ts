@@ -685,6 +685,164 @@ describe('Jarling plan snapshots', () => {
         },
       }),
     ).toThrow('invalid transaction tag');
+
+    expect(() =>
+      parsePlanSnapshot({
+        ...base,
+        tables: {
+          ...base.tables,
+          transaction_tags: [
+            {
+              transaction_id: 'transaction-1',
+              tag_id: 'tag-1',
+              attached_at: 'not-an-instant',
+            },
+          ],
+        },
+      }),
+    ).toThrow('invalid transaction tag');
+
+    const tags = Array.from({ length: 21 }, (_, index) => ({
+      id: `tag-${index}`,
+      name: `Tag ${index}`,
+      name_key: `tag ${index}`,
+      created_at: '2026-10-16T10:00:00.000Z',
+      updated_at: '2026-10-16T10:00:00.000Z',
+    }));
+    expect(() =>
+      parsePlanSnapshot({
+        ...base,
+        tables: {
+          ...base.tables,
+          tags,
+          transaction_tags: tags.map(({ id }) => ({
+            transaction_id: 'transaction-1',
+            tag_id: id,
+            attached_at: '2026-10-16T10:00:00.000Z',
+          })),
+        },
+      }),
+    ).toThrow('too many tags');
+  });
+
+  it('requires both transfer legs to carry the same tags', () => {
+    const timestamp = '2026-10-16T10:00:00.000Z';
+    const snapshot = {
+      ...cardPaymentSnapshot,
+      version: 4,
+      tables: {
+        ...cardPaymentSnapshot.tables,
+        budget_allocation_movements: [],
+        category_target_snoozes: [],
+        tags: [
+          {
+            id: 'tag-1',
+            name: 'Viaje',
+            name_key: 'viaje',
+            created_at: timestamp,
+            updated_at: timestamp,
+          },
+        ],
+        transaction_tags: [
+          {
+            transaction_id: 'payment-source',
+            tag_id: 'tag-1',
+            attached_at: timestamp,
+          },
+        ],
+      },
+    };
+
+    expect(() => parsePlanSnapshot(snapshot)).toThrow('different tags');
+    expect(() =>
+      parsePlanSnapshot({
+        ...snapshot,
+        tables: {
+          ...snapshot.tables,
+          transaction_tags: [
+            ...snapshot.tables.transaction_tags,
+            {
+              transaction_id: 'payment-destination',
+              tag_id: 'tag-1',
+              attached_at: timestamp,
+            },
+          ],
+        },
+      }),
+    ).not.toThrow();
+  });
+
+  it.each([
+    {
+      occurred_at: '2026-10-16T10:00:00.000Z',
+      occurred_on: 'abcdefghij',
+      recorded_at: '2026-10-16T10:00:00.000Z',
+    },
+    {
+      occurred_at: 'not-an-instant',
+      occurred_on: '2026-10-16',
+      recorded_at: '2026-10-16T10:00:00.000Z',
+    },
+    {
+      occurred_at: null,
+      occurred_on: null,
+      recorded_at: 'not-an-instant',
+    },
+  ])('rejects invalid assignment movement timestamps', (timestamps) => {
+    const timestamp = '2026-10-16T10:00:00.000Z';
+    expect(() =>
+      parsePlanSnapshot({
+        ...emptySnapshot,
+        version: 4,
+        tables: {
+          ...emptySnapshot.tables,
+          category_target_snoozes: [],
+          category_groups: [
+            {
+              id: 'group-1',
+              name: 'Needs',
+              sort_order: 0,
+              created_at: timestamp,
+              updated_at: timestamp,
+            },
+          ],
+          categories: [
+            {
+              id: 'category-1',
+              group_id: 'group-1',
+              name: 'Food',
+              notes: null,
+              hidden: 0,
+              linked_account_id: null,
+              sort_order: 0,
+              created_at: timestamp,
+              updated_at: timestamp,
+            },
+          ],
+          budget_allocations: [
+            {
+              id: 'allocation-1',
+              category_id: 'category-1',
+              month: '2026-10',
+              amount: 100,
+              created_at: timestamp,
+              updated_at: timestamp,
+            },
+          ],
+          budget_allocation_movements: [
+            {
+              id: 'movement-1',
+              month: '2026-10',
+              amount: 100,
+              source_category_id: null,
+              destination_category_id: 'category-1',
+              provenance: 'recorded',
+              ...timestamps,
+            },
+          ],
+        },
+      }),
+    ).toThrow(/invalid assignment movement|invalid movement timestamp/i);
   });
 
   it.each([-4_000, 4_000])(

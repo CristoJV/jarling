@@ -1,6 +1,7 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  KeyboardAvoidingView,
   Pressable,
   SectionList,
   StyleSheet,
@@ -11,10 +12,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { Tag } from '@/domain/entities/tag';
-import { normalizeTagName, tagNameKey } from '@/domain/entities/tag';
+import {
+  normalizeTagName,
+  tagNameKey,
+  TRANSACTION_TAG_LIMIT,
+} from '@/domain/entities/tag';
 import { AnimatedFlowScreen } from '@/presentation/components/common/animated-flow-screen';
 import { BottomActionLayout } from '@/presentation/components/common/bottom-action-layout';
-import { KeyboardResponsiveScreen } from '@/presentation/components/common/keyboard-responsive-screen';
 import { SearchableSelectionInput } from '@/presentation/components/common/searchable-selection-input';
 import { useTranslation } from '@/presentation/localization/localization-provider';
 import type { AppTheme } from '@/presentation/theme/theme';
@@ -70,6 +74,7 @@ export function TagSelectionScreen({
       ]),
   );
   const query = search.trim();
+  const atLimit = selected.size >= TRANSACTION_TAG_LIMIT;
   const choices = useMemo<readonly Choice[]>(
     () => [
       ...tags.map((tag) => ({
@@ -142,13 +147,13 @@ export function TagSelectionScreen({
     setSelected((current) => {
       const next = new Set(current);
       if (next.has(key)) next.delete(key);
-      else next.add(key);
+      else if (next.size < TRANSACTION_TAG_LIMIT) next.add(key);
       return next;
     });
   }
 
   function createDraft() {
-    if (!normalizedQuery || !queryKey || exactMatch) return;
+    if (!normalizedQuery || !queryKey || exactMatch || atLimit) return;
     const key = `new:${queryKey}`;
     setNewNames((current) => [...current, normalizedQuery!]);
     setSelected((current) => new Set([...current, key]));
@@ -170,7 +175,7 @@ export function TagSelectionScreen({
   return (
     <AnimatedFlowScreen onBack={onBack} overlay={overlay}>
       {(goBack) => (
-        <KeyboardResponsiveScreen>
+        <KeyboardAvoidingView behavior="padding" style={styles.keyboardLayout}>
           <SafeAreaView style={styles.screen}>
             <BottomActionLayout
               bottom={
@@ -225,6 +230,11 @@ export function TagSelectionScreen({
                 }
                 value={search}
               />
+              {atLimit ? (
+                <Text accessibilityRole="alert" style={styles.limitText}>
+                  {t('tags.limitReached', { count: TRANSACTION_TAG_LIMIT })}
+                </Text>
+              ) : null}
               <SectionList
                 automaticallyAdjustKeyboardInsets
                 contentContainerStyle={styles.content}
@@ -238,7 +248,11 @@ export function TagSelectionScreen({
                 }
                 ListHeaderComponent={
                   allowCreate && normalizedQuery && !exactMatch ? (
-                    <Pressable onPress={createDraft} style={styles.createRow}>
+                    <Pressable
+                      disabled={atLimit}
+                      onPress={createDraft}
+                      style={[styles.createRow, atLimit && styles.disabledRow]}
+                    >
                       <MaterialCommunityIcons
                         color={theme.colors.primary}
                         name="plus-circle-outline"
@@ -255,7 +269,11 @@ export function TagSelectionScreen({
                   return (
                     <Pressable
                       accessibilityRole="checkbox"
-                      accessibilityState={{ checked }}
+                      accessibilityState={{
+                        checked,
+                        disabled: !checked && atLimit,
+                      }}
+                      disabled={!checked && atLimit}
                       onPress={() => toggle(item.key)}
                       style={({ pressed }) => [
                         styles.row,
@@ -290,7 +308,7 @@ export function TagSelectionScreen({
               />
             </BottomActionLayout>
           </SafeAreaView>
-        </KeyboardResponsiveScreen>
+        </KeyboardAvoidingView>
       )}
     </AnimatedFlowScreen>
   );
@@ -298,6 +316,7 @@ export function TagSelectionScreen({
 
 const createStyles = (theme: AppTheme) =>
   StyleSheet.create({
+    keyboardLayout: { flex: 1 },
     screen: { flex: 1, backgroundColor: theme.colors.background },
     header: {
       minHeight: 64,
@@ -344,6 +363,14 @@ const createStyles = (theme: AppTheme) =>
       gap: 12,
     },
     createText: { flex: 1, color: theme.colors.primary, fontWeight: '800' },
+    disabledRow: { opacity: 0.5 },
+    limitText: {
+      paddingHorizontal: 20,
+      paddingVertical: 8,
+      color: theme.colors.negative,
+      fontSize: 13,
+      fontWeight: '700',
+    },
     sectionHeader: {
       minHeight: 38,
       flexDirection: 'row',
