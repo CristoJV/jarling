@@ -34,6 +34,14 @@ categories are valid. New Outflow defaults to virtual Uncategorized; new Inflow
 defaults to Ready to Assign. Category inflows are offered only for supported
 on-budget accounts.
 
+The tag selector is a reusable full-screen multi-selection flow. It keeps a
+local selection draft: rows toggle without leaving, Back discards the draft,
+and a keyboard-safe Confirm action returns it to the transaction editor or
+filter. With an empty search it shows the three most recently used tags before
+the remaining alphabetical catalogue. Searching hides recent tags and, when
+allowed by the caller, offers one normalized tag for creation. Creation is
+deferred until the parent transaction Save.
+
 Search is progressive: selecting a suggestion applies it, returns to results,
 and preserves removable filters for further refinement. Full-screen creation
 flows remain mounted across selectors. Small date, rename, memo, and

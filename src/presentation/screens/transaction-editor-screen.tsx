@@ -20,6 +20,7 @@ import type { TransactionInput } from '@/application/use-cases/transactions/tran
 import type { TransferInput } from '@/application/use-cases/transfers/transfer-input';
 import { supportsCategoryInflows } from '@/domain/entities/account';
 import type { Category } from '@/domain/entities/category';
+import type { Tag } from '@/domain/entities/tag';
 import type { BudgetMonthValues } from '@/domain/services/calculate-budget-month';
 import { requiresReconciliationWarning } from '@/domain/services/transaction-edit-policy';
 import { SelectCategoryScreen } from '@/presentation/components/categories/select-category-screen';
@@ -33,6 +34,10 @@ import { KeyboardResponsiveScreen } from '@/presentation/components/common/keybo
 import { NameInputModal } from '@/presentation/components/common/name-input-modal';
 import { NativeDatePicker } from '@/presentation/components/common/native-date-picker';
 import { PayeeSelectionScreen } from '@/presentation/components/transactions/payee-selection-screen';
+import {
+  TagSelectionScreen,
+  type TagSelection,
+} from '@/presentation/components/transactions/tag-selection-screen';
 import {
   TransactionEditorFields,
   type TransactionEditorKind,
@@ -50,6 +55,8 @@ type TransactionEditorScreenProps = Readonly<{
   budget: BudgetMonthValues;
   categoryGroups: readonly CategoryGroupSummary[];
   payees: readonly string[];
+  tags?: readonly Tag[];
+  recentTags?: readonly Tag[];
   transaction?: TransactionSummary;
   linkedTransaction?: TransactionSummary;
   onCreateCategory: (input: {
@@ -68,6 +75,7 @@ type Editor =
   | 'destination-account'
   | 'category'
   | 'payee'
+  | 'tags'
   | 'date'
   | 'memo'
   | null;
@@ -77,6 +85,8 @@ export function TransactionEditorScreen({
   budget,
   categoryGroups,
   payees,
+  tags = [],
+  recentTags = [],
   transaction: summary,
   linkedTransaction: linkedSummary,
   onCreateCategory,
@@ -138,6 +148,7 @@ export function TransactionEditorScreen({
   const initialDate = existing?.date ?? localIsoDate();
   const initialMemo = existing?.notes ?? '';
   const initialCleared = existing?.status !== 'uncleared';
+  const initialTagIds = summary?.tags?.map(({ id }) => id) ?? [];
   const [kind, setKind] = useState<TransactionEditorKind>(initialKind);
   const [amountCents, setAmountCents] = useState(initialAmountCents);
   const [amountExpression, setAmountExpression] =
@@ -151,6 +162,8 @@ export function TransactionEditorScreen({
   const [date, setDate] = useState(initialDate);
   const [memo, setMemo] = useState(initialMemo);
   const [cleared, setCleared] = useState(initialCleared);
+  const [tagIds, setTagIds] = useState<readonly string[]>(initialTagIds);
+  const [newTagNames, setNewTagNames] = useState<readonly string[]>([]);
   const [showMore, setShowMore] = useState(false);
   const [keypadVisible, setKeypadVisible] = useState(true);
   const [editor, setEditor] = useState<Editor>(null);
@@ -191,6 +204,7 @@ export function TransactionEditorScreen({
     date: initialDate,
     memo: initialMemo,
     cleared: initialCleared,
+    tagIds: initialTagIds,
   }));
 
   const accountName =
@@ -230,7 +244,9 @@ export function TransactionEditorScreen({
     payee !== initialValues.payee ||
     date !== initialValues.date ||
     memo !== initialValues.memo ||
-    cleared !== initialValues.cleared;
+    cleared !== initialValues.cleared ||
+    tagIds.join('\u0000') !== initialValues.tagIds.join('\u0000') ||
+    newTagNames.length > 0;
 
   const requestDismiss = useCallback(() => {
     if (!hasUnsavedChanges) {
@@ -325,6 +341,8 @@ export function TransactionEditorScreen({
       date,
       notes: memo.trim() || undefined,
       status: cleared ? 'cleared' : 'uncleared',
+      tagIds,
+      newTagNames,
     } as const;
     const input: TransactionInput | TransferInput =
       kind === 'transfer'
@@ -616,6 +634,24 @@ export function TransactionEditorScreen({
       );
     }
 
+    if (editor === 'tags') {
+      return (
+        <TagSelectionScreen
+          allowCreate
+          onBack={closeEditor}
+          onConfirm={(selection: TagSelection) => {
+            setTagIds(selection.tagIds);
+            setNewTagNames(selection.newTagNames);
+          }}
+          overlay
+          recentTags={recentTags}
+          selectedNewTagNames={newTagNames}
+          selectedTagIds={tagIds}
+          tags={tags}
+        />
+      );
+    }
+
     return null;
   }
 
@@ -672,6 +708,12 @@ export function TransactionEditorScreen({
               }}
               onToggleStatus={() => setCleared((current) => !current)}
               payee={payee}
+              tagSummary={tagSelectionSummary(
+                tags,
+                tagIds,
+                newTagNames,
+                t('tags.none'),
+              )}
               showMore={showMore}
               showsCategoryDestination={showsCategoryDestination}
             />
@@ -741,6 +783,24 @@ export function TransactionEditorScreen({
       {renderSelectionOverlay()}
     </View>
   );
+}
+
+function tagSelectionSummary(
+  tags: readonly Tag[],
+  tagIds: readonly string[],
+  newTagNames: readonly string[],
+  emptyLabel: string,
+): string {
+  const names = [
+    ...tagIds.flatMap((id) => {
+      const tag = tags.find((candidate) => candidate.id === id);
+      return tag ? [tag.name] : [];
+    }),
+    ...newTagNames,
+  ];
+  if (names.length === 0) return emptyLabel;
+  if (names.length <= 2) return names.join(', ');
+  return `${names.slice(0, 2).join(', ')} +${names.length - 2}`;
 }
 
 const createStyles = (theme: AppTheme) =>

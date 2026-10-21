@@ -1,4 +1,5 @@
 import type { Clock } from '@/application/ports/clock';
+import type { IdGenerator } from '@/application/ports/id-generator';
 import type { UnitOfWork } from '@/application/ports/unit-of-work';
 import {
   updateTransaction,
@@ -9,11 +10,16 @@ import { TransactionAccountLockedError } from '@/domain/errors/transaction-accou
 import type { AccountRepository } from '@/domain/repositories/account-repository';
 import type { CategoryRepository } from '@/domain/repositories/category-repository';
 import type { TransactionRepository } from '@/domain/repositories/transaction-repository';
+import type { TagRepository } from '@/domain/repositories/tag-repository';
 import { Money } from '@/domain/value-objects/money';
 import { parseTransferPair } from '@/domain/services/transfer-pair';
 
 import { prepareTransferInput, type TransferInput } from './transfer-input';
 import type { TransferPair } from './create-transfer';
+import {
+  hasTransactionTagChanges,
+  resolveTransactionTagIds,
+} from '@/application/use-cases/transactions/resolve-transaction-tags';
 
 export type UpdateTransferInput = TransferInput &
   Readonly<{ transactionGroupId: string }>;
@@ -25,6 +31,8 @@ export class UpdateTransfer {
     private readonly transactions: TransactionRepository,
     private readonly unitOfWork: UnitOfWork,
     private readonly clock: Clock,
+    private readonly ids?: IdGenerator,
+    private readonly tags?: TagRepository,
   ) {}
 
   async execute(input: UpdateTransferInput): Promise<TransferPair> {
@@ -65,6 +73,22 @@ export class UpdateTransfer {
     return this.unitOfWork.run(async () => {
       await this.transactions.save(source);
       await this.transactions.save(destination);
+      if (hasTransactionTagChanges(input)) {
+        if (!this.ids || !this.tags) {
+          throw new Error('Tag dependencies are not configured.');
+        }
+        const tagIds = await resolveTransactionTagIds(
+          input,
+          this.tags,
+          this.ids,
+          this.clock,
+        );
+        await this.tags.replaceTransactionTags(
+          [source.id, destination.id],
+          tagIds,
+          updatedAt,
+        );
+      }
       return { source, destination };
     });
   }

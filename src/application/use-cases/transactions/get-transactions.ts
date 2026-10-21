@@ -1,4 +1,5 @@
 import type { Transaction } from '@/domain/entities/transaction';
+import type { Tag } from '@/domain/entities/tag';
 import type { AccountRepository } from '@/domain/repositories/account-repository';
 import type { CategoryRepository } from '@/domain/repositories/category-repository';
 import type {
@@ -15,6 +16,8 @@ export type GetTransactionsInput = Pick<
   | 'payee'
   | 'memo'
   | 'status'
+  | 'tagIds'
+  | 'untagged'
   | 'dateFrom'
   | 'dateTo'
   | 'transactionGroupId'
@@ -26,6 +29,7 @@ export type TransactionSummary = Readonly<{
   transaction: Transaction;
   accountName: string;
   categoryName?: string;
+  tags?: readonly Tag[];
 }>;
 
 export class GetTransactions {

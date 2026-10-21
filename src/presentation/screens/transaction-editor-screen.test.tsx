@@ -8,6 +8,8 @@ import type { BudgetMonthValues } from '@/domain/services/calculate-budget-month
 import { Money } from '@/domain/value-objects/money';
 import { MoneyKeypad } from '@/presentation/components/common/money-keypad';
 import { TransactionEditorScreen } from '@/presentation/screens/transaction-editor-screen';
+import { FormRow } from '@/presentation/components/common/form-row';
+import { TagSelectionScreen } from '@/presentation/components/transactions/tag-selection-screen';
 
 jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: mockSafeAreaView,
@@ -141,6 +143,60 @@ describe('TransactionEditorScreen', () => {
     expect(onDelete).toHaveBeenCalledTimes(1);
     expect(onDismiss).toHaveBeenCalledTimes(1);
 
+    await act(async () => renderer.unmount());
+    alert.mockRestore();
+  });
+
+  test('treats a tag-only selection as an unsaved editor change', async () => {
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    let renderer!: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(
+        <TransactionEditorScreen
+          accounts={accounts}
+          budget={budget}
+          categoryGroups={[]}
+          onCreateCategory={async () => {
+            throw new Error('unused');
+          }}
+          onDismiss={jest.fn()}
+          onLoadBudgetMonth={async () => budget}
+          onSave={async () => undefined}
+          payees={[]}
+          tags={[
+            {
+              id: 'tag-1',
+              name: 'Travel',
+              nameKey: 'travel',
+              createdAt: timestamp,
+              updatedAt: timestamp,
+            },
+          ]}
+          transaction={transaction}
+        />,
+      );
+    });
+
+    const tagRow = renderer.root
+      .findAllByType(FormRow)
+      .find(({ props }) => props.overline === 'tags.title');
+    await act(async () => tagRow!.props.onPress());
+    await act(async () =>
+      renderer.root.findByType(TagSelectionScreen).props.onConfirm({
+        tagIds: ['tag-1'],
+        newTagNames: [],
+      }),
+    );
+    const close = renderer.root.findByProps({
+      accessibilityLabel: 'common.close',
+    });
+    await act(async () => close.props.onPress());
+    expect(alert).toHaveBeenCalledWith(
+      'transactions.discardTitle',
+      'transactions.discardBody',
+      expect.any(Array),
+      expect.any(Object),
+    );
     await act(async () => renderer.unmount());
     alert.mockRestore();
   });

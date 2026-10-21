@@ -12,6 +12,8 @@ export type TransactionFilters = Readonly<{
   payee?: string;
   memo?: string;
   status?: TransactionStatus;
+  tagIds?: readonly string[];
+  untagged?: boolean;
   dateFrom?: string;
   dateTo?: string;
   transactionGroupId?: string;

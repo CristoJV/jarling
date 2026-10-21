@@ -80,6 +80,24 @@ export class SQLiteTransactionRepository implements TransactionRepository {
       values.push(filters.status);
     }
 
+    if (filters.tagIds?.length) {
+      const uniqueTagIds = [...new Set(filters.tagIds)];
+      const placeholders = uniqueTagIds.map(() => '?').join(', ');
+      conditions.push(`EXISTS (
+        SELECT 1 FROM transaction_tags tt
+        WHERE tt.transaction_id = transactions.id
+          AND tt.tag_id IN (${placeholders})
+      )`);
+      values.push(...uniqueTagIds);
+    }
+
+    if (filters.untagged) {
+      conditions.push(`NOT EXISTS (
+        SELECT 1 FROM transaction_tags tt
+        WHERE tt.transaction_id = transactions.id
+      )`);
+    }
+
     if (filters.uncategorized) {
       conditions.push(
         "category_id IS NULL AND kind = 'standard' AND amount < 0",

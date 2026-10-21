@@ -1,11 +1,14 @@
 import type { ApplicationServices } from '@/application/application-services';
 import type { AccountsOverview } from '@/application/use-cases/accounts/get-accounts';
 import type { CategoryGroupSummary } from '@/application/use-cases/categories/get-category-groups';
+import type { Tag } from '@/domain/entities/tag';
 
 export type TransactionReferenceData = Readonly<{
   accounts: AccountsOverview;
   categoryGroups: readonly CategoryGroupSummary[];
   payees: readonly string[];
+  tags: readonly Tag[];
+  recentTags: readonly Tag[];
 }>;
 
 let cached:
@@ -23,10 +26,13 @@ export function getTransactionReferenceData(
     application.accounts.getAll.execute(),
     application.categories.getGroups.execute(),
     application.transactions.getPayees.execute(),
-  ]).then(([accounts, categoryGroups, payees]) => ({
+    application.transactions.getTags.execute(),
+  ]).then(([accounts, categoryGroups, payees, tagData]) => ({
     accounts,
     categoryGroups,
     payees,
+    tags: tagData.all,
+    recentTags: tagData.recent,
   }));
   cached = { application, promise };
   void promise.catch(() => {

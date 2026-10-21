@@ -16,6 +16,7 @@ import type { TransactionSummary } from '@/application/use-cases/transactions/ge
 import type { TransactionInput } from '@/application/use-cases/transactions/transaction-input';
 import type { TransferInput } from '@/application/use-cases/transfers/transfer-input';
 import type { BudgetMonthValues } from '@/domain/services/calculate-budget-month';
+import type { Tag } from '@/domain/entities/tag';
 import { AnimatedFlowScreen } from '@/presentation/components/common/animated-flow-screen';
 import { useApplication } from '@/presentation/contexts/application-context';
 import { useTranslation } from '@/presentation/localization/localization-provider';
@@ -42,6 +43,8 @@ type EditorData = Readonly<{
   categoryGroups: readonly CategoryGroupSummary[];
   budget: BudgetMonthValues;
   payees: readonly string[];
+  tags: readonly Tag[];
+  recentTags: readonly Tag[];
   transaction?: TransactionSummary;
   linkedTransaction?: TransactionSummary;
 }>;
@@ -192,6 +195,8 @@ export function TransactionFlowScreen() {
             onLoadBudgetMonth={loadBudgetMonth}
             onSave={save}
             payees={data.payees}
+            tags={data.tags}
+            recentTags={data.recentTags}
             transaction={data.transaction}
           />
         ) : (

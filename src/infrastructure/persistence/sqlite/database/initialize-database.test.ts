@@ -99,10 +99,13 @@ describe('initializeDatabase', () => {
     expect(transactionExecAsync).toHaveBeenCalledWith(
       expect.stringContaining("'migration_baseline'"),
     );
+    expect(transactionExecAsync).toHaveBeenCalledWith(
+      expect.stringContaining('CREATE TABLE transaction_tags'),
+    );
     expect(transactionRunAsync).toHaveBeenCalledWith(
       expect.stringContaining('INSERT INTO schema_migrations'),
       4,
-      'assignment_movement_history',
+      'assignment_movement_history_and_transaction_tags',
       expect.any(String),
     );
   });

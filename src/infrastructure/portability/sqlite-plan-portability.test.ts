@@ -12,6 +12,8 @@ const emptySnapshot = {
     category_groups: [],
     categories: [],
     transactions: [],
+    tags: [],
+    transaction_tags: [],
     transaction_links: [],
     budget_allocations: [],
     category_targets: [],
@@ -611,6 +613,78 @@ describe('Jarling plan snapshots', () => {
 
     const serialized = JSON.stringify(snapshot);
     expect(parsePlanSnapshot(JSON.parse(serialized))).toEqual(snapshot);
+  });
+
+  it('round-trips normalized transaction tags and rejects orphan associations', () => {
+    const base = {
+      ...emptySnapshot,
+      version: 4,
+      tables: {
+        ...emptySnapshot.tables,
+        budget_allocation_movements: [],
+        category_target_snoozes: [],
+        accounts: [
+          {
+            id: 'account-1',
+            name: 'Cash',
+            type: 'checking',
+            on_budget: 1,
+            closed: 0,
+            created_at: '2026-10-16T10:00:00.000Z',
+            updated_at: '2026-10-16T10:00:00.000Z',
+          },
+        ],
+        transactions: [
+          {
+            id: 'transaction-1',
+            account_id: 'account-1',
+            category_id: null,
+            payee: null,
+            amount: -100,
+            date: '2026-10-16',
+            notes: null,
+            status: 'uncleared',
+            kind: 'standard',
+            transaction_group_id: null,
+            created_at: '2026-10-16T10:00:00.000Z',
+            updated_at: '2026-10-16T10:00:00.000Z',
+          },
+        ],
+        tags: [
+          {
+            id: 'tag-1',
+            name: 'Viaje',
+            name_key: 'viaje',
+            created_at: '2026-10-16T10:00:00.000Z',
+            updated_at: '2026-10-16T10:00:00.000Z',
+          },
+        ],
+        transaction_tags: [
+          {
+            transaction_id: 'transaction-1',
+            tag_id: 'tag-1',
+            attached_at: '2026-10-16T10:00:00.000Z',
+          },
+        ],
+      },
+    };
+
+    expect(parsePlanSnapshot(base)).toEqual(base);
+    expect(() =>
+      parsePlanSnapshot({
+        ...base,
+        tables: {
+          ...base.tables,
+          transaction_tags: [
+            {
+              transaction_id: 'missing',
+              tag_id: 'tag-1',
+              attached_at: '2026-10-16T10:00:00.000Z',
+            },
+          ],
+        },
+      }),
+    ).toThrow('invalid transaction tag');
   });
 
   it.each([-4_000, 4_000])(

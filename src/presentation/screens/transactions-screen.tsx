@@ -23,6 +23,7 @@ import { TransactionRow } from '@/presentation/components/transactions/transacti
 import { TransactionSearchHeader } from '@/presentation/components/transactions/transaction-search-header';
 import { TransactionSearchSuggestions } from '@/presentation/components/transactions/transaction-search-suggestions';
 import { TransactionSearchSummary } from '@/presentation/components/transactions/transaction-search-summary';
+import { TagSelectionScreen } from '@/presentation/components/transactions/tag-selection-screen';
 import { usePrefetchTransactionReferenceData } from '@/presentation/hooks/use-prefetch-transaction-reference-data';
 import { useTransactions } from '@/presentation/hooks/use-transactions';
 import { useTranslation } from '@/presentation/localization/localization-provider';
@@ -70,10 +71,12 @@ export function TransactionsScreen() {
   const [accountId, setAccountId] = useState<string | undefined>();
   const [categoryId, setCategoryId] = useState<string | undefined>();
   const [status, setStatus] = useState<TransactionStatus | undefined>();
+  const [tagIds, setTagIds] = useState<readonly string[]>([]);
+  const [untagged, setUntagged] = useState(false);
   const [dateFilter, setDateFilter] = useState<TransactionDateFilter>();
-  const [selection, setSelection] = useState<'account' | 'category' | null>(
-    null,
-  );
+  const [selection, setSelection] = useState<
+    'account' | 'category' | 'tags' | null
+  >(null);
   const [dateBoundary, setDateBoundary] = useState<'from' | 'to' | null>(null);
   const uncategorized = routeString(parameters.category) === 'uncategorized';
   const filters = useMemo(
@@ -84,9 +87,20 @@ export function TransactionsScreen() {
         categoryId,
         dateFilter,
         status,
+        tagIds,
+        untagged,
         uncategorized,
       }),
-    [accountId, appliedSearches, categoryId, dateFilter, status, uncategorized],
+    [
+      accountId,
+      appliedSearches,
+      categoryId,
+      dateFilter,
+      status,
+      tagIds,
+      uncategorized,
+      untagged,
+    ],
   );
   const hasFilters = Object.keys(filters).length > 0;
   const {
@@ -137,8 +151,11 @@ export function TransactionsScreen() {
     searchLabels,
     status,
     statusLabels,
+    tagIds,
+    tags: data?.tags ?? [],
     t,
     uncategorized,
+    untagged,
   });
   function closeSearch() {
     setSearchDraft('');
@@ -181,6 +198,12 @@ export function TransactionsScreen() {
     finishSearchStep();
   }
 
+  function selectUntagged() {
+    setTagIds([]);
+    setUntagged(true);
+    finishSearchStep();
+  }
+
   function selectDatePreset(preset: TransactionDatePreset) {
     setDateFilter(createTransactionDatePreset(preset, todayIsoDate()));
     finishSearchStep();
@@ -196,6 +219,8 @@ export function TransactionsScreen() {
     if (key === 'account') setSelection('account');
     else if (key === 'category' || key === 'uncategorized') {
       setSelection('category');
+    } else if (key === 'tags' || key === 'untagged') {
+      setSelection('tags');
     } else {
       setSearchDraft('');
       setSearchActive(true);
@@ -207,6 +232,8 @@ export function TransactionsScreen() {
     else if (key === 'category') setCategoryId(undefined);
     else if (key === 'date') setDateFilter(undefined);
     else if (key === 'status') setStatus(undefined);
+    else if (key === 'tags') setTagIds([]);
+    else if (key === 'untagged') setUntagged(false);
     else if (key === 'uncategorized') router.setParams({ category: '' });
     else {
       setAppliedSearches((current) =>
@@ -270,8 +297,10 @@ export function TransactionsScreen() {
           onSelectDateBoundary={setDateBoundary}
           onSelectDatePreset={selectDatePreset}
           onSelectStatus={selectStatus}
+          onSelectTags={() => setSelection('tags')}
           onSelectText={applyTextSearch}
           onSelectUncategorized={selectUncategorized}
+          onSelectUntagged={selectUntagged}
           searchLabels={searchLabels}
           statuses={(['cleared', 'uncleared', 'reconciled'] as const).map(
             (value) => ({ value, label: statusLabels[value] }),
@@ -364,6 +393,22 @@ export function TransactionsScreen() {
         />
       ) : null}
 
+      {selection === 'tags' ? (
+        <TagSelectionScreen
+          allowCreate={false}
+          onBack={() => setSelection(null)}
+          onConfirm={(next) => {
+            setTagIds(next.tagIds);
+            setUntagged(false);
+            finishSearchStep();
+          }}
+          overlay
+          recentTags={data?.recentTags ?? []}
+          selectedTagIds={tagIds}
+          tags={data?.tags ?? []}
+        />
+      ) : null}
+
       {dateBoundary ? (
         <NativeDatePicker
           minimumDate={dateBoundary === 'to' ? dateFilter?.dateFrom : undefined}
@@ -395,8 +440,11 @@ type ChipInput = Readonly<{
   searchLabels: Readonly<Record<TransactionSearchField, string>>;
   status?: TransactionStatus;
   statusLabels: Readonly<Record<TransactionStatus, string>>;
+  tagIds: readonly string[];
+  tags: readonly Readonly<{ id: string; name: string }>[];
   t: ReturnType<typeof useTranslation>['t'];
   uncategorized: boolean;
+  untagged: boolean;
 }>;
 
 function buildFilterChips({
@@ -410,8 +458,11 @@ function buildFilterChips({
   searchLabels,
   status,
   statusLabels,
+  tagIds,
+  tags,
   t,
   uncategorized,
+  untagged,
 }: ChipInput): readonly TransactionFilterChip[] {
   return [
     ...appliedSearches.map(({ field, value }) => ({
@@ -459,6 +510,26 @@ function buildFilterChips({
             label: t('transactions.statusFilter', {
               value: statusLabels[status],
             }),
+          },
+        ]
+      : []),
+    ...(tagIds.length > 0
+      ? [
+          {
+            key: 'tags' as const,
+            label: t('tags.filter', {
+              value: tagIds
+                .map((id) => tags.find((tag) => tag.id === id)?.name ?? id)
+                .join(', '),
+            }),
+          },
+        ]
+      : []),
+    ...(untagged
+      ? [
+          {
+            key: 'untagged' as const,
+            label: t('tags.filter', { value: t('tags.untagged') }),
           },
         ]
       : []),

@@ -7,6 +7,7 @@ import type {
   TransactionSummary,
 } from '@/application/use-cases/transactions/get-transactions';
 import type { TransactionAmountSummary } from '@/domain/services/calculate-transaction-amount-summary';
+import type { Tag } from '@/domain/entities/tag';
 import { useApplication } from '@/presentation/contexts/application-context';
 import { useFocusedResource } from '@/presentation/hooks/use-focused-resource';
 
@@ -16,6 +17,8 @@ export type TransactionScreenData = Readonly<{
   hasMore: boolean;
   accounts: AccountsOverview;
   categoryGroups: readonly CategoryGroupSummary[];
+  tags: readonly Tag[];
+  recentTags: readonly Tag[];
 }>;
 
 const PAGE_SIZE = 100;
@@ -29,7 +32,7 @@ export function useTransactions(
   const loadingMoreRef = useRef(false);
 
   const load = useCallback(async () => {
-    const [transactions, amountSummary, accounts, categoryGroups] =
+    const [transactions, amountSummary, accounts, categoryGroups, tagData] =
       await Promise.all([
         application.transactions.getAll.execute({
           ...filters,
@@ -40,6 +43,7 @@ export function useTransactions(
           : Promise.resolve(null),
         application.accounts.getAll.execute(),
         application.categories.getGroups.execute(),
+        application.transactions.getTags.execute(),
       ]);
     return {
       transactions,
@@ -47,6 +51,8 @@ export function useTransactions(
       hasMore: transactions.length === PAGE_SIZE,
       accounts,
       categoryGroups,
+      tags: tagData.all,
+      recentTags: tagData.recent,
     };
   }, [application, filters, includeAmountSummary]);
 

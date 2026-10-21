@@ -20,6 +20,7 @@ export type TransactionEditorVisualEditor =
   | 'destination-account'
   | 'category'
   | 'payee'
+  | 'tags'
   | 'date'
   | 'memo';
 
@@ -40,6 +41,7 @@ type TransactionEditorFieldsProps = Readonly<{
   language: string;
   memo: string;
   payee: string;
+  tagSummary: string;
   showMore: boolean;
   showsCategoryDestination: boolean;
   onEdit: (editor: TransactionEditorVisualEditor) => void;
@@ -66,6 +68,7 @@ export function TransactionEditorFields({
   language,
   memo,
   payee,
+  tagSummary,
   showMore,
   showsCategoryDestination,
   onEdit,
@@ -139,6 +142,13 @@ export function TransactionEditorFields({
             onPress={() => onEdit('category')}
           />
         ) : null}
+        <FormRow
+          icon="tag-multiple-outline"
+          label={tagSummary}
+          muted={tagSummary === t('tags.none')}
+          onPress={() => onEdit('tags')}
+          overline={t('tags.title')}
+        />
         <FormRow
           icon="cash"
           label={accountName}

@@ -22,6 +22,11 @@ same unit. Version 4 creates a synthetic start-of-month movement for every
 non-zero allocation already present. These rows are marked as migration
 baselines because their real occurrence time cannot be reconstructed.
 
+Version 4 also creates the normalized `tags` catalogue and the many-to-many
+`transaction_tags` table. Existing transactions receive no associations.
+Transaction and transfer writes create tags and change associations inside the
+same unit of work; both transfer legs carry the same tag selection.
+
 ## Portable plan snapshot
 
 Readable JSON export and encrypted `.jarling` backup carry the same versioned
@@ -52,7 +57,8 @@ contract or valid state set.
 
 Assignment movements are portable financial data. Backup version 4 carries the
 movement table, and restore of older snapshots synthesizes the same baselines
-used by the SQLite migration.
+used by the SQLite migration. Version 4 also carries tags and their transaction
+associations; older snapshots migrate with both collections empty.
 
 See [ADR 0003](../adr/0003-sqlite-baseline-and-forward-migrations.md),
 [ADR 0004](../adr/0004-data-protection-and-portability.md), and
