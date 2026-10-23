@@ -5,11 +5,10 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## [1.6.0](https://github.com/CristoJV/jarling/compare/v1.5.0...v1.6.0) (2026-10-23)
 
-
 ### Features
 
-* **reports:** redesign spending breakdown and refine budget groups ([1ddd507](https://github.com/CristoJV/jarling/commit/1ddd5078751d6c5531671af87cf07151f6d5791e))
-* **ui:** Improve Spending reports ([bca4974](https://github.com/CristoJV/jarling/commit/bca4974f381901c6a8a44dbdaac2c603e70e0760))
+- **reports:** redesign spending breakdown and refine budget groups ([1ddd507](https://github.com/CristoJV/jarling/commit/1ddd5078751d6c5531671af87cf07151f6d5791e))
+- **ui:** Improve Spending reports ([bca4974](https://github.com/CristoJV/jarling/commit/bca4974f381901c6a8a44dbdaac2c603e70e0760))
 
 ## [1.5.0](https://github.com/CristoJV/jarling/compare/v1.4.0...v1.5.0) (2026-10-21)
 
