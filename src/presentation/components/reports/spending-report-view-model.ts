@@ -1,37 +1,68 @@
-import type {
-  SpendingCategoryReport,
-  SpendingInterval,
-  SpendingReport,
+import {
+  calculateSpendingGroupReports,
+  type SpendingCategoryReport,
+  type SpendingGroupReport,
+  type SpendingInterval,
+  type SpendingReport,
 } from '@/domain/services/calculate-spending-report';
 import { Money } from '@/domain/value-objects/money';
 
-export type SpendingIntervalRow = Readonly<{
-  interval: SpendingInterval;
-  spending: Money;
-  percentageOfWindow: number;
-}>;
+export type SpendingSelection =
+  | Readonly<{ kind: 'group'; groupId: string }>
+  | Readonly<{ kind: 'category'; categoryId: string }>;
 
-export type SpendingCategoryRow = Readonly<{
+export type SpendingCategoryView = Readonly<{
   category: SpendingCategoryReport;
+  groupId: string;
   hasActivity: boolean;
   spending: Money;
   percentageOfInterval: number;
 }>;
 
+export type SpendingGroupView = Readonly<{
+  group: SpendingGroupReport;
+  hasActivity: boolean;
+  spending: Money;
+  percentageOfInterval: number;
+  categories: readonly SpendingCategoryView[];
+}>;
+
+export type SpendingChartSegment = Readonly<{
+  id: string;
+  groupId: string;
+  kind: 'group' | 'category';
+  spending: Money;
+}>;
+
+export type SpendingIntervalView = Readonly<{
+  interval: SpendingInterval;
+  spending: Money;
+  groupSegments: readonly SpendingChartSegment[];
+  categorySegments: readonly SpendingChartSegment[];
+}>;
+
+export type SpendingSelectionView = Readonly<{
+  id: string;
+  kind: 'group' | 'category';
+  groupId: string;
+  name: string;
+  spending: Money;
+  percentageOfInterval: number;
+  total: Money;
+  average: Money;
+}>;
+
 export type SpendingReportViewModel = Readonly<{
   activeInterval: SpendingInterval;
+  activeIntervalIndex: number;
   activeSpending: Money;
   currentIntervalKey: string;
   isCurrentInterval: boolean;
-  maximumIntervalSpendingCents: number;
-  intervalRows: readonly SpendingIntervalRow[];
-  selectedCategory?: SpendingCategoryReport;
+  intervals: readonly SpendingIntervalView[];
+  groups: readonly SpendingGroupView[];
+  selection?: SpendingSelectionView;
   windowAverage: Money;
   windowTotal: Money;
-  spendingCategories: readonly SpendingCategoryRow[];
-  netCreditCategories: readonly SpendingCategoryRow[];
-  zeroNetCategories: readonly SpendingCategoryRow[];
-  noSpendingCategories: readonly SpendingCategoryRow[];
 }>;
 
 export function activeSpendingIntervalKey(
@@ -44,89 +75,162 @@ export function activeSpendingIntervalKey(
   return selected?.key ?? report.intervals.at(-1)!.key;
 }
 
+function categoryGroupId(category: SpendingCategoryReport): string {
+  return category.groupId ?? 'report-group-other';
+}
+
+function positivePercentage(cents: number, positiveTotalCents: number): number {
+  return cents > 0 && positiveTotalCents > 0 ? cents / positiveTotalCents : 0;
+}
+
 export function buildSpendingReportViewModel(
   report: SpendingReport,
   selectedIntervalKey?: string,
-  selectedCategoryId?: string,
+  selected?: SpendingSelection,
 ): SpendingReportViewModel {
   const currentInterval = report.intervals.at(-1)!;
   const activeKey = activeSpendingIntervalKey(report, selectedIntervalKey);
-  const activeInterval = report.intervals.find(({ key }) => key === activeKey)!;
   const activeIntervalIndex = report.intervals.findIndex(
     ({ key }) => key === activeKey,
   );
-  const selectedCategory = report.categories.find(
-    ({ categoryId }) => categoryId === selectedCategoryId,
-  );
-  const displayedSpending = report.intervals.map((interval, index) =>
-    selectedCategory
-      ? (selectedCategory.spendingByInterval[index] ?? Money.zero())
-      : interval.spending,
-  );
-  const positiveWindowTotalCents = displayedSpending.reduce(
-    (sum, spending) => sum + Math.max(0, spending.cents),
-    0,
-  );
+  const activeInterval = report.intervals[activeIntervalIndex]!;
   const activeCategoryIds = new Set(
     activeInterval.categories.map(({ categoryId }) => categoryId),
   );
+  const groupReports = calculateSpendingGroupReports(report);
   const activeCategorySpending = report.categories.map(
     (category) =>
       category.spendingByInterval[activeIntervalIndex] ?? Money.zero(),
   );
-  const positiveActiveTotalCents = activeCategorySpending.reduce(
+  const positiveCategoryTotalCents = activeCategorySpending.reduce(
     (sum, spending) => sum + Math.max(0, spending.cents),
     0,
   );
-  const categoryRows = report.categories.map((category, index) => {
+  const categories = report.categories.map((category, index) => {
     const spending = activeCategorySpending[index] ?? Money.zero();
     return {
       category,
+      groupId: categoryGroupId(category),
       hasActivity: activeCategoryIds.has(category.categoryId),
       spending,
-      percentageOfInterval:
-        spending.cents > 0 && positiveActiveTotalCents > 0
-          ? spending.cents / positiveActiveTotalCents
-          : 0,
+      percentageOfInterval: positivePercentage(
+        spending.cents,
+        positiveCategoryTotalCents,
+      ),
     };
   });
-  const intervalRows = report.intervals.map((interval, index) => {
-    const spending = displayedSpending[index] ?? Money.zero();
-    return {
-      interval,
-      spending,
-      percentageOfWindow:
-        spending.cents > 0 && positiveWindowTotalCents > 0
-          ? spending.cents / positiveWindowTotalCents
-          : 0,
-    };
-  });
+  const categoryById = new Map(
+    categories.map((category) => [category.category.categoryId, category]),
+  );
+  const activeGroupSpending = groupReports.map(
+    (group) => group.spendingByInterval[activeIntervalIndex] ?? Money.zero(),
+  );
+  const positiveGroupTotalCents = activeGroupSpending.reduce(
+    (sum, spending) => sum + Math.max(0, spending.cents),
+    0,
+  );
+  const groups = groupReports
+    .map((group, index) => {
+      const spending = activeGroupSpending[index] ?? Money.zero();
+      const groupCategories = group.categories
+        .map((category) => categoryById.get(category.categoryId)!)
+        .sort((left, right) => {
+          const spendingDifference = right.spending.cents - left.spending.cents;
+          return (
+            spendingDifference ||
+            left.category.categoryName.localeCompare(
+              right.category.categoryName,
+            )
+          );
+        });
+      return {
+        group,
+        hasActivity: groupCategories.some(({ hasActivity }) => hasActivity),
+        spending,
+        percentageOfInterval: positivePercentage(
+          spending.cents,
+          positiveGroupTotalCents,
+        ),
+        categories: groupCategories,
+      };
+    })
+    .sort((left, right) => {
+      const spendingDifference = right.spending.cents - left.spending.cents;
+      return (
+        spendingDifference ||
+        left.group.groupName.localeCompare(right.group.groupName)
+      );
+    });
+  const groupById = new Map(
+    groups.map((group) => [group.group.groupId, group]),
+  );
+
+  let selection: SpendingSelectionView | undefined;
+  if (selected?.kind === 'group') {
+    const group = groupById.get(selected.groupId);
+    if (group) {
+      selection = {
+        id: group.group.groupId,
+        kind: 'group',
+        groupId: group.group.groupId,
+        name: group.group.groupName,
+        spending: group.spending,
+        percentageOfInterval: group.percentageOfInterval,
+        total: group.group.total,
+        average: group.group.average,
+      };
+    }
+  } else if (selected?.kind === 'category') {
+    const category = categoryById.get(selected.categoryId);
+    if (category) {
+      selection = {
+        id: category.category.categoryId,
+        kind: 'category',
+        groupId: category.groupId,
+        name: category.category.categoryName,
+        spending: category.spending,
+        percentageOfInterval: category.percentageOfInterval,
+        total: category.category.total,
+        average: category.category.average,
+      };
+    }
+  }
+
+  const intervals = report.intervals.map((interval, intervalIndex) => ({
+    interval,
+    spending: selection
+      ? selection.kind === 'group'
+        ? (groupById.get(selection.groupId)?.group.spendingByInterval[
+            intervalIndex
+          ] ?? Money.zero())
+        : (categoryById.get(selection.id)?.category.spendingByInterval[
+            intervalIndex
+          ] ?? Money.zero())
+      : interval.spending,
+    groupSegments: groups.map(({ group }) => ({
+      id: group.groupId,
+      groupId: group.groupId,
+      kind: 'group' as const,
+      spending: group.spendingByInterval[intervalIndex] ?? Money.zero(),
+    })),
+    categorySegments: categories.map(({ category, groupId }) => ({
+      id: category.categoryId,
+      groupId,
+      kind: 'category' as const,
+      spending: category.spendingByInterval[intervalIndex] ?? Money.zero(),
+    })),
+  }));
 
   return {
     activeInterval,
-    activeSpending:
-      displayedSpending[activeIntervalIndex] ?? activeInterval.spending,
+    activeIntervalIndex,
+    activeSpending: selection?.spending ?? activeInterval.spending,
     currentIntervalKey: currentInterval.key,
     isCurrentInterval: activeInterval.key === currentInterval.key,
-    maximumIntervalSpendingCents: Math.max(
-      1,
-      ...report.intervals.map(({ spending }) => Math.max(0, spending.cents)),
-    ),
-    intervalRows: [...intervalRows].reverse(),
-    ...(selectedCategory ? { selectedCategory } : {}),
-    windowAverage: selectedCategory?.average ?? report.average,
-    windowTotal: selectedCategory?.total ?? report.total,
-    spendingCategories: categoryRows
-      .filter(({ spending }) => spending.cents > 0)
-      .sort((left, right) => right.spending.cents - left.spending.cents),
-    netCreditCategories: categoryRows
-      .filter(({ spending }) => spending.cents < 0)
-      .sort((left, right) => left.spending.cents - right.spending.cents),
-    zeroNetCategories: categoryRows.filter(
-      ({ hasActivity, spending }) => hasActivity && spending.cents === 0,
-    ),
-    noSpendingCategories: categoryRows.filter(
-      ({ hasActivity, spending }) => !hasActivity && spending.cents === 0,
-    ),
+    intervals,
+    groups,
+    ...(selection ? { selection } : {}),
+    windowAverage: selection?.average ?? report.average,
+    windowTotal: selection?.total ?? report.total,
   };
 }

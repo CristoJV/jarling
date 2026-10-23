@@ -1,6 +1,6 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   type NativeScrollEvent,
@@ -22,11 +22,8 @@ import { SelectionModal } from '@/presentation/components/common/selection-modal
 import { IncomeChart } from '@/presentation/components/reports/income-chart';
 import { ReportHero } from '@/presentation/components/reports/report-hero';
 import { NetWorthChart } from '@/presentation/components/reports/net-worth-chart';
-import { createReportCategoryColors } from '@/presentation/components/reports/report-category-colors';
-import {
-  SpendingCategoryBreakdown,
-  SpendingReportOverview,
-} from '@/presentation/components/reports/spending-report-view';
+import { SpendingReportView } from '@/presentation/components/reports/spending-report-view';
+import type { SpendingSelection } from '@/presentation/components/reports/spending-report-view-model';
 import { useReports } from '@/presentation/hooks/use-reports';
 import { useTranslation } from '@/presentation/localization/localization-provider';
 import {
@@ -81,7 +78,8 @@ export function ReportsScreen() {
     useState<SpendingIntervalUnit>('month');
   const [spendingIntervalCount, setSpendingIntervalCount] = useState(6);
   const [selector, setSelector] = useState<ReportSelector>(null);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string>();
+  const [spendingSelection, setSpendingSelection] =
+    useState<SpendingSelection>();
   const [selectedIntervalKey, setSelectedIntervalKey] = useState<string>();
   const [incomeMonthCount, setIncomeMonthCount] = useState(
     INCOME_MONTH_PAGE_SIZE,
@@ -106,33 +104,31 @@ export function ReportsScreen() {
   const netWorthReports =
     reports && reports.numberOfMonths === undefined ? reports : null;
 
-  const effectiveSelectedCategoryId =
-    selectedSpendingReports?.spending.categories.some(
-      ({ categoryId }) => categoryId === selectedCategoryId,
-    )
-      ? selectedCategoryId
-      : undefined;
+  const effectiveSpendingSelection = selectedSpendingReports
+    ? spendingSelection?.kind === 'category'
+      ? selectedSpendingReports.spending.categories.some(
+          ({ categoryId }) => categoryId === spendingSelection.categoryId,
+        )
+        ? spendingSelection
+        : undefined
+      : spendingSelection?.kind === 'group'
+        ? selectedSpendingReports.spending.categories.some(
+            ({ groupId }) => groupId === spendingSelection.groupId,
+          )
+          ? spendingSelection
+          : undefined
+        : undefined
+    : undefined;
   const effectiveSelectedIntervalKey =
     selectedSpendingReports?.spending.intervals.some(
       ({ key }) => key === selectedIntervalKey,
     )
       ? selectedIntervalKey
       : undefined;
-  const categoryColors = useMemo(
-    () =>
-      createReportCategoryColors(
-        selectedSpendingReports?.spending.categories.map(
-          ({ categoryId }) => categoryId,
-        ) ?? [],
-        theme.dark,
-      ),
-    [selectedSpendingReports, theme.dark],
-  );
-
   useFocusEffect(
     useCallback(() => {
       setThroughDate(localIsoDate());
-      setSelectedCategoryId(undefined);
+      setSpendingSelection(undefined);
       setSelectedIntervalKey(undefined);
     }, []),
   );
@@ -177,49 +173,27 @@ export function ReportsScreen() {
       >
         <View style={styles.content}>
           {kind === 'spending' ? (
-            <>
-              <View style={styles.reportSelectors}>
-                <ReportSelectorButton
-                  label={periodLabel(spendingIntervalCount, t)}
-                  onPress={() => setSelector('period')}
-                />
-                <ReportSelectorButton
-                  label={intervalPluralLabel(spendingInterval, t)}
-                  onPress={() => setSelector('interval')}
-                />
+            selectedSpendingReports ? (
+              <SpendingReportView
+                interval={spendingInterval}
+                intervalCount={spendingIntervalCount}
+                onOpenIntervalSelector={() => setSelector('interval')}
+                onOpenPeriodSelector={() => setSelector('period')}
+                onSelectInterval={setSelectedIntervalKey}
+                onSelectionChange={setSpendingSelection}
+                report={selectedSpendingReports.spending}
+                selectedIntervalKey={effectiveSelectedIntervalKey}
+                selection={effectiveSpendingSelection}
+              />
+            ) : (
+              <View style={styles.overviewLoading}>
+                {loading ? (
+                  <ActivityIndicator color={theme.colors.primary} />
+                ) : null}
               </View>
-              {selectedSpendingReports ? (
-                <SpendingReportOverview
-                  categoryColors={categoryColors}
-                  onClearCategory={() => setSelectedCategoryId(undefined)}
-                  onSelectInterval={setSelectedIntervalKey}
-                  report={selectedSpendingReports.spending}
-                  selectedCategoryId={effectiveSelectedCategoryId}
-                  selectedIntervalKey={effectiveSelectedIntervalKey}
-                />
-              ) : (
-                <View style={styles.overviewLoading}>
-                  {loading ? (
-                    <ActivityIndicator color={theme.colors.primary} />
-                  ) : null}
-                </View>
-              )}
-            </>
+            )
           ) : null}
           {error ? <Text style={styles.error}>{error}</Text> : null}
-          {selectedSpendingReports && kind === 'spending' ? (
-            <SpendingCategoryBreakdown
-              categoryColors={categoryColors}
-              onSelectCategory={(categoryId) =>
-                setSelectedCategoryId((current) =>
-                  current === categoryId ? undefined : categoryId,
-                )
-              }
-              report={selectedSpendingReports.spending}
-              selectedCategoryId={effectiveSelectedCategoryId}
-              selectedIntervalKey={effectiveSelectedIntervalKey}
-            />
-          ) : null}
           {incomeReports && kind === 'income' ? (
             <MonthlyReport
               chartMonths={incomeReports.months}
@@ -263,7 +237,6 @@ export function ReportsScreen() {
         <SelectionModal
           onDismiss={() => setSelector(null)}
           onSelect={(value) => {
-            setSelectedCategoryId(undefined);
             setSelectedIntervalKey(undefined);
             if (value !== spendingInterval) {
               setSpendingIntervalCount(DEFAULT_INTERVAL_COUNT[value]);
@@ -283,13 +256,12 @@ export function ReportsScreen() {
         <SelectionModal
           onDismiss={() => setSelector(null)}
           onSelect={(value) => {
-            setSelectedCategoryId(undefined);
             setSelectedIntervalKey(undefined);
             setSpendingIntervalCount(Number(value));
           }}
           options={INTERVAL_COUNTS[spendingInterval].map((count) => ({
             value: String(count),
-            label: periodLabel(count, t),
+            label: periodLabel(count, spendingInterval, t),
           }))}
           placement="center"
           selectedValue={String(spendingIntervalCount)}
@@ -297,33 +269,6 @@ export function ReportsScreen() {
         />
       ) : null}
     </SafeAreaView>
-  );
-}
-
-function ReportSelectorButton({
-  label,
-  onPress,
-}: Readonly<{ label: string; onPress: () => void }>) {
-  const theme = useAppTheme();
-  const styles = useThemedStyles(createStyles);
-  return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.reportSelector,
-        pressed && styles.reportSelectorPressed,
-      ]}
-    >
-      <Text numberOfLines={1} style={styles.reportSelectorText}>
-        {label}
-      </Text>
-      <MaterialCommunityIcons
-        color={theme.colors.primary}
-        name="chevron-down"
-        size={21}
-      />
-    </Pressable>
   );
 }
 
@@ -526,15 +471,14 @@ function intervalLabel(
   return t(`reports.interval.${interval}`);
 }
 
-function intervalPluralLabel(
+function periodLabel(
+  count: number,
   interval: SpendingIntervalUnit,
   t: ReturnType<typeof useTranslation>['t'],
 ) {
-  return t(`reports.intervalPlural.${interval}`);
-}
-
-function periodLabel(count: number, t: ReturnType<typeof useTranslation>['t']) {
-  return t('reports.lastIntervals', { count });
+  return count === 1
+    ? t(`reports.lastOne.${interval}`)
+    : t(`reports.last.${interval}`, { count });
 }
 
 const createStyles = (theme: AppTheme) =>
@@ -583,35 +527,10 @@ const createStyles = (theme: AppTheme) =>
       flexShrink: 1,
     },
     headerActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-    reportSelectors: {
-      flexDirection: 'row',
-      gap: 8,
-    },
     overviewLoading: {
       minHeight: 132,
       alignItems: 'center',
       justifyContent: 'center',
-    },
-    reportSelector: {
-      minWidth: 0,
-      minHeight: 40,
-      paddingHorizontal: 11,
-      backgroundColor: theme.colors.surface,
-      borderColor: theme.colors.border,
-      borderRadius: 13,
-      borderWidth: 1,
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: 8,
-    },
-    reportSelectorPressed: { backgroundColor: theme.colors.surfacePressed },
-    reportSelectorText: {
-      flex: 1,
-      color: theme.colors.text,
-      fontSize: 13,
-      fontWeight: '700',
     },
     content: {
       width: '100%',

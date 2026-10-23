@@ -44,6 +44,16 @@ export type SpendingCategoryReport = Readonly<{
   highestInterval: SpendingIntervalExtreme;
 }>;
 
+export type SpendingGroupReport = Readonly<{
+  groupId: string;
+  groupName: string;
+  total: Money;
+  average: Money;
+  spendingByInterval: readonly Money[];
+  percentageOfTotal: number;
+  categories: readonly SpendingCategoryReport[];
+}>;
+
 export type SpendingReport = Readonly<{
   interval: SpendingIntervalUnit;
   intervalCount: number;
@@ -52,6 +62,69 @@ export type SpendingReport = Readonly<{
   average: Money;
   categories: readonly SpendingCategoryReport[];
 }>;
+
+const OTHER_REPORT_GROUP_ID = 'report-group-other';
+
+export function calculateSpendingGroupReports(
+  report: SpendingReport,
+): readonly SpendingGroupReport[] {
+  const groups = new Map<
+    string,
+    {
+      groupId: string;
+      groupName: string;
+      categories: SpendingCategoryReport[];
+      spendingByIntervalCents: number[];
+      totalCents: number;
+    }
+  >();
+
+  for (const category of report.categories) {
+    const groupId = category.groupId ?? OTHER_REPORT_GROUP_ID;
+    const current = groups.get(groupId) ?? {
+      groupId,
+      groupName: category.groupName,
+      categories: [],
+      spendingByIntervalCents: Array.from(
+        { length: report.intervals.length },
+        () => 0,
+      ),
+      totalCents: 0,
+    };
+    current.categories.push(category);
+    current.totalCents += category.total.cents;
+    category.spendingByInterval.forEach((spending, index) => {
+      current.spendingByIntervalCents[index] =
+        (current.spendingByIntervalCents[index] ?? 0) + spending.cents;
+    });
+    groups.set(groupId, current);
+  }
+
+  const rows = [...groups.values()];
+  const positiveTotalCents = rows.reduce(
+    (sum, group) => sum + Math.max(0, group.totalCents),
+    0,
+  );
+
+  return rows
+    .map((group) => ({
+      groupId: group.groupId,
+      groupName: group.groupName,
+      total: Money.fromCents(group.totalCents),
+      average: Money.fromCents(
+        Math.round(group.totalCents / report.intervals.length),
+      ),
+      spendingByInterval: group.spendingByIntervalCents.map((cents) =>
+        Money.fromCents(cents),
+      ),
+      percentageOfTotal:
+        group.totalCents > 0 && positiveTotalCents > 0
+          ? group.totalCents / positiveTotalCents
+          : 0,
+      categories: [...group.categories],
+    }))
+    .sort((left, right) => right.total.cents - left.total.cents);
+}
 
 type CalculateSpendingReportInput = Readonly<{
   throughDate: string;

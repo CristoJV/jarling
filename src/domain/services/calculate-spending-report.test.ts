@@ -6,6 +6,7 @@ import { Money } from '@/domain/value-objects/money';
 
 import {
   buildSpendingIntervals,
+  calculateSpendingGroupReports,
   calculateSpendingReport,
   UNCATEGORIZED_REPORT_CATEGORY_ID,
   type SpendingIntervalUnit,
@@ -164,6 +165,31 @@ describe('buildSpendingIntervals', () => {
 });
 
 describe('calculateSpendingReport', () => {
+  it('aggregates signed category series into category groups', () => {
+    const report = calculateSpendingReport({
+      throughDate: '2026-08-31',
+      interval: 'month',
+      intervalCount: 2,
+      accounts,
+      categories,
+      groups,
+      transactions: [
+        expense('food', 10_000, '2026-07-10', 'food'),
+        expense('transport', 5_000, '2026-08-10', 'transport'),
+      ],
+    });
+
+    expect(calculateSpendingGroupReports(report)).toEqual([
+      expect.objectContaining({
+        groupId: 'needs',
+        total: Money.fromCents(15_000),
+        average: Money.fromCents(7_500),
+        spendingByInterval: [Money.fromCents(10_000), Money.fromCents(5_000)],
+        percentageOfTotal: 1,
+      }),
+    ]);
+  });
+
   it('returns the current interval and selectable categories when there are no transactions', () => {
     const report = calculateSpendingReport({
       throughDate: '2026-08-26',
