@@ -34,28 +34,29 @@ by color alone.
 ## Reports
 
 - **Spending Breakdown** groups dated net category spending by week, month, or
-  year. It opens on the current month and compares it with the last six months.
+  year. It opens on the current month and uses the shortest available comparison
+  range by default: four weeks, three months, or two years.
   An interactive donut always preserves the complete category-group composition.
   Its segments have flat, clearly separated ends. Selecting a group subdivides
   only that group's segment into stable dark-to-light category shades; selecting
   a category from the list highlights its shade and replaces every other color
   with an opaque theme-aware grey without changing the donut's scope. Donut
   segments select groups, while only the expandable category list selects
-  individual categories. The center shows
-  the selected interval's signed net spending, or the selected group/category
-  amount and share. Swiping moves between intervals while preserving selection.
+  individual categories. The center shows the selected interval's signed net
+  spending, or the selected group/category amount and share, and tapping it
+  clears the current selection. Swiping moves between intervals while preserving
+  selection.
   The signed stacked history opens with the latest four intervals, an empty
   separator, and the selected range's average as the sixth position; older
   history is available horizontally. The average composition fixes the stack
   order for every interval, and every date includes its corresponding amount.
   Selecting a bar updates the donut and list. A selected group moves to the bar
-  baseline, expands in average order, and gains a line between its interval
-  values. A selected category moves below its sibling categories, which remain
-  grouped immediately above it with a less-muted grey than unrelated groups;
-  the line then follows only that category. Period total and average follow the
-  same selection. The category breakdown orders groups by spending and expands
-  them to expose every category, including selectable zero values, using the same
-  stable shades as both charts.
+  baseline and expands in average order. A selected category moves below its
+  sibling categories, which remain grouped immediately above it with a less-muted
+  grey than unrelated groups. Period total and average follow the same selection.
+  The category breakdown orders groups by spending and expands them to expose
+  every category, including selectable zero values, using the same stable shades
+  as both charts.
   The comparison begins with the interval containing the oldest transaction,
   so averages do not treat earlier unavailable history as zero spending.
   Net credits remain signed, appear below the chart baseline, and do not

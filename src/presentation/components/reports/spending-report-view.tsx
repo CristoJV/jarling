@@ -69,6 +69,7 @@ export function SpendingReportView({
       <SpendingDonutCard
         colors={colors}
         interval={interval}
+        onClearSelection={() => onSelectionChange(undefined)}
         onOpenIntervalSelector={onOpenIntervalSelector}
         onSelectInterval={onSelectInterval}
         onSelectItem={handleSelection}

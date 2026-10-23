@@ -56,10 +56,10 @@ const INTERVAL_COUNTS: Readonly<
 };
 
 const DEFAULT_INTERVAL_COUNT: Readonly<Record<SpendingIntervalUnit, number>> = {
-  day: 14,
-  week: 8,
-  month: 6,
-  year: 3,
+  day: 7,
+  week: 4,
+  month: 3,
+  year: 2,
 };
 
 const INCOME_MONTH_PAGE_SIZE = 5;
@@ -76,7 +76,9 @@ export function ReportsScreen() {
   const [kind, setKind] = useState<ReportKind>('spending');
   const [spendingInterval, setSpendingInterval] =
     useState<SpendingIntervalUnit>('month');
-  const [spendingIntervalCount, setSpendingIntervalCount] = useState(6);
+  const [spendingIntervalCount, setSpendingIntervalCount] = useState(
+    DEFAULT_INTERVAL_COUNT.month,
+  );
   const [selector, setSelector] = useState<ReportSelector>(null);
   const [spendingSelection, setSpendingSelection] =
     useState<SpendingSelection>();

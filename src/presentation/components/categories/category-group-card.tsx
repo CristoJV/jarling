@@ -1,3 +1,4 @@
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -77,15 +78,15 @@ export function CategoryGroupCard({
         style={styles.groupHeader}
       >
         <View style={styles.groupCopy}>
-          <Text
-            style={[
-              styles.disclosure,
-              { color: theme.colors.primary },
-              expanded && styles.disclosureExpanded,
-            ]}
+          <View
+            style={[styles.disclosure, expanded && styles.disclosureExpanded]}
           >
-            ›
-          </Text>
+            <MaterialCommunityIcons
+              color={theme.colors.primary}
+              name="chevron-right"
+              size={20}
+            />
+          </View>
           <Text
             numberOfLines={1}
             style={[styles.groupName, { color: theme.colors.text }]}
@@ -427,9 +428,9 @@ const createStyles = (theme: AppTheme) =>
     groupCopy: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
     disclosure: {
       width: 18,
-      color: theme.colors.primary,
-      fontSize: 24,
-      fontWeight: '700',
+      height: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     disclosureExpanded: { transform: [{ rotate: '90deg' }] },
     groupName: {
@@ -455,9 +456,13 @@ const createStyles = (theme: AppTheme) =>
     summaryAmountStrong: { color: theme.colors.positive, fontWeight: '800' },
     empty: { padding: 12, color: theme.colors.textMuted, fontSize: 14 },
     categoryRow: {
+      width: '100%',
       minHeight: 62,
       paddingHorizontal: 8,
       paddingVertical: 11,
+      backgroundColor: theme.dark
+        ? theme.colors.surface
+        : theme.colors.surfaceMuted,
       borderTopColor: theme.colors.border,
       borderTopWidth: StyleSheet.hairlineWidth,
     },
