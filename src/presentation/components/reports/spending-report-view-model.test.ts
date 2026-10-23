@@ -9,6 +9,7 @@ import {
 const food = {
   categoryId: 'food',
   categoryName: 'Food',
+  groupId: 'needs',
   groupName: 'Needs',
   total: Money.fromCents(15_000),
   average: Money.fromCents(5_000),
@@ -80,40 +81,12 @@ const report: SpendingReport = {
 };
 
 describe('spending report view model', () => {
-  it('defaults to the current interval and falls back when a selection is stale', () => {
+  it('defaults to the current interval and falls back from a stale selection', () => {
     expect(activeSpendingIntervalKey(report)).toBe('2026-10-01');
     expect(activeSpendingIntervalKey(report, 'missing')).toBe('2026-10-01');
   });
 
-  it('selects an earlier interval and separates net credits', () => {
-    const view = buildSpendingReportViewModel(report, '2026-09-01');
-
-    expect(view.activeInterval.key).toBe('2026-09-01');
-    expect(view.isCurrentInterval).toBe(false);
-    expect(view.spendingCategories).toEqual([]);
-    expect(view.netCreditCategories[0]).toMatchObject({
-      category: { categoryId: 'food' },
-      spending: Money.fromCents(-5_000),
-    });
-  });
-
-  it('uses positive intervals for period shares and the largest bar scale', () => {
-    const view = buildSpendingReportViewModel(report);
-
-    expect(view.maximumIntervalSpendingCents).toBe(10_000);
-    expect(
-      view.intervalRows.map(({ interval, percentageOfWindow }) => ({
-        key: interval.key,
-        percentageOfWindow,
-      })),
-    ).toEqual([
-      { key: '2026-10-01', percentageOfWindow: 0.5 },
-      { key: '2026-09-01', percentageOfWindow: 0 },
-      { key: '2026-08-01', percentageOfWindow: 0.5 },
-    ]);
-  });
-
-  it('uses the selected category for detail, average and interval bars', () => {
+  it('aggregates categories by group for the active interval', () => {
     const transport = {
       ...food,
       categoryId: 'transport',
@@ -126,91 +99,82 @@ describe('spending report view model', () => {
         Money.zero(),
       ],
     };
-    const view = buildSpendingReportViewModel(
-      { ...report, categories: [food, transport] },
-      '2026-09-01',
-      'transport',
-    );
-
-    expect(view.selectedCategory?.categoryId).toBe('transport');
-    expect(view.activeSpending).toEqual(Money.fromCents(4_000));
-    expect(view.windowTotal).toEqual(Money.fromCents(6_000));
-    expect(view.windowAverage).toEqual(Money.fromCents(2_000));
-    expect(view.maximumIntervalSpendingCents).toBe(10_000);
-    expect(
-      view.intervalRows.map(({ spending, percentageOfWindow }) => ({
-        spending: spending.cents,
-        percentageOfWindow,
-      })),
-    ).toEqual([
-      { spending: 0, percentageOfWindow: 0 },
-      { spending: 4_000, percentageOfWindow: 2 / 3 },
-      { spending: 2_000, percentageOfWindow: 1 / 3 },
-    ]);
-  });
-
-  it('keeps zero net activity distinct from an empty interval', () => {
-    const zeroCategory = {
-      ...food,
-      categoryId: 'transport',
-      categoryName: 'Transport',
-      total: Money.zero(),
-      average: Money.zero(),
-      spendingByInterval: [Money.zero(), Money.zero(), Money.zero()],
-      percentageOfTotal: 0,
-    };
-    const zeroReport: SpendingReport = {
-      ...report,
-      categories: [food, zeroCategory],
-      intervals: [
-        report.intervals[0]!,
-        report.intervals[1]!,
-        {
-          ...report.intervals[2]!,
-          categories: [
-            ...report.intervals[2]!.categories,
-            {
-              categoryId: zeroCategory.categoryId,
-              spending: Money.zero(),
-              percentageOfInterval: 0,
-            },
-          ],
-        },
-      ],
-    };
-
-    expect(buildSpendingReportViewModel(zeroReport).zeroNetCategories).toEqual([
-      expect.objectContaining({
-        category: expect.objectContaining({ categoryId: 'transport' }),
-        hasActivity: true,
-        spending: Money.zero(),
-      }),
-    ]);
-  });
-
-  it('keeps categories without activity in the selected interval selectable at zero percent', () => {
-    const transport = {
-      ...food,
-      categoryId: 'transport',
-      categoryName: 'Transport',
-      total: Money.fromCents(2_000),
-      average: Money.fromCents(667),
-      spendingByInterval: [Money.fromCents(2_000), Money.zero(), Money.zero()],
-      percentageOfTotal: 2 / 17,
-    };
-
     const view = buildSpendingReportViewModel({
       ...report,
       categories: [food, transport],
     });
 
-    expect(view.noSpendingCategories).toEqual([
-      expect.objectContaining({
-        category: expect.objectContaining({ categoryId: 'transport' }),
-        hasActivity: false,
-        spending: Money.zero(),
-        percentageOfInterval: 0,
-      }),
+    expect(view.groups).toHaveLength(1);
+    expect(view.groups[0]).toMatchObject({
+      group: { groupId: 'needs', total: Money.fromCents(21_000) },
+      spending: Money.fromCents(10_000),
+      percentageOfInterval: 1,
+    });
+    expect(view.groups[0]?.categories).toHaveLength(2);
+  });
+
+  it('uses a selected group for the center and period summary', () => {
+    const view = buildSpendingReportViewModel(report, '2026-09-01', {
+      kind: 'group',
+      groupId: 'needs',
+    });
+
+    expect(view.selection).toMatchObject({
+      id: 'needs',
+      kind: 'group',
+      spending: Money.fromCents(-5_000),
+      percentageOfInterval: 0,
+    });
+    expect(view.activeSpending).toEqual(Money.fromCents(-5_000));
+    expect(view.windowTotal).toEqual(Money.fromCents(15_000));
+    expect(view.intervals.map(({ spending }) => spending.cents)).toEqual([
+      10_000, -5_000, 10_000,
     ]);
+  });
+
+  it('keeps category selection across intervals with zero spending', () => {
+    const transport = {
+      ...food,
+      categoryId: 'transport',
+      categoryName: 'Transport',
+      groupId: 'wants',
+      groupName: 'Wants',
+      total: Money.fromCents(6_000),
+      average: Money.fromCents(2_000),
+      spendingByInterval: [
+        Money.fromCents(2_000),
+        Money.fromCents(4_000),
+        Money.zero(),
+      ],
+    };
+    const view = buildSpendingReportViewModel(
+      { ...report, categories: [food, transport] },
+      '2026-10-01',
+      { kind: 'category', categoryId: 'transport' },
+    );
+
+    expect(view.selection).toMatchObject({
+      id: 'transport',
+      kind: 'category',
+      groupId: 'wants',
+      spending: Money.zero(),
+    });
+    expect(view.activeSpending).toEqual(Money.zero());
+    expect(view.windowTotal).toEqual(Money.fromCents(6_000));
+    expect(view.windowAverage).toEqual(Money.fromCents(2_000));
+    expect(view.intervals.map(({ spending }) => spending.cents)).toEqual([
+      2_000, 4_000, 0,
+    ]);
+  });
+
+  it('ignores stale entity selections without changing report totals', () => {
+    const view = buildSpendingReportViewModel(report, undefined, {
+      kind: 'category',
+      categoryId: 'missing',
+    });
+
+    expect(view.selection).toBeUndefined();
+    expect(view.activeSpending).toEqual(Money.fromCents(10_000));
+    expect(view.windowTotal).toEqual(report.total);
   });
 });
