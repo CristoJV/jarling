@@ -99,6 +99,7 @@ function donutItemColor(
 export function SpendingDonutCard({
   colors,
   interval,
+  onClearSelection,
   onOpenIntervalSelector,
   onSelectInterval,
   onSelectItem,
@@ -106,6 +107,7 @@ export function SpendingDonutCard({
 }: Readonly<{
   colors: SpendingReportColors;
   interval: SpendingIntervalUnit;
+  onClearSelection: () => void;
   onOpenIntervalSelector: () => void;
   onSelectInterval: (intervalKey: string) => void;
   onSelectItem: (selection: SpendingSelection) => void;
@@ -295,6 +297,11 @@ export function SpendingDonutCard({
               pressed && styles.actionPressed,
             ]}
           >
+            <MaterialCommunityIcons
+              color={theme.colors.primary}
+              name="calendar-today"
+              size={13}
+            />
             <Text style={styles.currentActionText}>{t('reports.today')}</Text>
           </Pressable>
         ) : null}
@@ -386,7 +393,13 @@ export function SpendingDonutCard({
               />
             ))}
           </Svg>
-          <View pointerEvents="none" style={styles.center}>
+          <Pressable
+            accessibilityLabel={t('reports.clearSpendingSelection')}
+            accessibilityRole="button"
+            disabled={!view.selection}
+            onPress={onClearSelection}
+            style={styles.center}
+          >
             <Text numberOfLines={1} style={styles.intervalLabel}>
               {intervalText}
             </Text>
@@ -412,7 +425,7 @@ export function SpendingDonutCard({
                     )
                 : t('reports.netSpending')}
             </Text>
-          </View>
+          </Pressable>
         </Animated.View>
         <Pressable
           accessibilityLabel={t('reports.nextPeriod')}
@@ -458,6 +471,8 @@ const createStyles = (theme: AppTheme) =>
       gap: 10,
     },
     selector: {
+      position: 'absolute',
+      right: 0,
       width: 92,
       height: 32,
       paddingHorizontal: 10,
@@ -489,6 +504,8 @@ const createStyles = (theme: AppTheme) =>
     center: {
       position: 'absolute',
       width: DONUT_SIZE - STROKE_WIDTH * 2 - 18,
+      height: DONUT_SIZE - STROKE_WIDTH * 2 - 18,
+      borderRadius: 999,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -534,6 +551,8 @@ const createStyles = (theme: AppTheme) =>
     navigationButtonPrevious: { left: 0 },
     navigationButtonNext: { right: 0 },
     currentAction: {
+      position: 'absolute',
+      left: 0,
       width: 92,
       height: 32,
       paddingHorizontal: 8,
@@ -542,6 +561,7 @@ const createStyles = (theme: AppTheme) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
+      gap: 5,
     },
     currentActionText: {
       color: theme.colors.primary,

@@ -1,25 +1,25 @@
 import type { SpendingGroupReport } from '@/domain/services/calculate-spending-report';
 
 const LIGHT_GROUP_COLORS = [
-  '#397BC5',
-  '#25866A',
-  '#D17A22',
-  '#C4506D',
-  '#7B5FA8',
-  '#7A7830',
-  '#2C8D9B',
-  '#A45A35',
+  '#5B54E8',
+  '#3478C7',
+  '#23846B',
+  '#C27627',
+  '#B84E72',
+  '#7657A8',
+  '#2E8392',
+  '#8B6B3F',
 ] as const;
 
 const DARK_GROUP_COLORS = [
-  '#78ADE7',
+  '#9B96FF',
+  '#78AFE8',
   '#62C5A2',
-  '#F0A85D',
-  '#EA8298',
-  '#BE8DE0',
-  '#C5C168',
-  '#68C5D1',
-  '#E1926C',
+  '#E2A15A',
+  '#E384A4',
+  '#BD94DE',
+  '#70C0CC',
+  '#C6A06F',
 ] as const;
 
 export type SpendingReportColors = Readonly<{

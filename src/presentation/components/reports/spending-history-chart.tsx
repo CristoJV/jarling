@@ -188,32 +188,6 @@ export function SpendingHistoryChart({
     }
   }
 
-  const selectedLineId = view.selection?.id;
-  const linePoints = view.selection
-    ? slots.flatMap((intervalIndex, slotIndex) => {
-        if (typeof intervalIndex !== 'number') return [];
-        const intervalView = view.intervals[intervalIndex]!;
-        const values =
-          view.selection!.kind === 'category'
-            ? intervalView.categorySegments
-            : intervalView.groupSegments;
-        const value =
-          values.find(({ id }) => id === selectedLineId)?.spending.cents ?? 0;
-        return [
-          {
-            key: view.intervals[intervalIndex]!.interval.key,
-            x: (slotIndex + 0.5) * stepWidth,
-            y: geometry.baselineY - value * geometry.scale,
-          },
-        ];
-      })
-    : [];
-  const selectionColor = view.selection
-    ? view.selection.kind === 'category'
-      ? colors.categories[view.selection.id]!
-      : colors.groups[view.selection.id]!
-    : theme.colors.primary;
-
   return (
     <View style={styles.card}>
       <View style={styles.header}>
@@ -396,35 +370,6 @@ export function SpendingHistoryChart({
                   </Pressable>
                 );
               })}
-              {view.selection
-                ? linePoints
-                    .slice(0, -1)
-                    .map((point, index) => (
-                      <ChartLine
-                        color={selectionColor}
-                        end={linePoints[index + 1]!}
-                        key={`line-${point.key}`}
-                        start={point}
-                      />
-                    ))
-                : null}
-              {view.selection
-                ? linePoints.map((point) => (
-                    <View
-                      key={`point-${point.key}`}
-                      pointerEvents="none"
-                      style={[
-                        styles.linePoint,
-                        {
-                          backgroundColor: selectionColor,
-                          borderColor: theme.colors.surface,
-                          left: point.x - 4,
-                          top: point.y - 4,
-                        },
-                      ]}
-                    />
-                  ))
-                : null}
             </View>
           </ScrollView>
         ) : null}
@@ -475,35 +420,6 @@ function outerCornerStyle(
     borderBottomRightRadius:
       index === negativeIndices.at(-1) ? radius : undefined,
   };
-}
-
-function ChartLine({
-  color,
-  end,
-  start,
-}: Readonly<{
-  color: string;
-  end: Readonly<{ x: number; y: number }>;
-  start: Readonly<{ x: number; y: number }>;
-}>) {
-  const deltaX = end.x - start.x;
-  const deltaY = end.y - start.y;
-  const length = Math.hypot(deltaX, deltaY);
-  return (
-    <View
-      pointerEvents="none"
-      style={{
-        position: 'absolute',
-        height: 2,
-        width: length,
-        left: (start.x + end.x - length) / 2,
-        top: (start.y + end.y) / 2 - 1,
-        backgroundColor: color,
-        borderRadius: 1,
-        transform: [{ rotate: `${Math.atan2(deltaY, deltaX)}rad` }],
-      }}
-    />
-  );
 }
 
 const createStyles = (theme: AppTheme) =>
@@ -617,11 +533,4 @@ const createStyles = (theme: AppTheme) =>
       textAlign: 'center',
     },
     intervalAmountSelected: { color: theme.colors.text, fontWeight: '900' },
-    linePoint: {
-      position: 'absolute',
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-      borderWidth: 2,
-    },
   });
